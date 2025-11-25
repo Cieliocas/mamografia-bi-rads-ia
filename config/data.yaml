@@ -1,0 +1,19 @@
+# config/data.yaml
+
+# Caminho raiz onde os dados estão (ajustado para a estrutura que criamos)
+path: ../data/yolo_dataset
+
+# Pastas relativas ao 'path' acima
+train: images/train  # Imagens para treinamento
+val: images/test     # Imagens para validação (usando o set de teste inicialmente)
+test: images/test    # Imagens para teste final
+
+# Número de classes (Calcificação e Massa)
+nc: 2
+
+# Nomes das classes (A ordem DEVE ser a mesma do dicionário no seu script Python)
+# 0: Calcification
+# 1: Mass
+names:
+  0: Calcification
+  1: Mass
