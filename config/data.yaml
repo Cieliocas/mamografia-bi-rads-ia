@@ -1,19 +1,17 @@
 # config/data.yaml
 
-# Caminho raiz onde os dados estão (ajustado para a estrutura que criamos)
-path: ../data/yolo_dataset
+# Caminho absoluto para a raiz do dataset processado
+path: /Users/francieliocastro/Developer/ICIT/mamografia-bi-rads-ia/data/yolo_dataset
 
-# Pastas relativas ao 'path' acima
-train: images/train  # Imagens para treinamento
-val: images/test     # Imagens para validação (usando o set de teste inicialmente)
-test: images/test    # Imagens para teste final
+# Pastas relativas ao 'path' acima (o YOLO concatena automaticamente)
+train: images/train
+val: images/test     # Usando 'test' como validação por enquanto
+test: images/test
 
-# Número de classes (Calcificação e Massa)
+# Número de classes
 nc: 2
 
-# Nomes das classes (A ordem DEVE ser a mesma do dicionário no seu script Python)
-# 0: Calcification
-# 1: Mass
+# Nomes das classes (0: Calcification, 1: Mass)
 names:
   0: Calcification
   1: Mass

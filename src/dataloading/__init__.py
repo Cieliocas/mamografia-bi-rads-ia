@@ -1,5 +1,4 @@
 # src/dataloading/__init__.py
 
-# Deixa a pasta dataloading acessível como um pacote Python
-from .loading import DDSMDataLoader 
-from .augmentations import get_data_augmentations
+from .loading import DDSMDataset
+from .augmentations import get_data_augmentations, apply_clahe
