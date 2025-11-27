@@ -23,6 +23,7 @@ Thumbs.db
 data/CBIS-DDSM-JPG/
 data/raw/
 data/processed/
+data/
 # Ignorar arquivos de imagem soltos que você possa ter baixado
 *.jpg
 *.jpeg
