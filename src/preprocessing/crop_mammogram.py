@@ -4,13 +4,6 @@ import numpy as np
 def crop_breast_region(image, threshold=10):
     """
     Corta a imagem para conter apenas a região da mama, removendo o fundo preto excessivo.
-    
-    Args:
-        image (numpy array): Imagem de entrada (escala de cinza).
-        threshold (int): Limiar para considerar o que é fundo (preto) e o que é tecido.
-    
-    Returns:
-        cropped_image (numpy array): A imagem cortada focada na mama.
     """
     # Se a imagem vier colorida, converte para cinza
     if len(image.shape) == 3:
