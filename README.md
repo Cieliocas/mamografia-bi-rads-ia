@@ -38,9 +38,10 @@ O projeto integra técnicas avançadas de Visão Computacional e Engenharia de S
 
 ### 📂 Estrutura do Projeto
 
-*   **`src/model/`**: Contém a arquitetura da U-Net, scripts de treinamento (`train.py`) com suporte a múltiplas GPUs (`MirroredStrategy`) e o pipeline de inferência.
-*   **`src/web_app/`**: Código do servidor Flask e da interface web.
-*   **`data/`**: Scripts de manipulação do dataset CBIS-DDSM (imagens e máscaras de segmentação).
+*   **`src/ml/`**: Contém a arquitetura da U-Net, scripts de treinamento (`train.py`) e o pipeline de inferência (antigo `src/model`).
+*   **`src/api/`**: Código do servidor Flask (antigo `src/web_app`).
+*   **`frontend/`**: Interface web React/Next.js.
+*   **`data/`**: Scripts de manipulação do dataset CBIS-DDSM.
 *   **`scripts/`**: Utilitários para automação, incluindo scripts de submissão de job para o cluster (`train.slurm`) e empacotamento (`pack_for_cluster.sh`).
 
 ### 🚀 Como Executar
@@ -56,12 +57,12 @@ Para rodar a aplicação completa (Backend + Frontend):
 
 **1. Backend (API)**
 ```bash
-python src/web_app/app.py
+python src/api/app.py
 ```
 
 **2. Frontend (React)**
 ```bash
-cd src/web_app/radiology-annotation-tool
+cd frontend
 npm run dev
 ```
 Acesse: `http://localhost:3000`

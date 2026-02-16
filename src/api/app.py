@@ -10,7 +10,7 @@ import io
 
 # Add model directory to path to import Predictor
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from model.predict import MammographyModel
+from ml.predict import MammographyModel
 
 app = Flask(__name__)
 CORS(app)
