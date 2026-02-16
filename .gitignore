@@ -51,3 +51,5 @@ wandb/
 # --- Documentação local ---
 # Se você gerar relatórios temporários
 *.pdf
+venv_tf/
+mammografia_code.zip
