@@ -31,7 +31,7 @@ O projeto integra técnicas avançadas de Visão Computacional e Engenharia de S
 *   **TensorFlow / Keras**: Framework de Deep Learning utilizado para construir e treinar a rede neural **U-Net**. A U-Net foi escolhida por sua excelência em tarefas de segmentação biomédica, permitindo delinear com precisão as áreas suspeitas na mamografia.
 *   **OpenCV & Pydicom**: Bibliotecas essenciais para o pré-processamento de imagens médicas. O `pydicom` permite a leitura nativa de arquivos DICOM (padrão da indústria), enquanto o `opencv` realiza ajustes de contraste, redimensionamento e normalização.
 *   **Flask (Python)**: Backend robusto que expõe o modelo de IA como uma API. Ele gerencia o fluxo de dados entre o armazenamento, o modelo de inferência e a interface do usuário.
-*   **React / Web Technologies** (Em desenvolvimento): Interface frontend moderna e responsiva, projetada para proporcionar uma experiência de usuário fluida (DX/UX) semelhante a uma IDE, com ferramentas de zoom, ajuste de janela e overlay de máscaras de segmentação.
+*   **React / Next.js / Tailwind CSS**: Interface frontend moderna e responsiva, projetada para proporcionar uma experiência de usuário fluida (DX/UX) semelhante a uma IDE, com ferramentas de zoom, ajuste de janela e overlay de máscaras de segmentação. Utiliza **Radix UI** para acessibilidade.
 *   **Slurm & NVIDIA GPUs**: Ambiente de treinamento de alta performance. Utilizamos clusters computacionais (Techne) com GPUs **NVIDIA L4** para treinar o modelo no dataset completo **CBIS-DDSM**, garantindo robustez e precisão.
 
 ---
@@ -51,11 +51,20 @@ O projeto está configurado para execução em ambientes HPC com Slurm.
 sbatch scripts/train.slurm
 ```
 
-#### Inferência Local
-Para rodar a aplicação de auxílio ao diagnóstico:
+#### Inferência Local (Full Stack)
+Para rodar a aplicação completa (Backend + Frontend):
+
+**1. Backend (API)**
 ```bash
 python src/web_app/app.py
 ```
+
+**2. Frontend (React)**
+```bash
+cd src/web_app/radiology-annotation-tool
+npm run dev
+```
+Acesse: `http://localhost:3000`
 
 ---
 

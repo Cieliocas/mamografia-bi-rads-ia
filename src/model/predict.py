@@ -22,7 +22,7 @@ class MammographyModel:
             print(f"Model loaded from {self.model_path}")
         except Exception as e:
             print(f"Could not load model: {e}. Using dummy model for demonstration.")
-            from unet import unet_model
+            from .unet import unet_model
             self.model = unet_model((IMG_HEIGHT, IMG_WIDTH, 1))
 
     def preprocess(self, image_path):
