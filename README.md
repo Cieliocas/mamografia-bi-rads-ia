@@ -18,7 +18,9 @@ Este projeto de **Iniciação Tecnológica (CNPq)** visa desenvolver uma soluç�
 O objetivo não é substituir o médico, mas fornecer uma segunda opinião em tempo real e agilizar o processo de laudo através de uma interface de **anotação semiautomática**, onde o especialista valida as sugestões da Inteligência Artificial.
 
 **Bolsista:** Francielio Castro  
-**Orientador:** Prof. André Castelo Branco Soares
+**Orientador:** Prof. André Castelo Branco Soares  
+**Instituição:** Universidade Federal do Piauí (UFPI)  
+**Laboratório:** Laboratório de Redes / Núcleo de Computação de Alto Desempenho (NCAD) - Cluster TechNE
 
 ---
 
@@ -57,4 +59,4 @@ python src/web_app/app.py
 
 ---
 
-> *Este projeto é financiado pelo CNPq e desenvolvido no âmbito do Instituto Federal/Universidade (ICIT).*
+> *Este projeto é financiado pelo CNPq e desenvolvido com o apoio da infraestrutura do NCAD/UFPI.*
