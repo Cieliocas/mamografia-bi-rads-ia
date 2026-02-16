@@ -5,9 +5,11 @@ let translateY = 0;
 let isDragging = false;
 let startX, startY;
 
-const imgLayer = document.getElementById('image-layer');
-const maskLayer = document.getElementById('mask-layer');
-const container = document.getElementById('canvas-container');
+const imgLayer1 = document.getElementById('image-layer-1');
+const maskLayer1 = document.getElementById('mask-layer-1');
+const imgLayer2 = document.getElementById('image-layer-2');
+const container = document.getElementById('row-container'); // Listen on parent
+const container2 = document.getElementById('canvas-container-2');
 
 // --- Upload & Predict ---
 async function handleUpload(input) {
@@ -17,31 +19,35 @@ async function handleUpload(input) {
 
         document.getElementById('status-text').innerText = "Processing AI Analysis...";
         document.getElementById('status-text').style.display = 'block';
-        
+
         try {
             const response = await fetch('/predict', {
                 method: 'POST',
                 body: formData
             });
-            
+
             const data = await response.json();
-            
+
             if (data.error) {
                 alert("Error: " + data.error);
                 return;
             }
 
             // Update Images
-            imgLayer.src = data.image;
-            maskLayer.src = data.mask;
-            
-            // Show Layers
-            imgLayer.style.display = 'block';
-            maskLayer.style.display = 'block';
-            
+            imgLayer1.src = data.image;
+            maskLayer1.src = data.mask;
+            imgLayer2.src = data.image; // Original for compare view
+
+            // Show Layers (Canvas 1)
+            imgLayer1.style.display = 'block';
+            maskLayer1.style.display = 'block';
+
+            // Show Layers (Canvas 2)
+            imgLayer2.style.display = 'block';
+
             // Reset View
             resetView();
-            
+
             // Activate UI
             document.getElementById('controls-panel').style.display = 'flex';
             document.getElementById('ai-result').innerText = data.classification;
@@ -58,9 +64,11 @@ async function handleUpload(input) {
 // --- Zoom & Pan Logic ---
 
 function updateTransform() {
+    // Apply transform to ALL layers in ALL views for synchronization
     const style = `translate(calc(-50% + ${translateX}px), calc(-50% + ${translateY}px)) scale(${scale})`;
-    imgLayer.style.transform = style;
-    maskLayer.style.transform = style;
+    imgLayer1.style.transform = style;
+    maskLayer1.style.transform = style;
+    imgLayer2.style.transform = style;
 }
 
 function zoom(delta) {
@@ -109,14 +117,28 @@ window.addEventListener('mousemove', (e) => {
 // --- UI Controls ---
 
 function setOpacity(value) {
-    maskLayer.style.opacity = value;
+    maskLayer1.style.opacity = value;
     document.getElementById('opacity-val').innerText = Math.round(value * 100) + '%';
 }
 
 function toggleMask() {
-    const current = maskLayer.style.display;
-    maskLayer.style.display = current === 'none' ? 'block' : 'none';
+    const current = maskLayer1.style.display;
+    maskLayer1.style.display = current === 'none' ? 'block' : 'none';
 }
+
+let isSplitView = false;
+function toggleSplitView() {
+    isSplitView = !isSplitView;
+    if (isSplitView) {
+        container2.style.display = 'flex';
+        // When splitting, we might want to resize window/layout to fit?
+        // Flexbox handles it.
+    } else {
+        container2.style.display = 'none';
+    }
+    // Retain zoom/pan state (synchronized)
+}
+
 
 async function submitValidation() {
     const validationData = {
@@ -127,7 +149,7 @@ async function submitValidation() {
 
     const response = await fetch('/validate', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(validationData)
     });
 

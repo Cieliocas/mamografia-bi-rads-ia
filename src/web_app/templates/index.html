@@ -38,6 +38,7 @@
             </div>
 
             <button onclick="toggleMask()" class="secondary">👁️ Toggle Mask</button>
+            <button onclick="toggleSplitView()" class="secondary">◫ Side-by-Side</button>
             <button onclick="resetView()" class="secondary">⟲ Reset View</button>
 
             <!-- Analysis Results -->
@@ -70,10 +71,18 @@
         </div>
 
         <!-- Image Canvas -->
-        <div class="canvas-container" id="canvas-container">
-            <!-- Layers stack on top of each other -->
-            <img id="image-layer" src="" alt="Mammogram" style="display:none;">
-            <img id="mask-layer" src="" alt="Segmentation Mask" style="display:none;">
+        <div class="row-container" id="row-container">
+            <div class="canvas-container" id="canvas-container-1">
+                <span class="view-label">Overlay View</span>
+                <img id="image-layer-1" src="" alt="Mammogram" style="display:none;">
+                <img id="mask-layer-1" src="" alt="Segmentation Mask" style="display:none;">
+            </div>
+
+            <div class="canvas-container" id="canvas-container-2" style="display:none; border-left: 1px solid #444;">
+                <span class="view-label">Original View</span>
+                <img id="image-layer-2" src="" alt="Mammogram - Original" style="display:none;">
+                <!-- No mask in this view -->
+            </div>
         </div>
     </div>
 
