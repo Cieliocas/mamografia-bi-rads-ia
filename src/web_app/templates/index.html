@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MammoAI - Radiologist Assistant</title>
+    <style>
+        :root {
+            --bg-color: #1e1e1e;
+            --panel-color: #252526;
+            --text-color: #d4d4d4;
+            --accent-color: #007acc;
+            --border-color: #3e3e42;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 300px;
+            background-color: var(--panel-color);
+            border-right: 1px solid var(--border-color);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #1e1e1e;
+            position: relative;
+        }
+
+        h2 {
+            margin-top: 0;
+            font-weight: normal;
+            font-size: 1.2rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        button {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button.secondary {
+            background-color: var(--border-color);
+        }
+
+        .image-container {
+            position: relative;
+            max-width: 90%;
+            max-height: 90%;
+            border: 1px solid var(--border-color);
+            background-image: linear-gradient(45deg, #2a2a2a 25%, transparent 25%), linear-gradient(-45deg, #2a2a2a 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #2a2a2a 75%), linear-gradient(-45deg, transparent 75%, #2a2a2a 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+
+        img {
+            max-width: 100%;
+            max-height: 80vh;
+            display: block;
+        }
+
+        .mask-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.5;
+            pointer-events: none;
+            mix-blend-mode: screen; 
+            /* Simple overlay, JS will handle advanced rendering */
+        }
+
+        .status-panel {
+            margin-top: auto;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+
+        .classification {
+            font-weight: bold;
+            color: #4ec9b0;
+            margin-bottom: 10px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-label {
+            display: block;
+            padding: 10px;
+            background-color: var(--border-color);
+            text-align: center;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>Tools</h2>
+        
+        <div class="control-group">
+            <label for="file-upload" class="file-label">Open Exam (Image)</label>
+            <input id="file-upload" type="file" accept="image/*" onchange="handleUpload(this)">
+        </div>
+
+        <div class="control-group" id="controls" style="display:none;">
+            <button onclick="toggleMask()">Toggle AI Mask</button>
+            
+            <div class="status-panel">
+                <h3>AI Analysis</h3>
+                <div id="ai-result" class="classification">No exam loaded</div>
+                
+                <label>Validate Classification:</label>
+                <select id="user-val" style="width: 100%; padding: 8px; margin: 10px 0; background: #333; color: white; border: 1px solid #555;">
+                    <option value="1">BI-RADS 1: Negative</option>
+                    <option value="2">BI-RADS 2: Benign</option>
+                    <option value="3">BI-RADS 3: Probably Benign</option>
+                    <option value="4">BI-RADS 4: Suspicious</option>
+                    <option value="5">BI-RADS 5: Highly Suspicious</option>
+                </select>
+                <button onclick="submitValidation()">Check / Approve</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <div class="image-container" id="img-container" style="display:none;">
+            <img id="main-image" src="" alt="Mammogram">
+            <img id="mask-image" class="mask-overlay" src="" alt="Mask" style="display:none;">
+        </div>
+        <div id="placeholder-text" style="color: #666;">Select an image to start analysis</div>
+    </div>
+
+    <script>
+        let currentClassification = "";
+
+        async function handleUpload(input) {
+            if (input.files && input.files[0]) {
+                const formData = new FormData();
+                formData.append('file', input.files[0]);
+
+                document.getElementById('placeholder-text').innerText = "Processing...";
+                
+                try {
+                    const response = await fetch('/predict', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.error) {
+                        alert("Error: " + data.error);
+                        return;
+                    }
+
+                    // Display Image & Mask
+                    const mainImg = document.getElementById('main-image');
+                    const maskImg = document.getElementById('mask-image');
+                    
+                    mainImg.src = data.image;
+                    maskImg.src = data.mask;
+                    
+                    document.getElementById('img-container').style.display = 'block';
+                    document.getElementById('placeholder-text').style.display = 'none';
+                    document.getElementById('controls').style.display = 'flex';
+                    
+                    // Show Result
+                    document.getElementById('ai-result').innerText = data.classification;
+                    currentClassification = data.classification;
+                    
+                    // Default mask on
+                    maskImg.style.display = 'block';
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert("Failed to process image.");
+                }
+            }
+        }
+
+        function toggleMask() {
+            const mask = document.getElementById('mask-image');
+            mask.style.display = mask.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function submitValidation() {
+            const userChoice = document.getElementById('user-val').value;
+            const validationData = {
+                ai_classification: currentClassification,
+                user_classification: userChoice,
+                timestamp: new Date().toISOString()
+            };
+
+            const response = await fetch('/validate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(validationData)
+            });
+
+            const result = await response.json();
+            alert("Validation Saved: " + result.status);
+        }
+    </script>
+</body>
+</html>
