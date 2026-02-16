@@ -7,7 +7,7 @@ IMG_HEIGHT = 256
 IMG_WIDTH = 256
 
 class MammographyModel:
-    def __init__(self, model_path='unet_mammo.h5'):
+    def __init__(self, model_path='models/unet_mammo_best.keras'):
         self.model = None
         self.model_path = model_path
         self.load_model()
