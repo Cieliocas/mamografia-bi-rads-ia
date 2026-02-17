@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/useAuth"
 import {
   ResizablePanelGroup,
   ResizablePanel,
@@ -42,6 +44,15 @@ interface BiRadsResult {
 }
 
 export default function WorkstationPage() {
+  const { user, token, isLoading } = useAuth()
+  const router = useRouter()
+
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/login")
+    }
+  }, [user, isLoading, router])
+
   const [activeView, setActiveView] = useState("upload")
   const [files, setFiles] = useState<StudyFile[]>([])
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
@@ -132,14 +143,23 @@ export default function WorkstationPage() {
       // Call API (Proxied by Next.js to Flask)
       const response = await fetch('/predict', {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
         body: formData
       })
 
       if (!response.ok) {
+        if (response.status === 401) {
+          toast.error("Sessão expirada. Faça login novamente.")
+          router.push("/login")
+          return
+        }
         throw new Error(`Server responded with ${response.status}`)
       }
 
       const data = await response.json()
+      console.log("API Response:", data) // DEBUG log
 
       if (data.error) {
         throw new Error(data.error)
@@ -192,7 +212,7 @@ export default function WorkstationPage() {
         description: String(error)
       })
     }
-  }, [selectedFile, files])
+  }, [selectedFile, files, token, router])
 
   const handleConfirm = useCallback(() => {
     if (!selectedFile) return
@@ -221,6 +241,10 @@ export default function WorkstationPage() {
   }, [selectedFile])
 
   const selectedFileData = files.find((f) => f.id === selectedFile)
+
+  if (isLoading || !user) {
+    return <div className="flex h-screen w-screen items-center justify-center bg-background text-foreground">Carregando permissões...</div>
+  }
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden">
@@ -278,6 +302,7 @@ export default function WorkstationPage() {
               onSubmitForAnalysis={handleSubmitForAnalysis}
               onUploadClick={handleUploadClick}
               annotations={annotations}
+              maskSrc={currentResult?.mask}
             />
           </ResizablePanel>
 

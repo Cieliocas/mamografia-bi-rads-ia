@@ -10,6 +10,7 @@ class MammographyModel:
     def __init__(self, model_path='models/unet_mammo_best.keras'):
         self.model = None
         self.model_path = model_path
+        self.is_dummy = False
         self.load_model()
 
     def load_model(self):
@@ -17,13 +18,12 @@ class MammographyModel:
             # Custom objects needed for loading model with custom metrics
             self.model = tf.keras.models.load_model(
                 self.model_path, 
-                compile=False # data loader / custom metrics might cause issues on load if not careful, safe to skip compile for inference
+                compile=False 
             )
             print(f"Model loaded from {self.model_path}")
         except Exception as e:
-            print(f"Could not load model: {e}. Using dummy model for demonstration.")
-            from .unet import unet_model
-            self.model = unet_model((IMG_HEIGHT, IMG_WIDTH, 1))
+            print(f"Could not load model: {e}. Using dummy model for UI testing.")
+            self.is_dummy = True
 
     def preprocess(self, image_path):
         """
@@ -48,13 +48,22 @@ class MammographyModel:
         """
         img_input, original_shape = self.preprocess(image_path)
         
-        pred_mask = self.model.predict(img_input)
-        pred_mask = (pred_mask > 0.5).astype(np.uint8)[0, :, :, 0] # Threshold
-        
+        if self.is_dummy:
+            # Generate a synthetic mask (a white circle in the center)
+            pred_mask = np.zeros((IMG_HEIGHT, IMG_WIDTH), dtype=np.uint8)
+            cv2.circle(pred_mask, (IMG_WIDTH//2, IMG_HEIGHT//2), IMG_WIDTH//4, 1, -1)
+            bi_rads = "BI-RADS 0: Mock Data (Testing)"
+            print("Generating dummy mask for UI testing...")
+        else:
+            pred_mask = self.model.predict(img_input)
+            pred_mask = (pred_mask > 0.5).astype(np.uint8)[0, :, :, 0] # Threshold
+            bi_rads = "Unknown" # Will be estimated below if not overwritten
+
         # Resize mask back to original size
         mask_resized = cv2.resize(pred_mask, (original_shape[1], original_shape[0]), interpolation=cv2.INTER_NEAREST)
         
-        bi_rads = self.estimate_bi_rads(mask_resized)
+        if not self.is_dummy:
+             bi_rads = self.estimate_bi_rads(mask_resized)
         
         return mask_resized, bi_rads
 

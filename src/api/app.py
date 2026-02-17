@@ -5,6 +5,9 @@ import cv2
 import numpy as np
 from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS
+from flask_jwt_extended import JWTManager, jwt_required
+from .database import db
+from .auth import auth_bp
 from PIL import Image
 import io
 
@@ -13,13 +16,25 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from ml.predict import MammographyModel
 
 app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mammo.db'
+app.config['JWT_SECRET_KEY'] = 'super-secret-key-change-this-in-prod' # Change this!
+
 CORS(app)
+db.init_app(app)
+jwt = JWTManager(app)
+
+app.register_blueprint(auth_bp, url_prefix='/auth')
+
+# Create tables
+with app.app_context():
+    db.create_all()
 
 # Initialize Model
 model = MammographyModel()
 
 
 @app.route('/predict', methods=['POST'])
+@jwt_required()
 def predict():
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
@@ -41,7 +56,10 @@ def predict():
         cv2.imwrite(temp_path, img)
         
         # Run prediction
+        print(f"Running prediction on {temp_path}...")
         mask, classification = model.predict(temp_path)
+        print(f"Prediction done. Mask shape: {mask.shape}, Classification: {classification}")
+        print(f"Mask values: min={mask.min()}, max={mask.max()}")
         
         # Encode images to base64 for frontend
         _, img_encoded = cv2.imencode('.png', img)
@@ -49,6 +67,7 @@ def predict():
         
         _, mask_encoded = cv2.imencode('.png', (mask * 255).astype(np.uint8))
         mask_base64 = base64.b64encode(mask_encoded).decode('utf-8')
+        print(f"Mask encoded length: {len(mask_base64)}")
         
         return jsonify({
             'image': f'data:image/png;base64,{img_base64}',
@@ -60,6 +79,7 @@ def predict():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/validate', methods=['POST'])
+@jwt_required()
 def validate():
     data = request.json
     print(f"Radiologist Validation Received: {data}")
