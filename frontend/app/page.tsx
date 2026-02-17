@@ -214,7 +214,7 @@ export default function WorkstationPage() {
     }
   }, [selectedFile, files, token, router])
 
-  const handleConfirm = useCallback(() => {
+  const handleConfirm = useCallback(async () => {
     if (!selectedFile) return
     setFiles((prev) =>
       prev.map((f) =>
@@ -224,7 +224,29 @@ export default function WorkstationPage() {
     toast.success("Classificacao confirmada", {
       description: "O resultado foi salvo com sucesso.",
     })
-  }, [selectedFile])
+
+    // Save to Acervo
+    const fileData = files.find(f => f.id === selectedFile)
+    if (fileData && fileData.file) {
+      const formData = new FormData()
+      formData.append('file', fileData.file)
+      if (currentResult) {
+        formData.append('classification', currentResult.label)
+      }
+
+      try {
+        await fetch('/acervo/save-image', {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData
+        })
+        toast.success("Imagem adicionada ao Acervo")
+      } catch (e) {
+        console.error("Erro ao salvar no Acervo:", e)
+        toast.error("Erro ao salvar no Acervo")
+      }
+    }
+  }, [selectedFile, files, token, currentResult])
 
   const handleReject = useCallback(() => {
     if (!selectedFile) return

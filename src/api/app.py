@@ -8,6 +8,7 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager, jwt_required
 from .database import db
 from .auth import auth_bp
+from .acervo import acervo_bp
 from PIL import Image
 import io
 
@@ -18,7 +19,11 @@ instance_path = os.path.join(project_root, 'instance')
 
 # Add model directory to path to import Predictor
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from ml.predict import MammographyModel
+try:
+    from ml.predict import MammographyModel
+except ImportError:
+    class MammographyModel:
+        def predict(self, x): return None, "Model not loaded"
 
 app = Flask(__name__, instance_path=instance_path)
 
@@ -48,6 +53,7 @@ db.init_app(app)
 jwt = JWTManager(app)
 
 app.register_blueprint(auth_bp, url_prefix='/auth')
+app.register_blueprint(acervo_bp, url_prefix='/acervo')
 
 # Create tables
 with app.app_context():

@@ -18,14 +18,14 @@ def register():
     phone = data.get('phone')
     role = data.get('role', 'usuario_comum') # Default to common user
 
-    if not username or not password or not email:
-        return jsonify({"msg": "Username, password and email required"}), 400
+    if not username or not password or not email or not full_name or not phone:
+        return jsonify({"msg": "Todos os campos são obrigatórios (Usuário, Senha, Email, Nome, Telefone)"}), 400
 
     if User.query.filter_by(username=username).first():
-        return jsonify({"msg": "Username already exists"}), 400
+        return jsonify({"msg": "Nome de usuário já existe"}), 400
         
     if User.query.filter_by(email=email).first():
-        return jsonify({"msg": "Email already exists"}), 400
+        return jsonify({"msg": "Email já cadastrado"}), 400
 
     hashed_password = generate_password_hash(password, method='pbkdf2:sha256')
     

@@ -48,6 +48,13 @@ __pycache__
 .pytest_cache/
 wandb/
 
+# --- Node modules ---
+frontend/node_modules/
+node_modules/
+
+# --- Flask Instance ---
+instance/
+
 # --- Documentação local ---
 # Se você gerar relatórios temporários
 *.pdf

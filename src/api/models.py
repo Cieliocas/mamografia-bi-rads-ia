@@ -1,4 +1,5 @@
 from .database import db
+import datetime
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -30,4 +31,31 @@ class User(db.Model):
             "role": self.role,
             "is_verified": self.is_verified,
             "profile_image": self.profile_image
+        }
+
+class Image(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    filename = db.Column(db.String(255), nullable=False) # Stored path
+    original_filename = db.Column(db.String(255), nullable=False)
+    
+    # Metadata
+    patient_id = db.Column(db.String(50), nullable=True)
+    patient_name = db.Column(db.String(100), nullable=True)
+    tags = db.Column(db.Text, nullable=True) # JSON or comma-separated
+    classification = db.Column(db.String(50), nullable=True) # e.g. BI-RADS 4
+    
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "filename": self.filename,
+            "original_filename": self.original_filename,
+            "patient_id": self.patient_id,
+            "patient_name": self.patient_name,
+            "tags": self.tags,
+            "classification": self.classification,
+            "created_at": self.created_at.isoformat() if self.created_at else None
         }

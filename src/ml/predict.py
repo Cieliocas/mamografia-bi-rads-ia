@@ -1,6 +1,13 @@
 import numpy as np
-import tensorflow as tf
+import numpy as np
 import cv2
+
+try:
+    import tensorflow as tf
+    TF_AVAILABLE = True
+except ImportError:
+    TF_AVAILABLE = False
+    print("TensorFlow not available. Model will not be loaded.")
 
 # Parameters matching training
 IMG_HEIGHT = 256
@@ -11,18 +18,29 @@ class MammographyModel:
         self.model = None
         self.model_path = model_path
         self.is_dummy = False
-        self.load_model()
+        if TF_AVAILABLE:
+            self.load_model()
+        else:
+            print("TensorFlow not available, model will not be loaded.")
+            self.is_dummy = True
 
     def load_model(self):
-        try:
-            # Custom objects needed for loading model with custom metrics
-            self.model = tf.keras.models.load_model(
-                self.model_path, 
-                compile=False 
-            )
-            print(f"Model loaded from {self.model_path}")
-        except Exception as e:
-            print(f"Could not load model: {e}. Using dummy model for UI testing.")
+        if not TF_AVAILABLE:
+            return
+        
+        if os.path.exists(self.model_path):
+            try:
+                # Custom objects needed for loading model with custom metrics
+                self.model = tf.keras.models.load_model(
+                    self.model_path, 
+                    compile=False 
+                )
+                print(f"Model loaded from {self.model_path}")
+            except Exception as e:
+                print(f"Error loading model from {self.model_path}: {e}. Prediction will use dummy data.")
+                self.is_dummy = True
+        else:
+            print(f"Model file not found at {self.model_path}. Prediction will use dummy data.")
             self.is_dummy = True
 
     def preprocess(self, image_path):

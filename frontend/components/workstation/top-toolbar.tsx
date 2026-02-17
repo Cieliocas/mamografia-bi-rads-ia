@@ -4,7 +4,9 @@ import {
   Activity,
   Brain,
   MonitorDot,
+  Archive,
 } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { UserProfileMenu } from "@/components/user-profile-menu"
 import {
@@ -14,6 +16,7 @@ import {
 } from "@/components/ui/tooltip"
 
 export function TopToolbar() {
+  const router = useRouter()
   return (
     <header className="flex h-14 items-center justify-between border-b border-border bg-card px-4">
       <div className="flex items-center gap-2">
@@ -44,6 +47,15 @@ export function TopToolbar() {
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">Atividade do Modelo</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="ghost" size="icon" onClick={() => router.push("/acervo")} className="text-muted-foreground hover:text-foreground">
+                <Archive className="size-5" />
+                <span className="sr-only">Acervo</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">Acervo de Imagens</TooltipContent>
           </Tooltip>
         </div>
 

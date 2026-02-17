@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "sonner"
 import { Camera, Loader2, Save, User, Lock, HelpCircle, ArrowLeft, Mail } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ProfilePage() {
     const { user, token, logout, login } = useAuth()
@@ -35,11 +36,13 @@ export default function ProfilePage() {
     const [fullName, setFullName] = useState(user?.full_name || "")
     const [phone, setPhone] = useState(user?.phone || "")
     const [email, setEmail] = useState(user?.email || "")
+    const [role, setRole] = useState(user?.role || "usuario_comum")
 
     // Password Form State
     const [currentPassword, setCurrentPassword] = useState("")
     const [newPassword, setNewPassword] = useState("")
     const [confirmPassword, setConfirmPassword] = useState("")
+    const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false)
 
     // Support Form State
     const [supportSubject, setSupportSubject] = useState("")
@@ -101,6 +104,7 @@ export default function ProfilePage() {
                     full_name: fullName,
                     phone: phone,
                     email: email,
+                    role: role,
                 }),
             })
 
@@ -259,6 +263,19 @@ export default function ProfilePage() {
                                                 value={phone} onChange={(e) => setPhone(e.target.value)}
                                             />
                                         </div>
+                                        <div className="space-y-2">
+                                            <Label htmlFor="role">Função / Profissão</Label>
+                                            <Select value={role} onValueChange={setRole}>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Selecione sua função" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="radiologista">Radiologista</SelectItem>
+                                                    <SelectItem value="medico">Médico</SelectItem>
+                                                    <SelectItem value="usuario_comum">Outro</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
                                     </CardContent>
                                     <CardFooter className="flex justify-end">
                                         <Button type="submit" disabled={isSaving}>
@@ -277,43 +294,57 @@ export default function ProfilePage() {
                                     <CardTitle>Segurança da Conta</CardTitle>
                                     <CardDescription>Gerencie sua senha e métodos de acesso.</CardDescription>
                                 </CardHeader>
-                                <form onSubmit={handleChangePassword}>
-                                    <CardContent className="space-y-4">
-                                        <div className="space-y-2">
-                                            <Label htmlFor="currentPassword">Senha Atual</Label>
-                                            <Input
-                                                id="currentPassword"
-                                                type="password"
-                                                value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="newPassword">Nova Senha</Label>
-                                            <Input
-                                                id="newPassword"
-                                                type="password"
-                                                value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
-                                                required
-                                            />
-                                        </div>
-                                        <div className="space-y-2">
-                                            <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
-                                            <Input
-                                                id="confirmPassword"
-                                                type="password"
-                                                value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                                                required
-                                            />
-                                        </div>
-                                    </CardContent>
-                                    <CardFooter className="flex justify-end">
-                                        <Button type="submit" disabled={isSaving}>
-                                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                                            Atualizar Senha
+                                <CardContent className="space-y-4">
+                                    {!isChangePasswordOpen ? (
+                                        <Button variant="outline" onClick={() => setIsChangePasswordOpen(true)} className="w-full">
+                                            <Lock className="mr-2 h-4 w-4" /> Alterar Senha
                                         </Button>
-                                    </CardFooter>
-                                </form>
+                                    ) : (
+                                        <div className="space-y-4 border p-4 rounded-md">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <h3 className="font-medium">Alterar Senha</h3>
+                                                <Button variant="ghost" size="sm" onClick={() => setIsChangePasswordOpen(false)}>Cancelar</Button>
+                                            </div>
+                                            <form onSubmit={handleChangePassword}>
+                                                <div className="space-y-4">
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="currentPassword">Senha Atual</Label>
+                                                        <Input
+                                                            id="currentPassword"
+                                                            type="password"
+                                                            value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)}
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="newPassword">Nova Senha</Label>
+                                                        <Input
+                                                            id="newPassword"
+                                                            type="password"
+                                                            value={newPassword} onChange={(e) => setNewPassword(e.target.value)}
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <Label htmlFor="confirmPassword">Confirmar Nova Senha</Label>
+                                                        <Input
+                                                            id="confirmPassword"
+                                                            type="password"
+                                                            value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div className="flex justify-end pt-2">
+                                                        <Button type="submit" disabled={isSaving}>
+                                                            {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                                                            Atualizar Senha
+                                                        </Button>
+                                                    </div>
+                                                </div>
+                                            </form>
+                                        </div>
+                                    )}
+                                </CardContent>
                             </Card>
                         </TabsContent>
 

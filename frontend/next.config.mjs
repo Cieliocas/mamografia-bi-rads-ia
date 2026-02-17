@@ -20,6 +20,10 @@ const nextConfig = {
         source: '/auth/:path*',
         destination: 'http://127.0.0.1:5000/auth/:path*',
       },
+      {
+        source: '/acervo/:path*',
+        destination: 'http://127.0.0.1:5000/acervo/:path*',
+      },
     ]
   },
 }
