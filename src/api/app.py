@@ -48,16 +48,19 @@ from flask import send_from_directory
 def serve_uploads(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
+from flask_migrate import Migrate
+
 CORS(app)
 db.init_app(app)
+migrate = Migrate(app, db)
 jwt = JWTManager(app)
 
 app.register_blueprint(auth_bp, url_prefix='/auth')
 app.register_blueprint(acervo_bp, url_prefix='/acervo')
 
-# Create tables
-with app.app_context():
-    db.create_all()
+# Create tables (Optional if using migrations, but good for dev)
+# with app.app_context():
+#     db.create_all()
 
 # Initialize Model
 model = MammographyModel()
