@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 from .database import db
-from .models import User
+from .models import User, Image
 import datetime
 import uuid
 
@@ -100,15 +100,38 @@ def login():
 def me():
     current_user_id = get_jwt_identity()
     user = User.query.get(current_user_id)
-    return jsonify({
-        "id": user.id,
-        "username": user.username,
-        "email": user.email,
-        "full_name": user.full_name,
-        "phone": user.phone,
-        "role": user.role,
-        "profile_image": user.profile_image
-    }), 200
+    
+    # Get image count
+    image_count = Image.query.filter_by(user_id=current_user_id).count()
+    
+    user_data = user.to_dict()
+    user_data['image_count'] = image_count
+    
+    return jsonify(user_data), 200
+
+@auth_bp.route('/resend-verification', methods=['POST'])
+@jwt_required()
+def resend_verification():
+    current_user_id = get_jwt_identity()
+    user = User.query.get(current_user_id)
+    
+    if user.is_verified:
+        return jsonify({"msg": "Email already verified"}), 400
+        
+    # Generate new token if needed or reuse
+    if not user.verification_token:
+        user.verification_token = str(uuid.uuid4())
+        db.session.commit()
+    
+    # MOCK EMAIL SENDING
+    print(f"--- MOCK RESEND EMAIL ---")
+    print(f"To: {user.email}")
+    print(f"Subject: Verify your account (Resend)")
+    print(f"Token: {user.verification_token}")
+    print(f"Link: http://localhost:5000/auth/verify-email/{user.verification_token}")
+    print(f"-------------------------")
+    
+    return jsonify({"msg": "Verification email sent"}), 200
 
 @auth_bp.route('/update-profile', methods=['PUT'])
 @jwt_required()

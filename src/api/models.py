@@ -20,6 +20,15 @@ class User(db.Model):
     
     # Profile Image
     profile_image = db.Column(db.String(255), nullable=True) # URL or path
+    
+    # Account Stats & Metadata
+    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    
+    # Linked Accounts (Provider IDs)
+    google_id = db.Column(db.String(100), nullable=True)
+    apple_id = db.Column(db.String(100), nullable=True)
+    microsoft_id = db.Column(db.String(100), nullable=True)
+    github_id = db.Column(db.String(100), nullable=True)
 
     def to_dict(self):
         return {
@@ -30,7 +39,14 @@ class User(db.Model):
             "phone": self.phone,
             "role": self.role,
             "is_verified": self.is_verified,
-            "profile_image": self.profile_image
+            "profile_image": self.profile_image,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "providers": {
+                "google": bool(self.google_id),
+                "apple": bool(self.apple_id),
+                "microsoft": bool(self.microsoft_id),
+                "github": bool(self.github_id)
+            }
         }
 
 class Image(db.Model):

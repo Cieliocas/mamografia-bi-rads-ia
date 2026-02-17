@@ -22,7 +22,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { toast } from "sonner"
-import { Camera, Loader2, Save, User, Lock, HelpCircle, ArrowLeft, Mail } from "lucide-react"
+import { Camera, Loader2, Save, User, Lock, HelpCircle, ArrowLeft, Mail, Calendar, Image as ImageIcon, CheckCircle, XCircle, Info, RefreshCw, Github, Globe } from "lucide-react"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 export default function ProfilePage() {
@@ -31,6 +32,7 @@ export default function ProfilePage() {
     const [isUploading, setIsUploading] = useState(false)
     const [isSaving, setIsSaving] = useState(false)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const [resendingEmail, setResendingEmail] = useState(false)
 
     // Profile Form State
     const [fullName, setFullName] = useState(user?.full_name || "")
@@ -164,6 +166,26 @@ export default function ProfilePage() {
         setSupportMessage("")
     }
 
+    const handleResendVerification = async () => {
+        setResendingEmail(true)
+        try {
+            const response = await fetch("/auth/resend-verification", {
+                method: "POST",
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            const data = await response.json()
+            if (response.ok) {
+                toast.success("Email de verificação reenviado!")
+            } else {
+                toast.error(data.msg || "Erro ao reenviar email")
+            }
+        } catch (error) {
+            toast.error("Erro de conexão")
+        } finally {
+            setResendingEmail(false)
+        }
+    }
+
     const getInitials = (name: string) => {
         return name ? name.substring(0, 2).toUpperCase() : "US"
     }
@@ -207,11 +229,83 @@ export default function ProfilePage() {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-4">
+
                             <div className="flex items-center justify-between text-sm">
                                 <span className="text-muted-foreground">Status</span>
-                                <span className="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-300">
-                                    Ativo
+                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${user.is_verified
+                                    ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300"
+                                    : "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300"
+                                    }`}>
+                                    {user.is_verified ? "Verificado" : "Pendente"}
                                 </span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground flex items-center gap-2">
+                                    <Calendar className="h-4 w-4" /> Membro desde
+                                </span>
+                                <span>{user.created_at ? new Date(user.created_at).toLocaleDateString() : "N/A"}</span>
+                            </div>
+
+                            <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground flex items-center gap-2">
+                                    <ImageIcon className="h-4 w-4" /> Total de Imagens
+                                </span>
+                                <span className="font-semibold">{user.image_count || 0}</span>
+                            </div>
+
+                            <div className="pt-4 border-t">
+                                <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">Contas Vinculadas</span>
+                                <div className="mt-3 flex gap-3">
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <div className={`p-2 rounded-full ${user.providers?.google ? "bg-blue-100 text-blue-600" : "bg-gray-100 text-gray-400"}`}>
+                                                    <Globe className="h-4 w-4" />
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>Google: {user.providers?.google ? "Conectado" : "Não conectado"}</TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <div className={`p-2 rounded-full ${user.providers?.github ? "bg-black text-white" : "bg-gray-100 text-gray-400"}`}>
+                                                    <Github className="h-4 w-4" />
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>GitHub: {user.providers?.github ? "Conectado" : "Não conectado"}</TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <div className={`p-2 rounded-full ${user.providers?.microsoft ? "bg-blue-50 text-blue-800" : "bg-gray-100 text-gray-400"}`}>
+                                                    <div className="h-4 w-4 grid grid-cols-2 gap-0.5">
+                                                        <div className="bg-current rounded-[1px]"></div>
+                                                        <div className="bg-current rounded-[1px]"></div>
+                                                        <div className="bg-current rounded-[1px]"></div>
+                                                        <div className="bg-current rounded-[1px]"></div>
+                                                    </div>
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>Microsoft: {user.providers?.microsoft ? "Conectado" : "Não conectado"}</TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+
+                                    <TooltipProvider>
+                                        <Tooltip>
+                                            <TooltipTrigger>
+                                                <div className={`p-2 rounded-full ${user.providers?.apple ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-400"}`}>
+                                                    <div className="h-4 w-4 text-xs flex items-center justify-center font-bold"></div>
+                                                </div>
+                                            </TooltipTrigger>
+                                            <TooltipContent>Apple: {user.providers?.apple ? "Conectado" : "Não conectado"}</TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
                             </div>
                         </div>
                     </CardContent>
@@ -250,11 +344,43 @@ export default function ProfilePage() {
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="email">Email</Label>
-                                            <Input
-                                                id="email"
-                                                type="email"
-                                                value={email} onChange={(e) => setEmail(e.target.value)}
-                                            />
+                                            <div className="flex items-center gap-2">
+                                                <Input
+                                                    id="email"
+                                                    type="email"
+                                                    value={email} onChange={(e) => setEmail(e.target.value)}
+                                                    className={user.is_verified ? "border-green-500 focus-visible:ring-green-500" : "border-yellow-500 focus-visible:ring-yellow-500"}
+                                                />
+                                                <TooltipProvider>
+                                                    <Tooltip>
+                                                        <TooltipTrigger asChild>
+                                                            {user.is_verified ? (
+                                                                <CheckCircle className="h-5 w-5 text-green-500" />
+                                                            ) : (
+                                                                <XCircle className="h-5 w-5 text-yellow-500 cursor-help" />
+                                                            )}
+                                                        </TooltipTrigger>
+                                                        <TooltipContent>
+                                                            {user.is_verified ? "Email Verificado" : "Verificação Pendente"}
+                                                        </TooltipContent>
+                                                    </Tooltip>
+                                                </TooltipProvider>
+                                            </div>
+                                            {!user.is_verified && (
+                                                <div className="flex justify-end">
+                                                    <Button
+                                                        type="button"
+                                                        variant="link"
+                                                        size="sm"
+                                                        className="h-auto p-0 text-xs text-muted-foreground hover:text-primary"
+                                                        onClick={handleResendVerification}
+                                                        disabled={resendingEmail}
+                                                    >
+                                                        {resendingEmail ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />}
+                                                        Reenviar email de verificação
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </div>
                                         <div className="space-y-2">
                                             <Label htmlFor="phone">Telefone</Label>
@@ -356,23 +482,23 @@ export default function ProfilePage() {
                                     <CardDescription>Precisa de ajuda? Entre em contato ou reporte um erro.</CardDescription>
                                 </CardHeader>
                                 <form onSubmit={handleSupportSubmit}>
-                                    <CardContent className="space-y-4">
-                                        <div className="space-y-2">
+                                    <CardContent className="space-y-6 pt-6">
+                                        <div className="space-y-3">
                                             <Label htmlFor="subject">Assunto</Label>
                                             <Input
                                                 id="subject"
                                                 placeholder="Ex: Erro ao carregar imagem"
                                                 value={supportSubject} onChange={(e) => setSupportSubject(e.target.value)}
                                                 required
+                                                className="h-11"
                                             />
                                         </div>
-                                        <div className="space-y-2">
+                                        <div className="space-y-3">
                                             <Label htmlFor="message">Mensagem</Label>
-                                            <Input
+                                            <textarea
                                                 id="message"
-                                                className="h-24" // Use Textarea if available, else Input with height styling for now (Input is actually input type=text)
-                                                // Ideally check if Textarea component exists in ui
-                                                placeholder="Descreva o problema ou dúvida..."
+                                                className="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                                placeholder="Descreva o problema ou dúvida com detalhes..."
                                                 value={supportMessage} onChange={(e) => setSupportMessage(e.target.value)}
                                                 required
                                             />

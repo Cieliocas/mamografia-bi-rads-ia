@@ -3,6 +3,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
+import { GlobalLoader } from "@/components/ui/global-loader"
 
 interface User {
   id: number
@@ -12,6 +13,15 @@ interface User {
   role?: string
   phone?: string
   profile_image?: string
+  created_at?: string
+  is_verified?: boolean
+  image_count?: number
+  providers?: {
+    google: boolean
+    apple: boolean
+    microsoft: boolean
+    github: boolean
+  }
 }
 
 interface AuthContextType {
@@ -47,26 +57,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = (newToken: string, userData: User) => {
+    setIsLoading(true) // Start loading on login for smooth transition
     localStorage.setItem("token", newToken)
     localStorage.setItem("user", JSON.stringify(userData))
     setToken(newToken)
     setUser(userData)
     toast.success("Login realizado com sucesso")
-    router.push("/")
+
+    // Simulate a small delay for the transition effect
+    setTimeout(() => {
+      router.push("/")
+      setIsLoading(false)
+    }, 800)
   }
 
   const logout = () => {
+    setIsLoading(true) // Start loading on logout
     localStorage.removeItem("token")
     localStorage.removeItem("user")
-    localStorage.removeItem("username") // Cleanup old key
+    localStorage.removeItem("username")
     setToken(null)
     setUser(null)
     toast.info("Logout realizado")
-    router.push("/login")
+
+    setTimeout(() => {
+      router.push("/login")
+      setIsLoading(false)
+    }, 500)
   }
 
   return (
     <AuthContext.Provider value={{ user, token, login, logout, isLoading }}>
+      {isLoading && <GlobalLoader />}
       {children}
     </AuthContext.Provider>
   )
