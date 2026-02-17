@@ -12,12 +12,36 @@ from PIL import Image
 import io
 
 # Add model directory to path to import Predictor
+# Define project root and instance path explicitly
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+instance_path = os.path.join(project_root, 'instance')
+
+# Add model directory to path to import Predictor
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from ml.predict import MammographyModel
 
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///mammo.db'
+app = Flask(__name__, instance_path=instance_path)
+
+# Ensure instance path exists
+try:
+    os.makedirs(app.instance_path)
+except OSError:
+    pass
+
+db_path = os.path.join(app.instance_path, 'mammo.db')
+print(f"Database path: {db_path}")
+app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
 app.config['JWT_SECRET_KEY'] = 'super-secret-key-change-this-in-prod' # Change this!
+app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads')
+
+# Ensure upload directory exists
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
+from flask import send_from_directory
+
+@app.route('/uploads/<path:filename>')
+def serve_uploads(filename):
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 CORS(app)
 db.init_app(app)
