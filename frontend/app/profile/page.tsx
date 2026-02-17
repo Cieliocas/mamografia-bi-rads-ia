@@ -482,8 +482,8 @@ export default function ProfilePage() {
                                     <CardDescription>Precisa de ajuda? Entre em contato ou reporte um erro.</CardDescription>
                                 </CardHeader>
                                 <form onSubmit={handleSupportSubmit}>
-                                    <CardContent className="space-y-6 pt-6">
-                                        <div className="space-y-3">
+                                    <CardContent className="space-y-8 pt-6 pb-6">
+                                        <div className="grid gap-4">
                                             <Label htmlFor="subject">Assunto</Label>
                                             <Input
                                                 id="subject"
@@ -493,11 +493,11 @@ export default function ProfilePage() {
                                                 className="h-11"
                                             />
                                         </div>
-                                        <div className="space-y-3">
+                                        <div className="grid gap-4">
                                             <Label htmlFor="message">Mensagem</Label>
                                             <textarea
                                                 id="message"
-                                                className="flex min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                                                className="flex min-h-[150px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 resize-y"
                                                 placeholder="Descreva o problema ou dúvida com detalhes..."
                                                 value={supportMessage} onChange={(e) => setSupportMessage(e.target.value)}
                                                 required
