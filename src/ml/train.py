@@ -1,19 +1,36 @@
+import argparse
+import json
 import os
+import sys
 import tensorflow as tf
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, ReduceLROnPlateau
-from unet import unet_model
-from data_loader import CBISDDSMDataGenerator
+from tensorflow.keras.callbacks import (
+    ModelCheckpoint,
+    EarlyStopping,
+    ReduceLROnPlateau,
+    CSVLogger,
+    BackupAndRestore,
+)
 
-# Data Loading Constants
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "../.."))
+if ROOT_DIR not in sys.path:
+    sys.path.insert(0, ROOT_DIR)
+
+from src.ml.unet import unet_model
+from src.ml.data_loader import CBISDDSMDataGenerator
+
 IMG_HEIGHT = 256
 IMG_WIDTH = 256
 IMG_CHANNELS = 1
+
 
 def dice_coef(y_true, y_pred, smooth=1):
     y_true_f = tf.keras.backend.flatten(y_true)
     y_pred_f = tf.keras.backend.flatten(y_pred)
     intersection = tf.keras.backend.sum(y_true_f * y_pred_f)
-    return (2. * intersection + smooth) / (tf.keras.backend.sum(y_true_f) + tf.keras.backend.sum(y_pred_f) + smooth)
+    return (2.0 * intersection + smooth) / (
+        tf.keras.backend.sum(y_true_f) + tf.keras.backend.sum(y_pred_f) + smooth
+    )
+
 
 def iou_coef(y_true, y_pred, smooth=1):
     y_true_f = tf.keras.backend.flatten(y_true)
@@ -22,76 +39,151 @@ def iou_coef(y_true, y_pred, smooth=1):
     union = tf.keras.backend.sum(y_true_f) + tf.keras.backend.sum(y_pred_f) - intersection
     return (intersection + smooth) / (union + smooth)
 
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Treino U-Net para mamografia (CBIS-DDSM)")
+    parser.add_argument("--csv-dir", default=os.path.join(ROOT_DIR, "data/CBIS-DDSM-JPG/csv"))
+    parser.add_argument("--jpeg-dir", default=os.path.join(ROOT_DIR, "data/CBIS-DDSM-JPG/jpeg"))
+    parser.add_argument("--output-dir", default=os.path.join(ROOT_DIR, "models"))
+    parser.add_argument("--run-name", default="default_run")
+    parser.add_argument("--epochs", type=int, default=50)
+    parser.add_argument("--batch-size-per-replica", type=int, default=4)
+    parser.add_argument("--patience", type=int, default=8)
+    parser.add_argument("--lr-patience", type=int, default=3)
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--resume", action="store_true")
+    return parser.parse_args()
+
+
+def configure_gpus():
+    gpus = tf.config.list_physical_devices("GPU")
+    print(f"Visible GPUs: {len(gpus)}")
+    for gpu in gpus:
+        try:
+            tf.config.experimental.set_memory_growth(gpu, True)
+        except Exception as exc:
+            print(f"Could not set memory growth for {gpu}: {exc}")
+    return gpus
+
+
+def save_run_metadata(run_dir, args, num_replicas):
+    os.makedirs(run_dir, exist_ok=True)
+    metadata_path = os.path.join(run_dir, "run_metadata.json")
+    payload = {
+        "run_name": args.run_name,
+        "epochs": args.epochs,
+        "batch_size_per_replica": args.batch_size_per_replica,
+        "global_batch_size": args.batch_size_per_replica * num_replicas,
+        "num_replicas": num_replicas,
+        "csv_dir": args.csv_dir,
+        "jpeg_dir": args.jpeg_dir,
+        "resume": args.resume,
+    }
+    with open(metadata_path, "w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=2, ensure_ascii=True)
+    print(f"Run metadata saved at {metadata_path}")
+
+
 def train():
-    # Paths (Absolute paths preferred to avoid CWD issues)
-    # Assuming script is run from project root, but let's be robust
-    base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
-    csv_dir = os.path.join(base_dir, "data/CBIS-DDSM-JPG/csv")
-    jpeg_dir = os.path.join(base_dir, "data/CBIS-DDSM-JPG/jpeg")
-    
-    print(f"CSV Dir: {csv_dir}")
-    print(f"JPEG Dir: {jpeg_dir}")
+    args = parse_args()
+    tf.keras.utils.set_random_seed(args.seed)
+    configure_gpus()
 
-    # Generators
-    batch_size = 8
-    
-    print("Initializing Training Generator...")
-    train_gen = CBISDDSMDataGenerator(
-        csv_dir=csv_dir,
-        jpeg_dir=jpeg_dir,
-        batch_size=batch_size,
-        subset='train',
-        shuffle=True
-    )
-    
-    print("Initializing Validation Generator (using test set)...")
-    val_gen = CBISDDSMDataGenerator(
-        csv_dir=csv_dir,
-        jpeg_dir=jpeg_dir,
-        batch_size=batch_size,
-        subset='test',
-        shuffle=False
-    )
-    
-    print(f"Training samples: {len(train_gen) * batch_size}")
-    print(f"Validation samples: {len(val_gen) * batch_size}")
-
-    # Multi-GPU Strategy
     strategy = tf.distribute.MirroredStrategy()
-    print(f"Number of devices: {strategy.num_replicas_in_sync}")
+    num_replicas = strategy.num_replicas_in_sync
+    global_batch_size = args.batch_size_per_replica * num_replicas
 
-    # Scale batch size by number of GPUs
-    # Note: The generator batch size is fixed at instantiation, 
-    # so we might want to adjust it before creating generators if we want per-replica scaling.
-    # For now, let's keep it simple, but wrapping the model is the key.
+    print(f"Training strategy: MirroredStrategy ({num_replicas} replicas)")
+    print(f"CSV dir: {args.csv_dir}")
+    print(f"JPEG dir: {args.jpeg_dir}")
+    print(f"Global batch size: {global_batch_size}")
+
+    run_dir = os.path.join(args.output_dir, args.run_name)
+    checkpoints_dir = os.path.join(run_dir, "checkpoints")
+    backup_dir = os.path.join(run_dir, "backup_state")
+    os.makedirs(checkpoints_dir, exist_ok=True)
+    os.makedirs(run_dir, exist_ok=True)
+    save_run_metadata(run_dir, args, num_replicas)
+
+    train_gen = CBISDDSMDataGenerator(
+        csv_dir=args.csv_dir,
+        jpeg_dir=args.jpeg_dir,
+        batch_size=global_batch_size,
+        subset="train",
+        shuffle=True,
+    )
+    val_gen = CBISDDSMDataGenerator(
+        csv_dir=args.csv_dir,
+        jpeg_dir=args.jpeg_dir,
+        batch_size=global_batch_size,
+        subset="test",
+        shuffle=False,
+    )
+    print(f"Training samples: {len(train_gen) * global_batch_size}")
+    print(f"Validation samples: {len(val_gen) * global_batch_size}")
 
     with strategy.scope():
-        # Model
         model = unet_model(input_size=(IMG_HEIGHT, IMG_WIDTH, IMG_CHANNELS))
-        model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy', dice_coef, iou_coef])
-    
-    # Callbacks
-    checkpoint_path = os.path.join(base_dir, "models/unet_mammo_best.keras")
-    # Also save simple h5 for compatibility if needed, but keras format is preferred in TF 2.x
-    
+        model.compile(
+            optimizer="adam",
+            loss="binary_crossentropy",
+            metrics=["accuracy", dice_coef, iou_coef],
+        )
+
+    latest_weights_path = os.path.join(checkpoints_dir, "latest.weights.h5")
+    if args.resume and os.path.exists(latest_weights_path):
+        print(f"Resuming weights from {latest_weights_path}")
+        model.load_weights(latest_weights_path)
+
     callbacks = [
-        ModelCheckpoint(checkpoint_path, verbose=1, save_best_only=True, monitor='val_loss'),
-        EarlyStopping(patience=5, monitor='val_loss', restore_best_weights=True),
-        ReduceLROnPlateau(patience=2, factor=0.1, verbose=1, monitor='val_loss')
+        BackupAndRestore(backup_dir=backup_dir),
+        ModelCheckpoint(
+            filepath=os.path.join(checkpoints_dir, "best.keras"),
+            monitor="val_loss",
+            mode="min",
+            save_best_only=True,
+            verbose=1,
+        ),
+        ModelCheckpoint(
+            filepath=latest_weights_path,
+            save_weights_only=True,
+            save_best_only=False,
+            verbose=1,
+        ),
+        ModelCheckpoint(
+            filepath=os.path.join(checkpoints_dir, "epoch_{epoch:03d}.keras"),
+            save_best_only=False,
+            verbose=0,
+        ),
+        CSVLogger(os.path.join(run_dir, "history.csv"), append=args.resume),
+        EarlyStopping(
+            monitor="val_loss",
+            patience=args.patience,
+            restore_best_weights=True,
+            verbose=1,
+        ),
+        ReduceLROnPlateau(
+            monitor="val_loss",
+            patience=args.lr_patience,
+            factor=0.2,
+            min_lr=1e-7,
+            verbose=1,
+        ),
     ]
-    
-    # Train
+
     print("Starting training...")
-    history = model.fit(
+    model.fit(
         train_gen,
         validation_data=val_gen,
-        epochs=50,
-        callbacks=callbacks
+        epochs=args.epochs,
+        callbacks=callbacks,
     )
-    
-    final_model_path = os.path.join(base_dir, "models/unet_mammo_final.keras")
+
+    final_model_path = os.path.join(run_dir, "final.keras")
     model.save(final_model_path)
-    print(f"Model saved as {final_model_path}")
+    print(f"Final model saved to {final_model_path}")
+    print(f"Best checkpoint path: {os.path.join(checkpoints_dir, 'best.keras')}")
+
 
 if __name__ == "__main__":
     train()

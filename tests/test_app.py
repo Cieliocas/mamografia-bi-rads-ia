@@ -7,6 +7,7 @@ import cv2
 from werkzeug.security import generate_password_hash
 
 from src.api.app import app, db
+from src.api.auth import PASSWORD_RESET_TOKENS
 from src.api.models import User
 
 class AppTestCase(unittest.TestCase):
@@ -14,6 +15,7 @@ class AppTestCase(unittest.TestCase):
         app.config["TESTING"] = True
         self.client = app.test_client()
         self.username = f"test_{uuid.uuid4().hex[:8]}"
+        PASSWORD_RESET_TOKENS.clear()
 
         with app.app_context():
             db.create_all()
@@ -99,6 +101,35 @@ class AppTestCase(unittest.TestCase):
             if name.startswith("predict_") and name.endswith(".png")
         )
         self.assertEqual(before, after)
+
+    def test_social_login_flow(self):
+        payload = {
+            "provider": "google",
+            "external_id": f"device_{uuid.uuid4().hex}",
+            "full_name": "User Google Test",
+        }
+        rv = self.client.post("/auth/social-login", json=payload)
+        self.assertEqual(rv.status_code, 200)
+        data = rv.get_json()
+        self.assertIn("access_token", data)
+        self.assertIn("user", data)
+        self.assertTrue(data["user"]["providers"]["google"])
+
+    def test_forgot_and_reset_password_flow(self):
+        forgot = self.client.post("/auth/forgot-password", json={"identifier": self.username})
+        self.assertEqual(forgot.status_code, 200)
+        forgot_data = forgot.get_json()
+        self.assertIn("reset_token", forgot_data)
+        token = forgot_data["reset_token"]
+
+        reset = self.client.post(
+            "/auth/reset-password",
+            json={"token": token, "new_password": "654321"},
+        )
+        self.assertEqual(reset.status_code, 200)
+
+        relogin = self.client.post("/auth/login", json={"username": self.username, "password": "654321"})
+        self.assertEqual(relogin.status_code, 200)
 
 
 if __name__ == "__main__":

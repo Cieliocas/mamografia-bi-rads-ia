@@ -15,6 +15,9 @@ import { BrainCircuit, Github, Mail, Cloud, Monitor, HelpCircle, Loader2, Eye, E
 export default function LoginPage() {
     const [isRegistering, setIsRegistering] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [isSocialSubmitting, setIsSocialSubmitting] = useState(false)
+    const [isHelpOpen, setIsHelpOpen] = useState(false)
+    const [isResetOpen, setIsResetOpen] = useState(false)
 
     // Form State
     const [username, setUsername] = useState("")
@@ -26,6 +29,9 @@ export default function LoginPage() {
     const [role, setRole] = useState("usuario_comum")
     const [showPassword, setShowPassword] = useState(false)
     const [capsLockActive, setCapsLockActive] = useState(false)
+    const [resetIdentifier, setResetIdentifier] = useState("")
+    const [resetToken, setResetToken] = useState("")
+    const [newResetPassword, setNewResetPassword] = useState("")
 
     const checkCapsLock = (e: React.KeyboardEvent<HTMLInputElement>) => {
         if (e.getModifierState("CapsLock")) {
@@ -36,6 +42,15 @@ export default function LoginPage() {
     }
 
     const { login } = useAuth()
+
+    const getSocialDeviceId = () => {
+        const key = "social_device_id"
+        const existing = localStorage.getItem(key)
+        if (existing) return existing
+        const generated = crypto.randomUUID()
+        localStorage.setItem(key, generated)
+        return generated
+    }
 
     const toggleMode = () => {
         setIsRegistering(!isRegistering)
@@ -99,11 +114,118 @@ export default function LoginPage() {
         }
     }
 
+    const handleSocialLogin = async (provider: "google" | "apple" | "microsoft" | "github") => {
+        setIsSocialSubmitting(true)
+        try {
+            const externalId = `${provider}_${getSocialDeviceId()}`
+            const response = await fetch("/auth/social-login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    provider,
+                    external_id: externalId,
+                    full_name: `Usuário ${provider[0].toUpperCase()}${provider.slice(1)}`,
+                }),
+            })
+            const data = await response.json()
+            if (!response.ok) {
+                throw new Error(data.msg || "Falha no login social")
+            }
+            login(data.access_token, data.user)
+        } catch (error) {
+            if (error instanceof Error) {
+                toast.error(error.message)
+            } else {
+                toast.error("Erro desconhecido no login social")
+            }
+        } finally {
+            setIsSocialSubmitting(false)
+        }
+    }
+
+    const handleForgotPassword = async () => {
+        if (!resetIdentifier.trim()) {
+            toast.error("Informe usuário ou email")
+            return
+        }
+        try {
+            const response = await fetch("/auth/forgot-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ identifier: resetIdentifier.trim() }),
+            })
+            const data = await response.json()
+            if (!response.ok) {
+                throw new Error(data.msg || "Erro ao solicitar redefinição")
+            }
+            if (data.reset_token) {
+                setResetToken(data.reset_token)
+                toast.success("Token gerado automaticamente para ambiente de teste")
+            } else {
+                toast.success("Token gerado. Verifique o log do backend.")
+            }
+        } catch (error) {
+            if (error instanceof Error) {
+                toast.error(error.message)
+            } else {
+                toast.error("Erro ao solicitar redefinição")
+            }
+        }
+    }
+
+    const handleResetPassword = async () => {
+        if (!resetToken.trim() || !newResetPassword.trim()) {
+            toast.error("Informe token e nova senha")
+            return
+        }
+        try {
+            const response = await fetch("/auth/reset-password", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    token: resetToken.trim(),
+                    new_password: newResetPassword,
+                }),
+            })
+            const data = await response.json()
+            if (!response.ok) {
+                throw new Error(data.msg || "Erro ao redefinir senha")
+            }
+            toast.success("Senha redefinida. Faça login com a nova senha.")
+            setIsResetOpen(false)
+            setResetToken("")
+            setNewResetPassword("")
+        } catch (error) {
+            if (error instanceof Error) {
+                toast.error(error.message)
+            } else {
+                toast.error("Erro ao redefinir senha")
+            }
+        }
+    }
+
     return (
         <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8 relative">
-            <Button variant="ghost" size="icon" className="absolute bottom-4 right-4 text-muted-foreground hover:text-foreground" title="Ajuda">
-                <HelpCircle className="h-5 w-5" />
-            </Button>
+            <Dialog open={isHelpOpen} onOpenChange={setIsHelpOpen}>
+                <DialogTrigger asChild>
+                    <Button variant="ghost" size="icon" className="absolute bottom-4 right-4 text-muted-foreground hover:text-foreground" title="Ajuda">
+                        <HelpCircle className="h-5 w-5" />
+                    </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Ajuda de Acesso</DialogTitle>
+                        <DialogDescription>
+                            Guia rápido para entrar na plataforma.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="text-sm text-muted-foreground space-y-2">
+                        <p>1. Use usuário/senha cadastrados ou login social de demonstração.</p>
+                        <p>2. Se não lembrar sua senha, use &quot;Esqueci minha senha&quot;.</p>
+                        <p>3. No ambiente local, o token de reset aparece no console do backend.</p>
+                    </div>
+                </DialogContent>
+            </Dialog>
             <Card className="w-full max-w-md shadow-lg">
                 <CardHeader className="space-y-1 text-center">
                     <div className="flex justify-center mb-4">
@@ -119,16 +241,16 @@ export default function LoginPage() {
 
                 <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                        <Button variant="outline" className="w-full" onClick={() => toast.info("Login com Google em breve")}>
+                        <Button variant="outline" className="w-full" onClick={() => handleSocialLogin("google")} disabled={isSocialSubmitting}>
                             <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512"><path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path></svg> Google
                         </Button>
-                        <Button variant="outline" className="w-full" onClick={() => toast.info("Login com Apple em breve")}>
+                        <Button variant="outline" className="w-full" onClick={() => handleSocialLogin("apple")} disabled={isSocialSubmitting}>
                             <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="apple" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512"><path fill="currentColor" d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"></path></svg> Apple
                         </Button>
-                        <Button variant="outline" className="w-full" onClick={() => toast.info("Login com Microsoft em breve")}>
+                        <Button variant="outline" className="w-full" onClick={() => handleSocialLogin("microsoft")} disabled={isSocialSubmitting}>
                             <Monitor className="mr-2 h-4 w-4" /> Microsoft
                         </Button>
-                        <Button variant="outline" className="w-full" onClick={() => toast.info("Login com GitHub em breve")}>
+                        <Button variant="outline" className="w-full" onClick={() => handleSocialLogin("github")} disabled={isSocialSubmitting}>
                             <Github className="mr-2 h-4 w-4" /> GitHub
                         </Button>
                     </div>
@@ -297,6 +419,56 @@ export default function LoginPage() {
                                 isRegistering ? "Criar Conta" : "Entrar"
                             )}
                         </Button>
+                        {!isRegistering && (
+                            <Dialog open={isResetOpen} onOpenChange={setIsResetOpen}>
+                                <DialogTrigger asChild>
+                                    <Button variant="link" type="button" className="w-full">Esqueci minha senha</Button>
+                                </DialogTrigger>
+                                <DialogContent>
+                                    <DialogHeader>
+                                        <DialogTitle>Redefinir Senha</DialogTitle>
+                                        <DialogDescription>
+                                            Informe usuário/email, gere o token e defina uma nova senha.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="space-y-3">
+                                        <div className="space-y-1">
+                                            <Label htmlFor="resetIdentifier">Usuário ou Email</Label>
+                                            <Input
+                                                id="resetIdentifier"
+                                                value={resetIdentifier}
+                                                onChange={(e) => setResetIdentifier(e.target.value)}
+                                                placeholder="usuario ou email"
+                                            />
+                                        </div>
+                                        <Button type="button" variant="outline" onClick={handleForgotPassword}>
+                                            Gerar token
+                                        </Button>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="resetToken">Token</Label>
+                                            <Input
+                                                id="resetToken"
+                                                value={resetToken}
+                                                onChange={(e) => setResetToken(e.target.value)}
+                                                placeholder="cole o token"
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor="newResetPassword">Nova senha</Label>
+                                            <Input
+                                                id="newResetPassword"
+                                                type="password"
+                                                value={newResetPassword}
+                                                onChange={(e) => setNewResetPassword(e.target.value)}
+                                            />
+                                        </div>
+                                        <Button type="button" onClick={handleResetPassword}>
+                                            Redefinir senha
+                                        </Button>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                        )}
                     </form>
                 </CardContent>
 

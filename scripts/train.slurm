@@ -10,8 +10,11 @@
 #SBATCH --mem=32G                    # Memória RAM total
 #SBATCH --time=24:00:00              # Tempo máximo (24 horas)
 
+set -euo pipefail
+
 echo "Starting job on $HOSTNAME"
 echo "Date: $(date)"
+echo "SLURM_JOB_ID: ${SLURM_JOB_ID:-n/a}"
 
 # 1. Carregar módulos (Ajustar versões conforme disponível no cluster)
 # Exemplo: module load python/3.10 cuda/12.1 cudnn/8.9
@@ -29,8 +32,28 @@ nvidia-smi
 # 4. Criar pasta de logs se não existir
 mkdir -p logs
 
-# 5. Executar o script de treinamento
-# python3 -u força o output sem buffer (útil para ver logs em tempo real)
-python3 -u src/model/train.py
+export TF_CPP_MIN_LOG_LEVEL=${TF_CPP_MIN_LOG_LEVEL:-2}
+export TRAIN_RUN_NAME=${TRAIN_RUN_NAME:-cbis_ddsm_default}
+export TRAIN_EPOCHS=${TRAIN_EPOCHS:-50}
+export TRAIN_BATCH_PER_REPLICA=${TRAIN_BATCH_PER_REPLICA:-4}
+export TRAIN_RESUME=${TRAIN_RESUME:-1}
+
+echo "GPUS via CUDA_VISIBLE_DEVICES: ${CUDA_VISIBLE_DEVICES:-all}"
+echo "Run name: ${TRAIN_RUN_NAME}"
+echo "Epochs: ${TRAIN_EPOCHS}"
+echo "Batch per replica: ${TRAIN_BATCH_PER_REPLICA}"
+echo "Resume enabled: ${TRAIN_RESUME}"
+
+RESUME_FLAG=""
+if [ "${TRAIN_RESUME}" = "1" ]; then
+  RESUME_FLAG="--resume"
+fi
+
+# 5. Executar treinamento robusto (checkpoint + resume + multi-GPU)
+python3 -u src/ml/train.py \
+  --run-name "${TRAIN_RUN_NAME}" \
+  --epochs "${TRAIN_EPOCHS}" \
+  --batch-size-per-replica "${TRAIN_BATCH_PER_REPLICA}" \
+  ${RESUME_FLAG}
 
 echo "Job finished at $(date)"

@@ -80,6 +80,25 @@ O treinamento é submetido como um "Job" para o gerenciador Slurm.
     
     Você verá uma mensagem como: `Submitted batch job 123456`
 
+### Controle por variáveis (sem editar o script)
+
+Você pode ajustar o treinamento diretamente no `sbatch`:
+
+```bash
+sbatch \
+  --gres=gpu:4 \
+  --export=ALL,TRAIN_RUN_NAME=exp_gpu4_v1,TRAIN_EPOCHS=80,TRAIN_BATCH_PER_REPLICA=2,TRAIN_RESUME=1 \
+  scripts/train.slurm
+```
+
+Parâmetros:
+- `TRAIN_RUN_NAME`: nome da pasta da execução em `models/<run_name>/`.
+- `TRAIN_EPOCHS`: total de épocas.
+- `TRAIN_BATCH_PER_REPLICA`: batch por GPU.
+- `TRAIN_RESUME=1`: retoma do último checkpoint automaticamente.
+
+> Para retomar um treino interrompido, execute novamente o mesmo `TRAIN_RUN_NAME` com `TRAIN_RESUME=1`.
+
 ---
 
 ## 5. Monitoramento
@@ -119,8 +138,9 @@ No seu computador local (Mac), abra o terminal e execute:
 # Cria a pasta local se não existir
 mkdir -p models
 
-# Baixa o arquivo do cluster
-scp usuario@cluster.techne.br:~/projeto_mamografia/models/unet_mammo_best.keras ./models/
+# Exemplo: baixar o melhor checkpoint e o modelo final de um run específico
+scp usuario@cluster.techne.br:~/projeto_mamografia/models/exp_gpu4_v1/checkpoints/best.keras ./models/unet_mammo_best.keras
+scp usuario@cluster.techne.br:~/projeto_mamografia/models/exp_gpu4_v1/final.keras ./models/unet_mammo_final.keras
 ```
 
 ### 2. Testar na Aplicação
@@ -131,7 +151,7 @@ Com o arquivo `unet_mammo_best.keras` dentro da pasta `models/`, você pode roda
 pip install -r requirements.txt
 
 # Inicie o servidor
-python src/web_app/app.py
+python -m src.api.app
 ```
 
 Acesse **http://localhost:5000** no navegador.

@@ -1,16 +1,28 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
 from werkzeug.security import generate_password_hash, check_password_hash
 from .database import db
 from .models import User, Image
 import datetime
 import uuid
+import secrets
 
 auth_bp = Blueprint('auth', __name__)
+PASSWORD_RESET_TOKENS = {}
+PASSWORD_RESET_TOKEN_MINUTES = 30
 
 def _current_user_id():
     """JWT subject is stored as string; convert to int for DB lookups."""
     return int(get_jwt_identity())
+
+def _social_provider_field(provider):
+    provider_map = {
+        "google": "google_id",
+        "apple": "apple_id",
+        "microsoft": "microsoft_id",
+        "github": "github_id",
+    }
+    return provider_map.get(provider)
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
@@ -99,6 +111,122 @@ def login():
         "user": user.to_dict()
     })
 
+@auth_bp.route('/social-login', methods=['POST'])
+def social_login():
+    data = request.get_json() or {}
+    provider = (data.get('provider') or '').strip().lower()
+    external_id = (data.get('external_id') or '').strip()
+    email = (data.get('email') or '').strip().lower()
+    full_name = (data.get('full_name') or '').strip() or f"Usuário {provider.title()}"
+
+    provider_field = _social_provider_field(provider)
+    if not provider_field or not external_id:
+        return jsonify({"msg": "Provider or external_id inválido"}), 400
+
+    user = User.query.filter(getattr(User, provider_field) == external_id).first()
+
+    if not user and email:
+        user = User.query.filter_by(email=email).first()
+
+    if not user:
+        username_base = f"{provider}_{external_id[:12]}".replace('-', '_')
+        username = username_base
+        idx = 1
+        while User.query.filter_by(username=username).first():
+            idx += 1
+            username = f"{username_base}_{idx}"
+
+        if not email:
+            email = f"{provider}_{external_id[:16]}@social.local"
+
+        user = User(
+            username=username,
+            email=email,
+            full_name=full_name,
+            phone='',
+            role='usuario_comum',
+            is_verified=True,
+            password_hash=generate_password_hash(uuid.uuid4().hex, method='pbkdf2:sha256')
+        )
+        setattr(user, provider_field, external_id)
+        db.session.add(user)
+        db.session.commit()
+    else:
+        if not getattr(user, provider_field):
+            setattr(user, provider_field, external_id)
+            db.session.commit()
+
+    expires = datetime.timedelta(days=7)
+    access_token = create_access_token(identity=str(user.id), expires_delta=expires)
+    return jsonify({
+        "access_token": access_token,
+        "user": user.to_dict()
+    }), 200
+
+@auth_bp.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    data = request.get_json() or {}
+    identifier = (data.get('identifier') or '').strip()
+    if not identifier:
+        return jsonify({"msg": "Informe usuário ou email"}), 400
+
+    user = User.query.filter_by(email=identifier).first()
+    if not user:
+        user = User.query.filter_by(username=identifier).first()
+
+    # Always return generic message to avoid account enumeration.
+    generic_msg = {"msg": "Se a conta existir, um token de redefinição foi gerado."}
+    if not user:
+        return jsonify(generic_msg), 200
+
+    token = secrets.token_urlsafe(24)
+    expires_at = datetime.datetime.utcnow() + datetime.timedelta(minutes=PASSWORD_RESET_TOKEN_MINUTES)
+    PASSWORD_RESET_TOKENS[token] = {
+        "user_id": user.id,
+        "expires_at": expires_at
+    }
+
+    print("--- MOCK PASSWORD RESET ---")
+    print(f"User: {user.username} ({user.email})")
+    print(f"Token: {token}")
+    print(f"Expires at: {expires_at.isoformat()} UTC")
+    print("---------------------------")
+
+    response = dict(generic_msg)
+    if current_app.config.get("TESTING"):
+        response["reset_token"] = token
+    return jsonify(response), 200
+
+@auth_bp.route('/reset-password', methods=['POST'])
+def reset_password():
+    data = request.get_json() or {}
+    token = (data.get('token') or '').strip()
+    new_password = data.get('new_password')
+
+    if not token or not new_password:
+        return jsonify({"msg": "Token e nova senha são obrigatórios"}), 400
+    if len(new_password) < 6:
+        return jsonify({"msg": "A nova senha deve ter pelo menos 6 caracteres"}), 400
+
+    token_data = PASSWORD_RESET_TOKENS.get(token)
+    if not token_data:
+        return jsonify({"msg": "Token inválido ou expirado"}), 400
+
+    if datetime.datetime.utcnow() > token_data["expires_at"]:
+        PASSWORD_RESET_TOKENS.pop(token, None)
+        return jsonify({"msg": "Token inválido ou expirado"}), 400
+
+    user = User.query.get(token_data["user_id"])
+    if not user:
+        PASSWORD_RESET_TOKENS.pop(token, None)
+        return jsonify({"msg": "Usuário não encontrado"}), 404
+
+    user.password_hash = generate_password_hash(new_password, method='pbkdf2:sha256')
+    db.session.commit()
+    PASSWORD_RESET_TOKENS.pop(token, None)
+
+    return jsonify({"msg": "Senha redefinida com sucesso"}), 200
+
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()
 def me():
@@ -185,9 +313,8 @@ def update_password():
     
     return jsonify({"msg": "Password updated successfully"}), 200
 
-import os
 from werkzeug.utils import secure_filename
-from flask import current_app
+import os
 
 @auth_bp.route('/upload-avatar', methods=['POST'])
 @jwt_required()
