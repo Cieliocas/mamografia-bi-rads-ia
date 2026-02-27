@@ -1,44 +1,64 @@
-import pytest
-import sys
-import os
-import io
+import unittest
+import uuid
+from werkzeug.security import generate_password_hash
 
-# Add src to path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../src')))
+from src.api.app import app, db
+from src.api.models import User
 
-from web_app.app import app
+class AppTestCase(unittest.TestCase):
+    def setUp(self):
+        app.config["TESTING"] = True
+        self.client = app.test_client()
+        self.username = f"test_{uuid.uuid4().hex[:8]}"
 
-@pytest.fixture
-def client():
-    app.config['TESTING'] = True
-    with app.test_client() as client:
-        yield client
+        with app.app_context():
+            db.create_all()
+            user = User(
+                username=self.username,
+                email=f"{self.username}@example.com",
+                password_hash=generate_password_hash("123456"),
+                is_verified=True,
+            )
+            db.session.add(user)
+            db.session.commit()
 
-def test_index_route(client):
-    rv = client.get('/')
-    assert rv.status_code == 200
+        login = self.client.post("/auth/login", json={"username": self.username, "password": "123456"})
+        self.assertEqual(login.status_code, 200)
+        self.token = login.get_json()["access_token"]
+        self.auth_headers = {"Authorization": f"Bearer {self.token}"}
 
-def test_predict_no_file(client):
-    rv = client.post('/predict')
-    assert rv.status_code == 400
-    assert b'No file part' in rv.data
+    def test_login_returns_token_and_user(self):
+        rv = self.client.post("/auth/login", json={"username": self.username, "password": "123456"})
+        self.assertEqual(rv.status_code, 200)
+        payload = rv.get_json()
+        self.assertIn("access_token", payload)
+        self.assertIn("user", payload)
 
-def test_predict_with_file(client):
-    # Mock an image file
-    data = {
-        'file': (io.BytesIO(b"fake image data"), 'test.jpg')
-    }
-    # This will fail in the actual processing since it's fake data, 
-    # but we check if it reaches the processing stage or validation.
-    # The current app implementation tries to read it with cv2, which might fail or return None.
-    # For this simple test, we just want to ensure the route is accessible.
-    pass
+    def test_me_route(self):
+        rv = self.client.get("/auth/me", headers=self.auth_headers)
+        self.assertEqual(rv.status_code, 200)
+        payload = rv.get_json()
+        self.assertIn("id", payload)
+        self.assertIn("username", payload)
 
-def test_validate_route(client):
-    data = {
-        'ai_classification': 'BI-RADS 1',
-        'user_classification': 'BI-RADS 2'
-    }
-    rv = client.post('/validate', json=data)
-    assert rv.status_code == 200
-    assert b'success' in rv.data
+    def test_predict_no_file(self):
+        rv = self.client.post("/predict", headers=self.auth_headers)
+        self.assertEqual(rv.status_code, 400)
+        self.assertIn(b"No file part", rv.data)
+
+    def test_validate_route(self):
+        data = {"ai_classification": "BI-RADS 1", "user_classification": "BI-RADS 2"}
+        rv = self.client.post("/validate", json=data, headers=self.auth_headers)
+        self.assertEqual(rv.status_code, 200)
+        self.assertIn(b"success", rv.data)
+
+    def test_acervo_images_route(self):
+        rv = self.client.get("/acervo/images", headers=self.auth_headers)
+        self.assertEqual(rv.status_code, 200)
+        payload = rv.get_json()
+        self.assertIn("images", payload)
+        self.assertIn("total", payload)
+
+
+if __name__ == "__main__":
+    unittest.main()

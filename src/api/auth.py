@@ -8,6 +8,10 @@ import uuid
 
 auth_bp = Blueprint('auth', __name__)
 
+def _current_user_id():
+    """JWT subject is stored as string; convert to int for DB lookups."""
+    return int(get_jwt_identity())
+
 @auth_bp.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
@@ -88,7 +92,7 @@ def login():
 
     # Create token valid for 7 days
     expires = datetime.timedelta(days=7)
-    access_token = create_access_token(identity=user.id, expires_delta=expires)
+    access_token = create_access_token(identity=str(user.id), expires_delta=expires)
     
     return jsonify({
         "access_token": access_token,
@@ -98,7 +102,7 @@ def login():
 @auth_bp.route('/me', methods=['GET'])
 @jwt_required()
 def me():
-    current_user_id = get_jwt_identity()
+    current_user_id = _current_user_id()
     user = User.query.get(current_user_id)
     
     # Get image count
@@ -112,7 +116,7 @@ def me():
 @auth_bp.route('/resend-verification', methods=['POST'])
 @jwt_required()
 def resend_verification():
-    current_user_id = get_jwt_identity()
+    current_user_id = _current_user_id()
     user = User.query.get(current_user_id)
     
     if user.is_verified:
@@ -136,7 +140,7 @@ def resend_verification():
 @auth_bp.route('/update-profile', methods=['PUT'])
 @jwt_required()
 def update_profile():
-    current_user_id = get_jwt_identity()
+    current_user_id = _current_user_id()
     user = User.query.get(current_user_id)
     if not user:
         return jsonify({"msg": "User not found"}), 404
@@ -163,7 +167,7 @@ def update_profile():
 @auth_bp.route('/update-password', methods=['PUT'])
 @jwt_required()
 def update_password():
-    current_user_id = get_jwt_identity()
+    current_user_id = _current_user_id()
     user = User.query.get(current_user_id)
     
     data = request.get_json()
@@ -188,7 +192,7 @@ from flask import current_app
 @auth_bp.route('/upload-avatar', methods=['POST'])
 @jwt_required()
 def upload_avatar():
-    current_user_id = get_jwt_identity()
+    current_user_id = _current_user_id()
     user = User.query.get(current_user_id)
     
     if 'file' not in request.files:

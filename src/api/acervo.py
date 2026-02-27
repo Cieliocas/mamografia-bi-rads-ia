@@ -7,10 +7,17 @@ import uuid
 
 acervo_bp = Blueprint('acervo', __name__)
 
+def _current_user_id():
+    """JWT subject is stored as string; convert to int for DB lookups."""
+    return int(get_jwt_identity())
+
 @acervo_bp.route('/images', methods=['GET'])
 @jwt_required()
 def get_images():
-    current_user_id = get_jwt_identity()
+    current_user_id = _current_user_id()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 12, type=int)
+    search = request.args.get('search', '', type=str)
     
     # Sort parameters
     sort_by = request.args.get('sort_by', 'date_desc', type=str)
@@ -47,7 +54,7 @@ def get_images():
 @acervo_bp.route('/patients', methods=['GET'])
 @jwt_required()
 def get_patients():
-    current_user_id = get_jwt_identity()
+    current_user_id = _current_user_id()
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 12, type=int)
     search = request.args.get('search', '', type=str)
@@ -91,7 +98,7 @@ def get_patients():
 @acervo_bp.route('/save-image', methods=['POST'])
 @jwt_required()
 def save_image_entry():
-    current_user_id = get_jwt_identity()
+    current_user_id = _current_user_id()
     
     if 'file' not in request.files:
         return jsonify({"msg": "No file part"}), 400
@@ -133,7 +140,7 @@ def save_image_entry():
 @acervo_bp.route('/image/<int:image_id>', methods=['PUT'])
 @jwt_required()
 def update_image(image_id):
-    current_user_id = get_jwt_identity()
+    current_user_id = _current_user_id()
     image = Image.query.filter_by(id=image_id, user_id=current_user_id).first()
     
     if not image:
@@ -155,7 +162,7 @@ def update_image(image_id):
 @acervo_bp.route('/image/<int:image_id>', methods=['DELETE'])
 @jwt_required()
 def delete_image(image_id):
-    current_user_id = get_jwt_identity()
+    current_user_id = _current_user_id()
     image = Image.query.filter_by(id=image_id, user_id=current_user_id).first()
     
     if not image:
@@ -172,7 +179,7 @@ def delete_image(image_id):
 @acervo_bp.route('/download/<int:image_id>', methods=['GET'])
 @jwt_required()
 def download_image(image_id):
-    current_user_id = get_jwt_identity()
+    current_user_id = _current_user_id()
     image = Image.query.filter_by(id=image_id, user_id=current_user_id).first()
     
     if not image:
