@@ -1,15 +1,15 @@
 import os
 import sys
 import base64
+import tempfile
 import cv2
 import numpy as np
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, jwt_required
 from .database import db
 from .auth import auth_bp
 from .acervo import acervo_bp
-from PIL import Image
 import io
 
 # Add model directory to path to import Predictor
@@ -36,7 +36,10 @@ except OSError:
 db_path = os.path.join(app.instance_path, 'mammo.db')
 print(f"Database path: {db_path}")
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-app.config['JWT_SECRET_KEY'] = 'super-secret-key-change-this-in-prod' # Change this!
+app.config['JWT_SECRET_KEY'] = os.getenv(
+    'JWT_SECRET_KEY',
+    'dev-secret-change-me-at-least-32-characters'
+)
 app.config['UPLOAD_FOLDER'] = os.path.join(app.instance_path, 'uploads')
 
 # Ensure upload directory exists
@@ -77,15 +80,21 @@ def predict():
         return jsonify({'error': 'No selected file'}), 400
 
     # Read image
+    temp_path = None
     try:
         # Convert uploaded file to OpenCV format
         in_memory_file = io.BytesIO()
         file.save(in_memory_file)
         data = np.frombuffer(in_memory_file.getvalue(), dtype=np.uint8)
         img = cv2.imdecode(data, cv2.IMREAD_GRAYSCALE)
+        if img is None:
+            return jsonify({'error': 'Invalid image file'}), 400
         
-        # Save temporarily for the model (could optimize to pass numpy array directly if refactored)
-        temp_path = "temp_upload.png"
+        # Use unique temp file to avoid collisions under concurrent requests.
+        with tempfile.NamedTemporaryFile(
+            suffix=".png", prefix="predict_", dir=app.config['UPLOAD_FOLDER'], delete=False
+        ) as temp_file:
+            temp_path = temp_file.name
         cv2.imwrite(temp_path, img)
         
         # Run prediction
@@ -110,6 +119,9 @@ def predict():
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
 
 @app.route('/validate', methods=['POST'])
 @jwt_required()
@@ -120,4 +132,7 @@ def validate():
     return jsonify({'status': 'success', 'message': 'Validation saved'})
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(
+        debug=os.getenv('FLASK_DEBUG', '0') == '1',
+        port=int(os.getenv('PORT', '5000'))
+    )

@@ -1,5 +1,9 @@
 import unittest
 import uuid
+import io
+import os
+import numpy as np
+import cv2
 from werkzeug.security import generate_password_hash
 
 from src.api.app import app, db
@@ -58,6 +62,43 @@ class AppTestCase(unittest.TestCase):
         payload = rv.get_json()
         self.assertIn("images", payload)
         self.assertIn("total", payload)
+
+    def test_predict_invalid_image_returns_400(self):
+        data = {"file": (io.BytesIO(b"invalid-bytes"), "invalid.png")}
+        rv = self.client.post(
+            "/predict",
+            data=data,
+            content_type="multipart/form-data",
+            headers=self.auth_headers,
+        )
+        self.assertEqual(rv.status_code, 400)
+        self.assertIn("Invalid image file", rv.get_data(as_text=True))
+
+    def test_predict_cleans_temporary_file(self):
+        upload_folder = app.config["UPLOAD_FOLDER"]
+        before = set(
+            name for name in os.listdir(upload_folder)
+            if name.startswith("predict_") and name.endswith(".png")
+        )
+
+        image = np.zeros((32, 32), dtype=np.uint8)
+        ok, encoded = cv2.imencode(".png", image)
+        self.assertTrue(ok)
+
+        data = {"file": (io.BytesIO(encoded.tobytes()), "valid.png")}
+        rv = self.client.post(
+            "/predict",
+            data=data,
+            content_type="multipart/form-data",
+            headers=self.auth_headers,
+        )
+        self.assertEqual(rv.status_code, 200)
+
+        after = set(
+            name for name in os.listdir(upload_folder)
+            if name.startswith("predict_") and name.endswith(".png")
+        )
+        self.assertEqual(before, after)
 
 
 if __name__ == "__main__":
