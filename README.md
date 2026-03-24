@@ -18,6 +18,7 @@ Aplicacao desktop para apoio a analise de mamografias com foco em execucao local
 - [Politica do Modelo no GitHub](#politica-do-modelo-no-github)
 - [Pre-requisitos](#pre-requisitos)
 - [Quick Start (Desenvolvimento)](#quick-start-desenvolvimento)
+- [Execucao em 1 Clique (macOS)](#execucao-em-1-clique-macos)
 - [Endpoints Disponiveis](#endpoints-disponiveis)
 - [Variaveis de Ambiente](#variaveis-de-ambiente)
 - [Build de Instalador](#build-de-instalador)
@@ -164,6 +165,47 @@ npm run dev
 ```
 
 A UI vai iniciar o Go Core automaticamente no modo dev.
+
+## Execucao em 1 Clique (macOS)
+
+Voce tem duas opcoes.
+
+### Opcao A: arquivo `.command` (duplo clique imediato)
+
+Na raiz do projeto ja existe:
+
+- `Mammo-Desktop-Dev.command`
+
+No Finder:
+
+1. abra a pasta do projeto
+2. de duplo clique em `Mammo-Desktop-Dev.command`
+
+O macOS abre um Terminal e inicia toda a stack de desenvolvimento.
+
+### Opcao B: gerar um `.app` clicavel
+
+Execute uma vez:
+
+```bash
+./desktop/tools/create_macos_app.sh
+```
+
+Isso gera:
+
+- `Mammo BI-RADS Desktop Dev.app`
+
+Depois, basta duplo clique no app para abrir o Terminal e iniciar o projeto.
+
+### Flags uteis do launcher
+
+Para forcar reinstalacao/rebuild quando necessario:
+
+```bash
+./desktop/tools/run_desktop_dev.sh --rebuild-go
+./desktop/tools/run_desktop_dev.sh --install-ai-deps
+./desktop/tools/run_desktop_dev.sh --install-ui-deps
+```
 
 ## Endpoints Disponiveis
 
