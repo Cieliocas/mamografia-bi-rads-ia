@@ -19,28 +19,29 @@ Thumbs.db
 */.ipynb_checkpoints/
 
 # --- Dados (IMPORTANTE) ---
-# Ignorar o dataset pesado do CBIS-DDSM
+# Ignorar datasets e dados locais pesados
 data/CBIS-DDSM-JPG/
 data/raw/
 data/processed/
 data/
-# Ignorar arquivos de imagem soltos que você possa ter baixado
 *.jpg
 *.jpeg
 *.png
 *.dcm
 *.dicom
 
-# --- YOLO / Ultralytics / Treinamento ---
-# A pasta 'runs' é onde o YOLO salva os logs e pesos de cada treino (fica gigante)
-runs/
-# Ignorar pesos de modelos treinados (são pesados)
+# --- Modelos de IA ---
+# Ignorar pesos por padrao e manter apenas o modelo final de inferencia do app
+*.keras
+*.h5
 *.pt
 *.pth
 *.onnx
 *.tflite
-# Mas podemos querer manter o modelo base se for pequeno (opcional)
-!models/yolov8n.pt
+desktop/apps/ai-engine/models/*
+!desktop/apps/ai-engine/models/.gitkeep
+!desktop/apps/ai-engine/models/README.md
+!desktop/apps/ai-engine/models/unet_mammo_best.keras
 
 # --- Logs e Cache ---
 *.log
@@ -49,14 +50,18 @@ __pycache__
 wandb/
 
 # --- Node modules ---
-frontend/node_modules/
 node_modules/
 
-# --- Flask Instance ---
-instance/
-
-# --- Documentação local ---
-# Se você gerar relatórios temporários
+# --- Artefatos locais ---
 *.pdf
 venv_tf/
 mammografia_code.zip
+
+# --- Treinamento removido do repositorio ---
+src/ml/
+scripts/train.slurm
+scripts/pack_for_cluster.sh
+scripts/test_loader.py
+requirements.txt
+requirements_cluster.txt
+CLUSTER_GUIDE.md
