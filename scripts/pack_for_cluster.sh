@@ -3,7 +3,7 @@
 echo "Packaging project for cluster..."
 
 # Remove old zip if exists
-rm -f mammografia_project.zip
+rm -f mammografia_code.zip
 
 # Zip relevant directories and files
 # Excluding venv, .git, .DS_Store, __pycache__, and potentially huge data folders if they are already on cluster.
@@ -13,8 +13,8 @@ rm -f mammografia_project.zip
 # BUT for a complete package, I will include data if it's not too massive or let the user decide.
 # Given the query "which files I need", I'll package the code and providing instructions for data.
 
-# Zipping code and config
-zip -r mammografia_code.zip src config scripts requirements_cluster.txt README.md
+# Zipping training code + docs relevantes para cluster
+zip -r mammografia_code.zip src scripts requirements_cluster.txt CLUSTER_GUIDE.md README.md
 
 echo "Code packaged into mammografia_code.zip"
 echo "NOTE: Data folder is NOT included in this zip to save space/time."

@@ -127,32 +127,38 @@ Depois de submeter, você não precisa ficar conectado. O cluster vai rodar sozi
 
 ---
 
-## 6. Pós-Treinamento (Usando o Modelo)
+## 6. Pós-Treinamento (Integrando no Desktop)
 
-Após o término do treinamento (quando o status no `squeue` não mostrar mais o job), você deve trazer o modelo treinado de volta para sua máquina para usar na aplicação web.
+Após o término do treinamento (quando o `squeue` não mostrar mais o job), traga os artefatos para a pasta do sidecar de IA da versão desktop.
 
 ### 1. Baixar o Modelo
-No seu computador local (Mac), abra o terminal e execute:
+No computador local, execute:
 
 ```bash
-# Cria a pasta local se não existir
-mkdir -p models
+# cria a pasta de modelos do sidecar desktop
+mkdir -p desktop/apps/ai-engine/models
 
 # Exemplo: baixar o melhor checkpoint e o modelo final de um run específico
-scp usuario@cluster.techne.br:~/projeto_mamografia/models/exp_gpu4_v1/checkpoints/best.keras ./models/unet_mammo_best.keras
-scp usuario@cluster.techne.br:~/projeto_mamografia/models/exp_gpu4_v1/final.keras ./models/unet_mammo_final.keras
+scp usuario@cluster.techne.br:~/projeto_mamografia/models/exp_gpu4_v1/checkpoints/best.keras \
+  desktop/apps/ai-engine/models/unet_mammo_best.keras
+scp usuario@cluster.techne.br:~/projeto_mamografia/models/exp_gpu4_v1/final.keras \
+  desktop/apps/ai-engine/models/unet_mammo_final.keras
 ```
 
-### 2. Testar na Aplicação
-Com o arquivo `unet_mammo_best.keras` dentro da pasta `models/`, você pode rodar a interface visual:
+### 2. Validar a Carga do Modelo no Sidecar
 
 ```bash
-# Instale as dependências locais se ainda não fez
+cd desktop/apps/ai-engine
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-
-# Inicie o servidor
-python -m src.api.app
+MODEL_PATH=./models/unet_mammo_best.keras uvicorn app.main:app --host 127.0.0.1 --port 8090
 ```
 
-Acesse **http://localhost:5000** no navegador.
-Agora você pode fazer upload de uma mamografia e ver a segmentação gerada pelo modelo que você treinou no cluster!
+Em outro terminal:
+
+```bash
+curl http://127.0.0.1:8090/health
+```
+
+Se `model_loaded: true`, o modelo está pronto para uso pela aplicação desktop.
