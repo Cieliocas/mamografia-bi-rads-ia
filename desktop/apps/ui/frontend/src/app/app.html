@@ -1,0 +1,634 @@
+<!-- ═══════════════════════════════════════════════
+     SPLASH SCREEN
+═══════════════════════════════════════════════ -->
+<div *ngIf="showSplash"
+  class="fixed inset-0 bg-surface-dim flex items-center justify-center z-50 p-6">
+  <div class="relative w-[640px] h-[380px] bg-surface-container-high border border-white/5 rounded-sm overflow-hidden flex flex-col justify-between p-12 shadow-2xl">
+    <div class="absolute inset-0 pointer-events-none opacity-10">
+      <div class="absolute top-0 right-0 w-full h-full bg-[radial-gradient(circle_at_top_right,rgba(175,162,255,0.2),transparent_70%)]"></div>
+      <div class="absolute bottom-0 left-0 w-full h-full bg-[radial-gradient(circle_at_bottom_left,rgba(0,227,253,0.15),transparent_60%)]"></div>
+      <div class="absolute inset-0" style="background-image:radial-gradient(circle,rgba(255,255,255,0.05)1px,transparent 1px);background-size:24px 24px"></div>
+    </div>
+    <div class="relative z-10 flex justify-between items-start">
+      <div>
+        <h1 class="font-headline text-5xl font-black tracking-tighter text-white leading-none">
+          AIdentify<span class="text-secondary">.</span>
+        </h1>
+        <p class="mt-3 text-sm font-medium tracking-[0.2em] text-on-surface-variant uppercase">Radiology Precision AI</p>
+      </div>
+      <div class="h-12 w-12 flex items-center justify-center bg-gradient-to-br from-primary to-primary/80 rounded-sm shadow-lg">
+        <lucide-icon name="activity" class="text-surface-dim w-8 h-8"></lucide-icon>
+      </div>
+    </div>
+    <div class="relative z-10 space-y-6">
+      <div class="flex items-end justify-between">
+        <div class="space-y-1">
+          <p class="text-[10px] text-on-surface-variant/60 uppercase tracking-widest font-bold">System Status</p>
+          <div class="flex items-center gap-3">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-secondary opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-secondary"></span>
+            </span>
+            <p class="text-xs font-medium text-on-surface-variant">Loading AI model weights... Initializing DICOM parser...</p>
+          </div>
+        </div>
+        <p class="text-[10px] text-on-surface-variant/40 tracking-widest uppercase font-bold">Version 2026.1</p>
+      </div>
+      <div class="relative w-full h-1 bg-surface-container-highest overflow-hidden">
+        <div class="absolute top-0 left-0 h-full bg-gradient-to-r from-secondary to-primary shadow-[0_0_8px_rgba(0,227,253,0.5)] transition-all duration-75"
+             [style.width.%]="progress"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden file input -->
+<input #fileInput type="file" accept="image/*,.dcm" class="hidden" (change)="onFileSelected($event)" />
+
+<!-- ═══════════════════════════════════════════════
+     MAIN DASHBOARD
+═══════════════════════════════════════════════ -->
+<div *ngIf="!showSplash" class="h-screen flex flex-col overflow-hidden bg-surface-dim">
+
+  <!-- Top Bar -->
+  <header class="h-12 border-b border-white/5 flex items-center justify-between px-4 shrink-0 z-50">
+    <div class="flex items-center gap-8">
+      <span class="font-headline text-lg font-bold text-primary tracking-tighter">AIdentify</span>
+      <nav class="flex items-center gap-4">
+        <span class="text-xs font-medium uppercase tracking-wider cursor-pointer text-secondary border-b border-secondary pb-1">File</span>
+        <span class="text-xs font-medium uppercase tracking-wider cursor-pointer text-on-surface-variant hover:text-white transition-colors">Edit</span>
+        <span class="text-xs font-medium uppercase tracking-wider cursor-pointer text-on-surface-variant hover:text-white transition-colors">View</span>
+        <span class="text-xs font-medium uppercase tracking-wider cursor-pointer text-on-surface-variant hover:text-white transition-colors">AI Model</span>
+        <span class="text-xs font-medium uppercase tracking-wider cursor-pointer text-on-surface-variant hover:text-white transition-colors">Help</span>
+      </nav>
+    </div>
+    <div class="flex items-center gap-3">
+      <!-- Upload button -->
+      <button (click)="openFileDialog()"
+        class="flex items-center gap-2 bg-surface-container-highest border border-white/10 text-on-surface-variant px-3 py-1.5 rounded-sm text-xs font-bold uppercase tracking-tight hover:text-secondary hover:border-secondary/30 transition-all">
+        <lucide-icon name="upload" class="w-3.5 h-3.5"></lucide-icon>
+        Load Image
+      </button>
+      <button class="bg-gradient-to-br from-primary to-primary/80 text-surface-dim px-4 py-1 rounded-sm text-xs font-bold uppercase tracking-tight hover:opacity-90 active:scale-95 transition-all">
+        Activate AI
+      </button>
+      <div class="flex items-center gap-2 text-on-surface-variant">
+        <lucide-icon name="user" class="w-5 h-5 p-0.5 hover:bg-surface-variant rounded cursor-pointer transition-colors"></lucide-icon>
+        <lucide-icon name="settings" class="w-5 h-5 p-0.5 hover:bg-surface-variant rounded cursor-pointer transition-colors"></lucide-icon>
+      </div>
+    </div>
+  </header>
+
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- ═══ Icon Side Nav ════════════════════════════════════── -->
+    <aside class="w-20 border-r border-white/5 flex flex-col items-center py-4 gap-1 shrink-0 bg-[#121212]">
+      <!-- Images -->
+      <button (click)="setPanel('images')"
+        class="flex flex-col items-center py-4 w-full transition-all duration-200"
+        [class]="activePanel === 'images'
+          ? 'bg-surface-variant text-secondary border-l-2 border-secondary'
+          : 'text-on-surface-variant hover:text-primary hover:bg-surface-variant border-l-2 border-transparent'">
+        <lucide-icon name="folder-open" class="w-6 h-6 mb-1"></lucide-icon>
+        <span class="text-[11px] font-semibold">Images</span>
+      </button>
+
+      <!-- History -->
+      <button (click)="setPanel('history')"
+        class="flex flex-col items-center py-4 w-full transition-all duration-200"
+        [class]="activePanel === 'history'
+          ? 'bg-surface-variant text-secondary border-l-2 border-secondary'
+          : 'text-on-surface-variant hover:text-primary hover:bg-surface-variant border-l-2 border-transparent'">
+        <lucide-icon name="history" class="w-6 h-6 mb-1"></lucide-icon>
+        <span class="text-[11px] font-semibold">History</span>
+        <span *ngIf="historyFiles.length > 0"
+          class="text-[8px] font-black text-primary">{{ historyFiles.length }}</span>
+      </button>
+
+      <!-- Analysis -->
+      <button (click)="setPanel('analysis')"
+        class="flex flex-col items-center py-4 w-full transition-all duration-200"
+        [class]="activePanel === 'analysis'
+          ? 'bg-surface-variant text-secondary border-l-2 border-secondary'
+          : 'text-on-surface-variant hover:text-primary hover:bg-surface-variant border-l-2 border-transparent'">
+        <lucide-icon name="bar-chart-3" class="w-6 h-6 mb-1"></lucide-icon>
+        <span class="text-[11px] font-semibold">Analysis</span>
+      </button>
+
+      <!-- Tools -->
+      <button (click)="setPanel('tools')"
+        class="flex flex-col items-center py-4 w-full transition-all duration-200"
+        [class]="activePanel === 'tools'
+          ? 'bg-surface-variant text-secondary border-l-2 border-secondary'
+          : 'text-on-surface-variant hover:text-primary hover:bg-surface-variant border-l-2 border-transparent'">
+        <lucide-icon name="wrench" class="w-6 h-6 mb-1"></lucide-icon>
+        <span class="text-[11px] font-semibold">Tools</span>
+      </button>
+
+      <!-- Support (bottom) -->
+      <button class="mt-auto flex flex-col items-center py-4 w-full text-on-surface-variant hover:text-primary hover:bg-surface-variant border-l-2 border-transparent transition-all duration-200">
+        <lucide-icon name="help-circle" class="w-6 h-6 mb-1"></lucide-icon>
+        <span class="text-[11px] font-semibold">Support</span>
+      </button>
+    </aside>
+
+    <!-- ═══ Side Panel (context-aware) ═══════════════════════── -->
+    <aside class="w-[300px] border-r border-white/5 flex flex-col shrink-0 bg-surface-container-low overflow-hidden">
+
+      <!-- ─── IMAGES PANEL ─────────────────────────────────── -->
+      <ng-container *ngIf="activePanel === 'images'">
+        <div class="p-4 border-b border-white/5">
+          <h2 class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-3">Patient Files</h2>
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="font-headline text-lg font-bold">Radiology Suite</h3>
+              <p class="text-xs text-on-surface-variant">{{ loadedImage ? '1 image active' : 'No image loaded' }}</p>
+            </div>
+            <button (click)="openFileDialog()" class="bg-surface-container-highest p-2 rounded-sm hover:text-secondary transition-colors" title="Load Image">
+              <lucide-icon name="plus" class="w-4 h-4"></lucide-icon>
+            </button>
+          </div>
+          <!-- Active file badge -->
+          <div *ngIf="imageName" class="mt-3 bg-secondary/10 border border-secondary/20 rounded-sm px-3 py-2 flex items-center justify-between">
+            <span class="text-xs text-secondary font-bold truncate max-w-[180px]">{{ imageName }}</span>
+            <button (click)="imageDataUrl = null; loadedImage = null; imageName = ''; clearOverlays()" class="text-on-surface-variant hover:text-error ml-2">
+              <lucide-icon name="x" class="w-3 h-3"></lucide-icon>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex-1 overflow-y-auto p-2 space-y-2">
+          <!-- Active card -->
+          <div class="p-2 bg-surface-container-high rounded-sm border-l-2 border-primary cursor-pointer">
+            <div class="flex gap-3">
+              <div class="w-16 h-16 bg-surface-dim rounded overflow-hidden shrink-0 border border-white/5 flex items-center justify-center">
+                <img *ngIf="imageDataUrl" [src]="imageDataUrl" class="w-full h-full object-cover opacity-70" alt="loaded"/>
+                <lucide-icon *ngIf="!imageDataUrl" name="activity" class="w-5 h-5 text-on-surface-variant/20"></lucide-icon>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold truncate">{{ imageName || 'No exam loaded' }}</p>
+                <p class="text-[10px] text-on-surface-variant mt-0.5">Active viewport</p>
+                <span class="inline-block mt-2 px-1.5 py-0.5 text-[9px] font-bold uppercase"
+                  [class]="loadedImage ? 'bg-secondary/10 text-secondary' : 'bg-primary/10 text-primary'">
+                  {{ loadedImage ? 'Loaded' : 'Empty' }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Placeholder queue -->
+          <div class="pt-2 pb-1 px-2">
+            <p class="text-[10px] text-on-surface-variant/40 uppercase tracking-widest font-bold">Queue</p>
+          </div>
+          <ng-container *ngFor="let exam of [
+            {id:'EXAM_MLO_LEFT_0921',time:'14:25'},
+            {id:'EXAM_CC_RIGHT_0921',time:'14:30'},
+            {id:'EXAM_MLO_RIGHT_0921',time:'14:35'}
+          ]">
+            <div class="p-2 hover:bg-surface-container-high rounded-sm group cursor-pointer transition-all"
+                 (click)="openFileDialog()" title="Click to load image for this slot">
+              <div class="flex gap-3">
+                <div class="w-16 h-16 bg-surface-dim rounded border border-dashed border-white/10 flex items-center justify-center shrink-0">
+                  <lucide-icon name="plus" class="w-4 h-4 text-on-surface-variant/20 group-hover:text-on-surface-variant/50 transition-colors"></lucide-icon>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-bold truncate text-on-surface-variant/60 group-hover:text-white transition-colors">{{exam.id}}</p>
+                  <p class="text-[10px] text-on-surface-variant/40">Click to load</p>
+                </div>
+              </div>
+            </div>
+          </ng-container>
+        </div>
+      </ng-container>
+
+      <!-- ─── HISTORY PANEL ─────────────────────────────────── -->
+      <ng-container *ngIf="activePanel === 'history'">
+        <div class="p-4 border-b border-white/5">
+          <h2 class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">Image History</h2>
+          <p class="text-xs text-on-surface-variant">{{ historyFiles.length }} file(s) opened this session</p>
+        </div>
+        <div class="flex-1 overflow-y-auto">
+          <!-- Empty state -->
+          <div *ngIf="historyFiles.length === 0" class="flex flex-col items-center justify-center h-full gap-3 text-on-surface-variant/30 p-8 text-center">
+            <lucide-icon name="history" class="w-10 h-10"></lucide-icon>
+            <p class="text-xs">No files opened yet. Load an image to start building history.</p>
+          </div>
+          <!-- History list -->
+          <div class="p-2 space-y-2">
+            <div *ngFor="let item of historyFiles; let i = index"
+              class="p-2 bg-surface-container-high hover:bg-surface-container-highest rounded-sm cursor-pointer transition-all group"
+              (click)="loadFromHistory(item)">
+              <div class="flex gap-3 items-center">
+                <div class="w-12 h-12 bg-surface-dim rounded overflow-hidden shrink-0 border border-white/5">
+                  <img [src]="item.dataUrl" class="w-full h-full object-cover opacity-60 group-hover:opacity-80 transition-opacity" alt=""/>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <p class="text-xs font-bold truncate group-hover:text-secondary transition-colors">{{ item.name }}</p>
+                  <p class="text-[9px] text-on-surface-variant/60 mt-0.5">{{ item.date }}</p>
+                </div>
+                <lucide-icon name="chevron-right" class="w-4 h-4 text-on-surface-variant/30 group-hover:text-secondary transition-colors shrink-0"></lucide-icon>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- ─── ANALYSIS PANEL ────────────────────────────────── -->
+      <ng-container *ngIf="activePanel === 'analysis'">
+        <div class="p-4 border-b border-white/5">
+          <h2 class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">Image Analysis</h2>
+          <p class="text-xs text-on-surface-variant">{{ loadedImage ? 'Active image metrics' : 'No image loaded' }}</p>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-4">
+          <!-- No image state -->
+          <div *ngIf="!loadedImage" class="text-center text-on-surface-variant/30 py-8">
+            <lucide-icon name="bar-chart-3" class="w-10 h-10 mx-auto mb-3"></lucide-icon>
+            <p class="text-xs">Load an image to see metrics</p>
+          </div>
+
+          <ng-container *ngIf="loadedImage">
+            <!-- Image info -->
+            <div class="bg-surface-container-highest rounded-sm p-3 space-y-2">
+              <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Image Info</p>
+              <div class="space-y-1.5 text-xs">
+                <div class="flex justify-between">
+                  <span class="text-on-surface-variant">File</span>
+                  <span class="font-bold truncate max-w-[140px] text-right">{{ imageName }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-on-surface-variant">Dimensions</span>
+                  <span class="font-bold text-secondary">{{ loadedImage.naturalWidth }} × {{ loadedImage.naturalHeight }}px</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-on-surface-variant">Zoom</span>
+                  <span class="font-bold">{{ zoomPercent }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-on-surface-variant">Contrast</span>
+                  <span class="font-bold">{{ contrast }}%</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-on-surface-variant">Brightness</span>
+                  <span class="font-bold">{{ brightness }}%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Annotations summary -->
+            <div class="bg-surface-container-highest rounded-sm p-3 space-y-2">
+              <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">Annotations</p>
+              <div class="space-y-1.5 text-xs">
+                <div class="flex justify-between">
+                  <span class="text-on-surface-variant">Markers placed</span>
+                  <span class="font-bold text-error">{{ markers.length }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-on-surface-variant">Measurements</span>
+                  <span class="font-bold text-primary">{{ measurements.length }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-on-surface-variant">Active tool</span>
+                  <span class="font-bold uppercase">{{ activeTool }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quick actions -->
+            <div class="space-y-2">
+              <button (click)="fitToScreen()" class="w-full py-2 text-xs font-bold uppercase tracking-wider bg-surface-container-highest border border-white/5 hover:border-secondary/30 hover:text-secondary transition-all rounded-sm">
+                Fit to Screen
+              </button>
+              <button (click)="clearOverlays(); drawCanvas()" class="w-full py-2 text-xs font-bold uppercase tracking-wider bg-surface-container-highest border border-white/5 hover:border-error/30 hover:text-error transition-all rounded-sm">
+                Clear All Annotations
+              </button>
+            </div>
+          </ng-container>
+        </div>
+      </ng-container>
+
+      <!-- ─── TOOLS PANEL ───────────────────────────────────── -->
+      <ng-container *ngIf="activePanel === 'tools'">
+        <div class="p-4 border-b border-white/5">
+          <h2 class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">Toolbox</h2>
+          <p class="text-xs text-on-surface-variant">Active: <span class="text-secondary font-bold uppercase">{{ activeTool }}</span></p>
+        </div>
+        <div class="flex-1 overflow-y-auto p-4 space-y-5">
+
+          <!-- Navigation tools -->
+          <div class="space-y-2">
+            <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest border-b border-white/5 pb-2">Navigation</p>
+            <div class="grid grid-cols-2 gap-2">
+              <button (click)="setActiveTool('pan')"
+                class="flex flex-col items-center gap-2 p-3 rounded-sm border transition-all"
+                [class]="activeTool === 'pan' ? 'bg-secondary/10 border-secondary/40 text-secondary' : 'bg-surface-container-highest border-white/5 text-on-surface-variant hover:border-secondary/20 hover:text-white'">
+                <lucide-icon name="hand" class="w-5 h-5"></lucide-icon>
+                <span class="text-[10px] font-bold uppercase">Pan</span>
+              </button>
+              <button (click)="zoomIn()"
+                class="flex flex-col items-center gap-2 p-3 rounded-sm border border-white/5 bg-surface-container-highest text-on-surface-variant hover:border-secondary/20 hover:text-white transition-all">
+                <lucide-icon name="zoom-in" class="w-5 h-5"></lucide-icon>
+                <span class="text-[10px] font-bold uppercase">Zoom In</span>
+              </button>
+              <button (click)="zoomOut()"
+                class="flex flex-col items-center gap-2 p-3 rounded-sm border border-white/5 bg-surface-container-highest text-on-surface-variant hover:border-secondary/20 hover:text-white transition-all">
+                <lucide-icon name="zoom-out" class="w-5 h-5"></lucide-icon>
+                <span class="text-[10px] font-bold uppercase">Zoom Out</span>
+              </button>
+              <button (click)="fitToScreen()"
+                class="flex flex-col items-center gap-2 p-3 rounded-sm border border-white/5 bg-surface-container-highest text-on-surface-variant hover:border-secondary/20 hover:text-white transition-all">
+                <lucide-icon name="maximize-2" class="w-5 h-5"></lucide-icon>
+                <span class="text-[10px] font-bold uppercase">Fit Screen</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Annotation tools -->
+          <div class="space-y-2">
+            <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest border-b border-white/5 pb-2">Annotation</p>
+            <div class="grid grid-cols-2 gap-2">
+              <button (click)="setActiveTool('marker')"
+                class="flex flex-col items-center gap-2 p-3 rounded-sm border transition-all"
+                [class]="activeTool === 'marker' ? 'bg-error/10 border-error/40 text-error' : 'bg-surface-container-highest border-white/5 text-on-surface-variant hover:border-error/20 hover:text-white'">
+                <lucide-icon name="map-pin" class="w-5 h-5"></lucide-icon>
+                <span class="text-[10px] font-bold uppercase">Marker</span>
+              </button>
+              <button (click)="setActiveTool('ruler')"
+                class="flex flex-col items-center gap-2 p-3 rounded-sm border transition-all"
+                [class]="activeTool === 'ruler' ? 'bg-primary/10 border-primary/40 text-primary' : 'bg-surface-container-highest border-white/5 text-on-surface-variant hover:border-primary/20 hover:text-white'">
+                <lucide-icon name="ruler" class="w-5 h-5"></lucide-icon>
+                <span class="text-[10px] font-bold uppercase">Ruler</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Adjustments -->
+          <div class="space-y-3">
+            <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest border-b border-white/5 pb-2">Adjustments</p>
+            <div class="space-y-4">
+              <!-- Contrast -->
+              <div>
+                <div class="flex justify-between items-center text-xs font-bold mb-2">
+                  <span class="text-on-surface-variant">Contrast</span>
+                  <span class="text-secondary">{{ contrast }}%</span>
+                </div>
+                <input type="range" min="20" max="200" step="5"
+                  [(ngModel)]="contrast" (input)="onContrastChange()"
+                  class="w-full h-1 accent-secondary cursor-pointer" />
+                <div class="flex justify-between text-[8px] text-on-surface-variant/40 mt-1">
+                  <span>Low</span><span>Normal</span><span>High</span>
+                </div>
+              </div>
+              <!-- Brightness -->
+              <div>
+                <div class="flex justify-between items-center text-xs font-bold mb-2">
+                  <span class="text-on-surface-variant">Brightness</span>
+                  <span class="text-primary">{{ brightness }}%</span>
+                </div>
+                <input type="range" min="20" max="200" step="5"
+                  [(ngModel)]="brightness" (input)="onContrastChange()"
+                  class="w-full h-1 accent-primary cursor-pointer" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Reset / Clear -->
+          <div class="space-y-2 pt-2 border-t border-white/5">
+            <button (click)="contrast = 80; brightness = 100; onContrastChange()"
+              class="w-full py-2 text-xs font-bold uppercase tracking-wider bg-surface-container-highest border border-white/5 hover:border-secondary/30 hover:text-secondary transition-all rounded-sm">
+              Reset Adjustments
+            </button>
+            <button (click)="clearOverlays(); drawCanvas()"
+              class="w-full py-2 text-xs font-bold uppercase tracking-wider bg-surface-container-highest border border-white/5 hover:border-error/30 hover:text-error transition-all rounded-sm">
+              Clear Annotations
+            </button>
+          </div>
+        </div>
+      </ng-container>
+
+    </aside>
+
+    <!-- ═══ MAIN VIEWER ════════════════════────────────────────── -->
+    <main class="flex-1 bg-surface-dim relative overflow-hidden flex flex-col" id="viewer-canvas-container">
+
+      <!-- Empty state -->
+      <div *ngIf="!loadedImage" class="flex-1 flex flex-col items-center justify-center gap-6 text-on-surface-variant/30">
+        <div class="w-24 h-24 border-2 border-dashed border-on-surface-variant/20 rounded-full flex items-center justify-center">
+          <lucide-icon name="upload" class="w-10 h-10"></lucide-icon>
+        </div>
+        <div class="text-center space-y-2">
+          <p class="text-sm font-bold uppercase tracking-widest">No Image Loaded</p>
+          <p class="text-xs">Click "Load Image" or the + button to open any image</p>
+        </div>
+        <button (click)="openFileDialog()"
+          class="px-6 py-2.5 bg-surface-container-high border border-white/10 text-primary text-xs font-bold uppercase tracking-widest hover:bg-primary/5 hover:border-primary/20 transition-all rounded-sm">
+          Open Image File
+        </button>
+      </div>
+
+      <!-- Canvas viewer -->
+      <div *ngIf="loadedImage" class="flex-1 relative" #viewerContainer>
+        <canvas #canvasEl
+          class="w-full h-full block"
+          [class]="cursorClass"
+          (mousedown)="onMouseDown($event)"
+          (mousemove)="onMouseMove($event)"
+          (mouseup)="onMouseUp($event)"
+          (mouseleave)="isDragging = false"
+          (contextmenu)="$event.preventDefault(); zoomOut()">
+        </canvas>
+
+        <!-- Overlay info top-left -->
+        <div class="absolute top-4 left-4 pointer-events-none space-y-1">
+          <p class="text-[11px] font-bold text-secondary tracking-wider">NAME: DOE, JANE</p>
+          <p class="text-[10px] text-on-surface-variant">{{ imageName || 'EXAM_CC_LEFT_0921' }}</p>
+          <p class="text-[10px] text-on-surface-variant">ZOOM: {{ zoomPercent }}</p>
+          <p class="text-[10px] text-on-surface-variant">TOOL: {{ activeTool | uppercase }}</p>
+        </div>
+
+        <!-- Overlay info top-right -->
+        <div class="absolute top-4 right-4 text-right pointer-events-none space-y-1">
+          <p class="text-[10px] text-on-surface-variant">CONTRAST: {{ contrast }}%</p>
+          <p class="text-[10px] text-on-surface-variant">
+            {{ loadedImage ? loadedImage.naturalWidth + '×' + loadedImage.naturalHeight : '–' }}
+          </p>
+          <p class="text-[10px] text-on-surface-variant">MARKERS: {{ markers.length }}</p>
+        </div>
+      </div>
+
+      <!-- ─── Bottom Toolbar ─────────────────────────────── -->
+      <div *ngIf="loadedImage"
+        class="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1 glass-panel px-4 py-2 rounded-full border border-white/10 shadow-2xl z-20">
+
+        <!-- Zoom / Pan tools -->
+        <div class="flex items-center gap-1 pr-4 border-r border-white/10">
+          <button (click)="zoomIn()" title="Zoom In"
+            class="p-2 rounded-full transition-colors hover:bg-surface-variant"
+            [class]="activeTool==='zoom' ? 'text-secondary' : 'text-on-surface-variant hover:text-secondary'">
+            <lucide-icon name="zoom-in" class="w-5 h-5"></lucide-icon>
+          </button>
+          <button (click)="zoomOut()" title="Zoom Out"
+            class="p-2 rounded-full transition-colors text-on-surface-variant hover:text-secondary hover:bg-surface-variant">
+            <lucide-icon name="zoom-out" class="w-5 h-5"></lucide-icon>
+          </button>
+          <button (click)="setActiveTool('pan')" title="Pan Tool"
+            class="p-2 rounded-full transition-colors"
+            [class]="activeTool==='pan' ? 'text-secondary bg-surface-variant' : 'text-on-surface-variant hover:text-secondary hover:bg-surface-variant'">
+            <lucide-icon name="hand" class="w-5 h-5"></lucide-icon>
+          </button>
+          <button (click)="fitToScreen()" title="Fit to Screen"
+            class="p-2 rounded-full transition-colors text-on-surface-variant hover:text-secondary hover:bg-surface-variant">
+            <lucide-icon name="maximize-2" class="w-5 h-5"></lucide-icon>
+          </button>
+        </div>
+
+        <!-- Contrast slider -->
+        <div class="flex items-center gap-3 px-4 border-r border-white/10">
+          <div class="flex flex-col gap-1 w-28">
+            <div class="flex justify-between items-center text-[8px] uppercase font-bold text-on-surface-variant">
+              <span>Contrast</span>
+              <span>{{ contrast }}%</span>
+            </div>
+            <input type="range" min="20" max="200" step="5"
+              [(ngModel)]="contrast" (input)="onContrastChange()"
+              class="h-1 w-full accent-secondary cursor-pointer" />
+          </div>
+          <div class="flex flex-col gap-1 w-24">
+            <div class="flex justify-between items-center text-[8px] uppercase font-bold text-on-surface-variant">
+              <span>Bright</span>
+              <span>{{ brightness }}%</span>
+            </div>
+            <input type="range" min="20" max="200" step="5"
+              [(ngModel)]="brightness" (input)="onContrastChange()"
+              class="h-1 w-full accent-primary cursor-pointer" />
+          </div>
+        </div>
+
+        <!-- Annotation tools -->
+        <div class="flex items-center gap-1 pl-4">
+          <button (click)="setActiveTool('marker')" title="Place Marker"
+            class="p-2 rounded-full transition-colors"
+            [class]="activeTool==='marker' ? 'text-error bg-surface-variant' : 'text-on-surface-variant hover:text-error hover:bg-surface-variant'">
+            <lucide-icon name="map-pin" class="w-5 h-5"></lucide-icon>
+          </button>
+          <button (click)="setActiveTool('ruler')" title="Measure Distance"
+            class="p-2 rounded-full transition-colors"
+            [class]="activeTool==='ruler' ? 'text-secondary bg-surface-variant' : 'text-on-surface-variant hover:text-secondary hover:bg-surface-variant'">
+            <lucide-icon name="ruler" class="w-5 h-5"></lucide-icon>
+          </button>
+          <button (click)="clearOverlays(); drawCanvas()" title="Clear All Markers"
+            class="p-2 rounded-full transition-colors text-on-surface-variant hover:text-error hover:bg-surface-variant">
+            <lucide-icon name="rotate-cw" class="w-5 h-5"></lucide-icon>
+          </button>
+        </div>
+      </div>
+    </main>
+
+    <!-- ═══ FINDINGS PANEL ═══════════════════════════════════ -->
+    <aside class="w-[340px] border-l border-white/5 flex flex-col p-4 overflow-y-auto bg-surface-container-high">
+      <h2 class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant mb-6 flex items-center gap-2">
+        <span class="w-1.5 h-1.5 rounded-full bg-error"></span> AI Diagnostic Insights
+      </h2>
+
+      <div class="space-y-6">
+        <!-- BI-RADS card -->
+        <div class="bg-surface-container-highest p-4 border border-white/5 relative overflow-hidden group">
+          <div class="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
+            <lucide-icon name="alert-triangle" class="w-10 h-10"></lucide-icon>
+          </div>
+          <p class="text-[10px] font-bold text-on-surface-variant uppercase mb-1">Classification Score</p>
+          <h3 class="font-headline text-2xl font-black text-error">BI-RADS 4C</h3>
+          <p class="text-xs text-on-surface-variant mt-2">Findings: High suspicion for malignancy. Recommend immediate core biopsy.</p>
+        </div>
+
+        <!-- Probability bars -->
+        <div class="space-y-4">
+          <div>
+            <div class="flex justify-between items-center text-xs font-bold mb-2">
+              <span>Malignancy Prob.</span>
+              <span class="text-error">82.4%</span>
+            </div>
+            <div class="h-1.5 bg-surface-dim rounded-full overflow-hidden">
+              <div class="h-full w-[82.4%] bg-gradient-to-r from-primary to-error"></div>
+            </div>
+          </div>
+          <div>
+            <div class="flex justify-between items-center text-xs font-bold mb-2">
+              <span>Tissue Density</span>
+              <span class="text-white">Type C</span>
+            </div>
+            <div class="h-1.5 bg-surface-dim rounded-full overflow-hidden">
+              <div class="h-full w-[65%] bg-secondary"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Placed markers list -->
+        <div class="space-y-3">
+          <h4 class="text-[10px] font-bold text-on-surface-variant uppercase border-b border-white/5 pb-2 flex items-center justify-between">
+            Identified Markers
+            <span class="text-primary">{{ markers.length }}</span>
+          </h4>
+
+          <!-- Dynamic markers from canvas -->
+          <ng-container *ngFor="let m of markersSorted; let i = index">
+            <div class="flex items-center gap-3 p-2 rounded-sm transition-colors cursor-pointer"
+              [class]="m.type === 'mass' ? 'bg-surface-container-low hover:bg-surface-container-highest border-l-2 border-error' : 'bg-surface-container-low hover:bg-surface-container-highest'">
+              <div class="w-8 h-8 rounded-sm flex items-center justify-center"
+                [class]="m.type === 'mass' ? 'bg-error/10' : 'bg-secondary/10'">
+                <lucide-icon name="map-pin"
+                  [class]="m.type === 'mass' ? 'text-error w-5 h-5' : 'text-secondary w-5 h-5'"></lucide-icon>
+              </div>
+              <div class="flex-1">
+                <p class="text-xs font-bold">Marker #{{ padNum(i+1) }}: {{ m.label }}</p>
+                <p class="text-[10px] text-on-surface-variant">X: {{ m.x | number:'1.0-0' }} | Y: {{ m.y | number:'1.0-0' }}</p>
+              </div>
+              <button (click)="markers.splice(i,1); drawCanvas()" class="text-on-surface-variant hover:text-error transition-colors">
+                <lucide-icon name="x" class="w-3.5 h-3.5"></lucide-icon>
+              </button>
+            </div>
+          </ng-container>
+
+          <!-- Empty state for markers -->
+          <p *ngIf="markers.length === 0" class="text-[10px] text-on-surface-variant/40 text-center py-2">
+            Use the marker tool (📍) to annotate findings
+          </p>
+        </div>
+
+        <!-- Measurements list -->
+        <div *ngIf="measurements.length > 0" class="space-y-2">
+          <h4 class="text-[10px] font-bold text-on-surface-variant uppercase border-b border-white/5 pb-2">Measurements</h4>
+          <div *ngFor="let meas of measurements; let i = index" class="flex items-center gap-2 text-[10px] text-on-surface-variant p-1.5 bg-surface-container-low rounded-sm">
+            <span class="text-primary font-bold">M{{i+1}}:</span>
+            <span>{{ (((meas.x2-meas.x1)**2+(meas.y2-meas.y1)**2)**0.5) | number:'1.1-1' }}px</span>
+            <button (click)="measurements.splice(i,1); drawCanvas()" class="ml-auto hover:text-error transition-colors">
+              <lucide-icon name="x" class="w-3 h-3"></lucide-icon>
+            </button>
+          </div>
+        </div>
+
+        <!-- Action button -->
+        <button class="w-full py-3 bg-surface-container-highest text-primary border border-primary/20 text-xs font-bold uppercase tracking-widest hover:bg-primary/5 transition-all mt-4">
+          Generate DICOM Report
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Status bar -->
+  <footer class="h-8 border-t border-white/5 flex items-center justify-between px-4 text-[10px] text-on-surface-variant font-medium shrink-0">
+    <div class="flex items-center gap-6">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_4px_#22c55e]"></span>
+        <span>System Online: Angular + Wails Engine</span>
+      </div>
+      <div class="flex items-center gap-4">
+        <span>Markers: {{ markers.length }}</span>
+        <span>Zoom: {{ zoomPercent }}</span>
+        <span>Tool: {{ activeTool | uppercase }}</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-6 uppercase tracking-tighter font-bold">
+      <span class="text-secondary">AIdentify-v2026.1-Dev</span>
+    </div>
+  </footer>
+</div>
