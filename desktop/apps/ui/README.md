@@ -113,6 +113,13 @@ cd desktop/apps/ui
 wails dev
 ```
 
+Fluxo recomendado no monorepo (UI + Go Core + AI sidecar):
+
+```bash
+cd /Users/francieliocastro/Developer/ICIT/mamografia-bi-rads-ia
+bash desktop/tools/run_desktop_dev.sh --rebuild-go
+```
+
 O Wails inicializa o servidor Angular (`ng serve`) automaticamente na porta `:4200` e abre a janela nativa da aplicação. Qualquer alteração nos arquivos `.ts` / `.html` / `.css` do frontend é refletida em tempo real.
 
 ### Acessar via browser (debug)

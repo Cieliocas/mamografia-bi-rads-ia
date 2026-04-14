@@ -1,61 +1,45 @@
-# Monorepo Desktop (Nextron + Go + AI Sidecar)
+# Desktop Monorepo (Wails + Angular + Go + FastAPI)
 
-Esta pasta contem a arquitetura desktop local/offline da aplicacao de mamografia BI-RADS.
+Este diretorio contem a aplicacao desktop local/offline do projeto de mamografia BI-RADS.
 
 ## Layout
 
-- `apps/ui`: Electron + Next.js (Nextron)
-- `apps/go-core`: orquestrador/proxy principal em Go
-- `apps/ai-engine`: sidecar em Python/FastAPI para inferencia
-- `build`: configuracoes de instalador (electron-builder/NSIS)
-- `docker`: ambiente de desenvolvimento com CUDA
-- `docs`: notas de arquitetura
+- `apps/ui`: shell desktop com Wails + frontend Angular
+- `apps/go-core`: orquestrador local, guardian e proxy
+- `apps/ai-engine`: sidecar Python/FastAPI para inferencia
+- `build`: arquivos de empacotamento nativo (Wails)
+- `tools`: scripts operacionais de execucao/dev
 
-## Contrato de Execucao
+## Contrato de execucao atual
 
-1. Electron inicia o processo Go Core.
-2. Go Core sobe e monitora o sidecar Python.
-3. UI fala somente com Go Core (`127.0.0.1:8088`).
-4. Go Core faz proxy para AI Engine (`127.0.0.1:8090`).
-5. Se o AI Engine cair, o Go reinicia automaticamente.
+1. UI desktop inicia via Wails.
+2. Go Core sobe e faz monitoramento do AI sidecar.
+3. UI conversa com Go Core em loopback local.
+4. Go Core faz proxy para o AI sidecar.
+5. Se sidecar cair, o guardian tenta recuperar automaticamente.
 
-## Como Rodar em Desenvolvimento
+## Como rodar em desenvolvimento
 
-### 1) Build do Go Core (obrigatorio para UI)
-
-```bash
-cd apps/go-core
-go mod tidy
-go build -o bin/go-core ./cmd/orchestrator
-```
-
-### 2) Preparar sidecar Python (dependencias)
+Comando recomendado (fluxo integrado):
 
 ```bash
-cd ../ai-engine
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+cd /Users/francieliocastro/Developer/ICIT/mamografia-bi-rads-ia
+bash desktop/tools/run_desktop_dev.sh --rebuild-go
 ```
 
-### 3) Rodar a UI (Nextron/Electron)
+Esse script:
+- compila o Go Core quando necessario
+- prepara o venv do AI sidecar
+- instala dependencias do frontend
+- sobe Wails em modo dev
 
-```bash
-cd ../ui
-npm install
-npm run dev
-```
+## Observacao importante
 
-## Debug do Sidecar Isolado (opcional)
-
-```bash
-cd apps/ai-engine
-source .venv/bin/activate
-MODEL_PATH=./models/unet_mammo_best.keras uvicorn app.main:app --host 127.0.0.1 --port 8090
-```
+Fluxos antigos baseados em Electron/Nextron estao descontinuados neste modulo.
 
 ## Referencias
 
-- Estrutura: `MONOREPO_STRUCTURE.md`
-- Arquitetura: `docs/ARCHITECTURE.md`
-- Instalador: `build/installer/README.md`
+- Arquitetura: `desktop/docs/ARCHITECTURE.md`
+- Script principal: `desktop/tools/run_desktop_dev.sh`
+- UI: `desktop/apps/ui/README.md`
+- Go Core: `desktop/apps/go-core/README.md`

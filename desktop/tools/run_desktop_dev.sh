@@ -5,6 +5,10 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 GO_DIR="$ROOT_DIR/desktop/apps/go-core"
 AI_DIR="$ROOT_DIR/desktop/apps/ai-engine"
 UI_DIR="$ROOT_DIR/desktop/apps/ui"
+UI_FRONTEND_DIR="$UI_DIR/frontend"
+LOCK_DIR="/tmp/mammo-desktop-dev.lock"
+LOCK_PID_FILE="$LOCK_DIR/pid"
+GOCACHE_DIR="${GOCACHE_DIR:-/tmp/go-build-cache}"
 
 REBUILD_GO=0
 INSTALL_UI_DEPS=0
@@ -44,7 +48,43 @@ require_cmd go
 require_cmd python3
 require_cmd npm
 
+WAILS_BIN="${WAILS_BIN:-}"
+if [[ -z "$WAILS_BIN" ]]; then
+  if command -v wails >/dev/null 2>&1; then
+    WAILS_BIN="$(command -v wails)"
+  elif [[ -x "$(go env GOPATH)/bin/wails" ]]; then
+    WAILS_BIN="$(go env GOPATH)/bin/wails"
+  else
+    echo "[desktop] wails nao encontrado no PATH."
+    echo "[desktop] instale com: go install github.com/wailsapp/wails/v2/cmd/wails@latest"
+    exit 1
+  fi
+fi
+
 log "projeto: $ROOT_DIR"
+mkdir -p "$GOCACHE_DIR"
+export GOCACHE="$GOCACHE_DIR"
+
+if mkdir "$LOCK_DIR" 2>/dev/null; then
+  echo "$$" > "$LOCK_PID_FILE"
+  trap 'rm -f "$LOCK_PID_FILE"; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+else
+  if [[ -f "$LOCK_PID_FILE" ]]; then
+    LOCK_PID="$(cat "$LOCK_PID_FILE" 2>/dev/null || true)"
+    if [[ -n "${LOCK_PID:-}" ]] && kill -0 "$LOCK_PID" >/dev/null 2>&1; then
+      echo "[desktop] app ja esta em execucao (PID $LOCK_PID)."
+      echo "[desktop] feche a instancia atual antes de abrir outra."
+      exit 1
+    fi
+  fi
+
+  log "lock antigo encontrado; limpando lock stale..."
+  rm -f "$LOCK_PID_FILE"
+  rmdir "$LOCK_DIR" 2>/dev/null || true
+  mkdir -p "$LOCK_DIR"
+  echo "$$" > "$LOCK_PID_FILE"
+  trap 'rm -f "$LOCK_PID_FILE"; rmdir "$LOCK_DIR" 2>/dev/null || true' EXIT
+fi
 
 mkdir -p "$GO_DIR/bin"
 if [[ ! -x "$GO_DIR/bin/go-core" || "$REBUILD_GO" -eq 1 ]]; then
@@ -80,14 +120,11 @@ if [[ "$INSTALL_AI_DEPS" -eq 1 || ! -f "$AI_DIR/.venv/.deps_ok" ]]; then
   touch "$AI_DIR/.venv/.deps_ok"
 fi
 
-if [[ "$INSTALL_UI_DEPS" -eq 1 || ! -d "$UI_DIR/node_modules" ]]; then
+if [[ "$INSTALL_UI_DEPS" -eq 1 || ! -d "$UI_FRONTEND_DIR/node_modules" ]]; then
   log "instalando dependencias da UI..."
-  (
-    cd "$UI_DIR"
-    npm install
-  )
+  npm --prefix "$UI_FRONTEND_DIR" install
 fi
 
 log "iniciando app desktop..."
 cd "$UI_DIR"
-AI_ENGINE_PYTHON="$AI_PY" npm run dev
+AI_ENGINE_PYTHON="$AI_PY" "$WAILS_BIN" dev -s

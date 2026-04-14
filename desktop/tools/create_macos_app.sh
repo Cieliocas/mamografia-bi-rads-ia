@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-APP_NAME="Mammo BI-RADS Desktop Dev.app"
+APP_NAME="aidentify.app"
 APP_DIR="$ROOT_DIR/$APP_NAME"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
@@ -22,9 +22,9 @@ cat > "$CONTENTS_DIR/Info.plist" <<EOF
 <plist version="1.0">
 <dict>
   <key>CFBundleName</key>
-  <string>Mammo BI-RADS Desktop Dev</string>
+  <string>AIdentify Desktop Dev</string>
   <key>CFBundleDisplayName</key>
-  <string>Mammo BI-RADS Desktop Dev</string>
+  <string>AIdentify Desktop Dev</string>
   <key>CFBundleIdentifier</key>
   <string>br.ufpi.mammo.desktop.devlauncher</string>
   <key>CFBundleVersion</key>

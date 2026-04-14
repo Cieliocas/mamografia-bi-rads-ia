@@ -154,12 +154,16 @@ go build -o bin/go-core ./cmd/orchestrator
 ### 3. Interface Desktop (Wails + Angular)
 
 ```bash
-cd desktop/apps/ui
-wails dev
+cd /Users/francieliocastro/Developer/ICIT/mamografia-bi-rads-ia
+bash desktop/tools/run_desktop_dev.sh --rebuild-go
 ```
 
-O Wails compila o Angular automaticamente e abre a janela nativa.  
-Hot-reload ativo para alterações no frontend.
+Esse comando sobe o fluxo integrado:
+- Go Core
+- AI sidecar (FastAPI)
+- UI Wails + Angular
+
+Hot-reload permanece ativo durante o desenvolvimento.
 
 ---
 

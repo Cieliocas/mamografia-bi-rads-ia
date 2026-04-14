@@ -40,9 +40,10 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if s.cmd != nil && s.cmd.Process != nil {
+	if s.cmd != nil && s.cmd.Process != nil && s.cmd.ProcessState == nil {
 		return nil
 	}
+	s.cmd = nil
 
 	cmd := exec.CommandContext(ctx, s.bin, s.args...)
 	cmd.Dir = s.workDir
@@ -95,12 +96,13 @@ func (s *Supervisor) HealthCheck() error {
 
 func (s *Supervisor) Restart(ctx context.Context) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 
 	if s.cmd != nil && s.cmd.Process != nil {
 		_ = syscall.Kill(-s.cmd.Process.Pid, syscall.SIGKILL)
 		s.cmd = nil
 	}
+	s.mu.Unlock()
+
 	time.Sleep(s.backoff)
 	return s.Start(ctx)
 }

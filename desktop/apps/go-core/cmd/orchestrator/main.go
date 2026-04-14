@@ -79,6 +79,17 @@ func main() {
 	})
 
 	router := gin.Default()
+	router.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
+		c.Writer.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Local-Token")
+		c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+		if c.Request.Method == http.MethodOptions {
+			c.AbortWithStatus(http.StatusNoContent)
+			return
+		}
+		c.Next()
+	})
+
 	router.GET("/healthz", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "go-core-up"})
 	})
@@ -179,6 +190,12 @@ func buildSidecarCommand(cfg config.Config) (string, []string, string) {
 	workDir := cfg.AISidecarWorkDir
 	if workDir == "" {
 		workDir = filepath.Join("..", "..", "ai-engine")
+	}
+	// For the default FastAPI sidecar, run uvicorn explicitly.
+	if cfg.AISidecarScript == "app/main.py" {
+		return cfg.AISidecarPython, []string{
+			"-m", "uvicorn", "app.main:app", "--host", "127.0.0.1", "--port", "8090",
+		}, workDir
 	}
 	return cfg.AISidecarPython, []string{cfg.AISidecarScript}, workDir
 }
