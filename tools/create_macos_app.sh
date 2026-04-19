@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 APP_NAME="aidentify.app"
 APP_DIR="$ROOT_DIR/$APP_NAME"
 CONTENTS_DIR="$APP_DIR/Contents"
 MACOS_DIR="$CONTENTS_DIR/MacOS"
 
-RUN_SCRIPT="$ROOT_DIR/desktop/tools/run_desktop_dev.sh"
+RUN_SCRIPT="$ROOT_DIR/tools/run_desktop_dev.sh"
 
 if [[ ! -x "$RUN_SCRIPT" ]]; then
-  echo "[desktop] execute antes: chmod +x desktop/tools/run_desktop_dev.sh"
+  echo "[desktop] execute antes: chmod +x tools/run_desktop_dev.sh"
   exit 1
 fi
 
