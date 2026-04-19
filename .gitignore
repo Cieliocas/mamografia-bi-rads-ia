@@ -4,6 +4,7 @@ __pycache__/
 *$py.class
 venv/
 .venv/
+venv_tf/
 env/
 .env
 
@@ -14,15 +15,11 @@ env/
 .DS_Store
 Thumbs.db
 
-# --- Jupyter Notebooks ---
+# --- Jupyter ---
 .ipynb_checkpoints/
 */.ipynb_checkpoints/
 
-# --- Dados (IMPORTANTE) ---
-# Ignorar datasets e dados locais pesados
-data/CBIS-DDSM-JPG/
-data/raw/
-data/processed/
+# --- Dados locais (nunca versionar) ---
 data/
 *.jpg
 *.jpeg
@@ -31,7 +28,7 @@ data/
 *.dicom
 
 # --- Modelos de IA ---
-# Ignorar pesos por padrao e manter apenas o modelo final de inferencia do app
+# Regra: apenas o modelo final de inferencia do app e versionado.
 *.keras
 *.h5
 *.pt
@@ -45,24 +42,17 @@ desktop/apps/ai-engine/models/*
 
 # --- Logs e Cache ---
 *.log
-__pycache__
 .pytest_cache/
 wandb/
 
-# --- Node modules ---
+# --- Node ---
 node_modules/
+
+# --- Go build output ---
+desktop/apps/go-core/bin/
 
 # --- Artefatos locais ---
 *.pdf
-venv_tf/
 mammografia_code.zip
 Mammo BI-RADS Desktop Dev.app/
-
-# --- Treinamento removido do repositorio ---
-src/ml/
-scripts/train.slurm
-scripts/pack_for_cluster.sh
-scripts/test_loader.py
-requirements.txt
-requirements_cluster.txt
-CLUSTER_GUIDE.md
+aidentify.app/
