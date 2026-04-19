@@ -78,3 +78,8 @@ Ver [relatorios/RELATORIO_TREINO_2026-03-24.md](RELATORIO_TREINO_2026-03-24.md).
 - Removidos artefatos Electron/Nextron residuais (`desktop/build/electron-builder.yml`, `installer.nsh`).
 - `desktop/MONOREPO_STRUCTURE.md` reescrito para refletir o layout Wails + Angular real.
 - Mencoes a "Nextron" em READMEs eliminadas (preservada apenas a comparacao "Wails vs Electron" como justificativa de stack).
+- Removidos do repo os orfaos da migracao pre-monorepo: `src/ml/`, `scripts/`, `requirements_cluster.txt` (ja gitignored, mas ainda tracked).
+- `.gitignore` consolidado: regras mortas sobre arquivos que nao existem mais foram removidas; `aidentify.app/` adicionado.
+- Lixo local (fora do git): ~8.4 GB de `data/`, `venv/`, `venv_tf/`, `frontend/` e `.DS_Store` removidos do checkout principal.
+- Documentacao consolidada em `docs/` (ARCHITECTURE, RUNBOOK, DESIGN_SYSTEM, CHAT_SKILLS). Removidos 9 READMEs fragmentados (`desktop/README.md`, `desktop/MONOREPO_STRUCTURE.md`, `desktop/docs/`, READMEs de `apps/*`, `build/installer/`, `docs/chat-skills/`).
+- Publicados dois planos de refatoracao em `docs/plans/`: 01 (Clean Architecture no Go Core) e 02 (Reestruturacao do Layout). Ordem recomendada: 01 -> 02.
