@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GO_DIR="$ROOT_DIR/desktop/apps/go-core"
+GO_DIR="$ROOT_DIR/apps/core"
 AI_DIR="$ROOT_DIR/apps/ai-engine"
 UI_DIR="$ROOT_DIR/desktop/apps/ui"
 UI_FRONTEND_DIR="$UI_DIR/frontend"
@@ -87,12 +87,12 @@ else
 fi
 
 mkdir -p "$GO_DIR/bin"
-if [[ ! -x "$GO_DIR/bin/go-core" || "$REBUILD_GO" -eq 1 ]]; then
-  log "compilando go-core..."
+if [[ ! -x "$GO_DIR/bin/core" || "$REBUILD_GO" -eq 1 ]]; then
+  log "compilando core..."
   (
     cd "$GO_DIR"
     go mod tidy
-    go build -o bin/go-core ./cmd/orchestrator
+    go build -o bin/core ./cmd/orchestrator
   )
 fi
 

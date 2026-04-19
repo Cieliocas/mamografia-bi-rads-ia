@@ -3,7 +3,7 @@ package entity
 import (
 	"time"
 
-	"mammo/desktop/go-core/internal/domain/valueobject"
+	"mammo/apps/core/internal/domain/valueobject"
 )
 
 type FindingID string

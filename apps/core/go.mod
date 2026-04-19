@@ -1,4 +1,4 @@
-module mammo/desktop/go-core
+module mammo/apps/core
 
 go 1.22
 

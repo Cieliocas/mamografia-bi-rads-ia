@@ -51,7 +51,7 @@ wandb/
 node_modules/
 
 # --- Go build output ---
-desktop/apps/go-core/bin/
+apps/core/bin/
 
 # --- Artefatos locais ---
 *.pdf
