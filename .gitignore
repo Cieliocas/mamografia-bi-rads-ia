@@ -53,6 +53,10 @@ node_modules/
 # --- Go build output ---
 apps/core/bin/
 
+# --- Wails embed dir (populated by frontend build) ---
+apps/desktop/dist/*
+!apps/desktop/dist/.gitkeep
+
 # --- Artefatos locais ---
 *.pdf
 mammografia_code.zip
