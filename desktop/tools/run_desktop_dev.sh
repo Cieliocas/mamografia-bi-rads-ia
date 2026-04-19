@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 GO_DIR="$ROOT_DIR/desktop/apps/go-core"
-AI_DIR="$ROOT_DIR/desktop/apps/ai-engine"
+AI_DIR="$ROOT_DIR/apps/ai-engine"
 UI_DIR="$ROOT_DIR/desktop/apps/ui"
 UI_FRONTEND_DIR="$UI_DIR/frontend"
 LOCK_DIR="/tmp/mammo-desktop-dev.lock"

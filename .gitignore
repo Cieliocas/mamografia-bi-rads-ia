@@ -38,10 +38,9 @@ build/*
 *.pth
 *.onnx
 *.tflite
-desktop/apps/ai-engine/models/*
-!desktop/apps/ai-engine/models/.gitkeep
-!desktop/apps/ai-engine/models/README.md
-!desktop/apps/ai-engine/models/unet_mammo_best.keras
+apps/ai-engine/models/*
+!apps/ai-engine/models/.gitkeep
+!apps/ai-engine/models/unet_mammo_best.keras
 
 # --- Logs e Cache ---
 *.log
