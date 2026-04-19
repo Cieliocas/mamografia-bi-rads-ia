@@ -17,6 +17,7 @@ A documentação técnica completa vive em [`docs/`](docs):
 - [Runbook](docs/RUNBOOK.md) — pré-requisitos, execução dev, build, troubleshooting
 - [Design System](docs/DESIGN_SYSTEM.md) — paleta "Clinical Obsidian", UI, ferramentas
 - [Chat Skills](docs/CHAT_SKILLS.md) — organização de conversas e fluxo de trabalho
+- [Planos de Evolução](docs/plans/) — refatorações estruturais planejadas
 
 Status e relatórios:
 
