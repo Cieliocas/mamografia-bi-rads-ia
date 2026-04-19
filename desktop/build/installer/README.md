@@ -4,8 +4,7 @@ Este diretorio documenta o fluxo de empacotamento desktop apos migracao para Wai
 
 ## Status atual
 
-- Electron/Nextron e `electron-builder` nao sao mais o caminho principal.
-- O empacotamento deve seguir o fluxo do Wails (`wails build`).
+- O empacotamento oficial segue o fluxo do Wails (`wails build`).
 
 ## Build de desenvolvimento
 
