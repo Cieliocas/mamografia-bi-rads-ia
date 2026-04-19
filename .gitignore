@@ -48,6 +48,9 @@ wandb/
 # --- Node ---
 node_modules/
 
+# --- Go build output ---
+desktop/apps/go-core/bin/
+
 # --- Artefatos locais ---
 *.pdf
 mammografia_code.zip

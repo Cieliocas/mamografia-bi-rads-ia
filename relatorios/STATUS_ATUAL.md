@@ -81,3 +81,4 @@ Ver [relatorios/RELATORIO_TREINO_2026-03-24.md](RELATORIO_TREINO_2026-03-24.md).
 - Removidos do repo os orfaos da migracao pre-monorepo: `src/ml/`, `scripts/`, `requirements_cluster.txt` (ja gitignored, mas ainda tracked).
 - `.gitignore` consolidado: regras mortas sobre arquivos que nao existem mais foram removidas; `aidentify.app/` adicionado.
 - Lixo local (fora do git): ~8.4 GB de `data/`, `venv/`, `venv_tf/`, `frontend/` e `.DS_Store` removidos do checkout principal.
+- Documentacao consolidada em `docs/` (ARCHITECTURE, RUNBOOK, DESIGN_SYSTEM, CHAT_SKILLS). Removidos 9 READMEs fragmentados (`desktop/README.md`, `desktop/MONOREPO_STRUCTURE.md`, `desktop/docs/`, READMEs de `apps/*`, `build/installer/`, `docs/chat-skills/`).
