@@ -3,45 +3,37 @@
 ```text
 desktop/
   apps/
-    ui/                        # Nextron (Electron + Next.js)
-      electron/main/
-        background.ts          # Boots Go process and watches readiness
-      renderer/
-        components/
-          TermsGate.tsx        # EULA gate with mandatory checkbox
-          SplashScreen.tsx     # Animated startup splash
-        pages/
-          index.tsx            # Startup orchestration UI
-      scripts/
-        gpu-check.js           # NVIDIA/CUDA check + CPU fallback
-      package.json
-      nextron.config.js
+    ui/                        # Wails shell (Go) + Angular 18 frontend
+      main.go                  # Entry point do Wails
+      app.go                   # Bindings Go -> Angular
+      wails.json               # Config do Wails CLI
+      frontend/                # Angular 18 (Standalone Components, Tailwind)
+        src/app/               # Componentes, viewer, painel de findings
+      build/                   # Artefatos nativos gerados por `wails build`
 
-    go-core/                   # Orchestrator / Guardian / Proxy
+    go-core/                   # Orquestrador / Guardian / Proxy
       cmd/orchestrator/main.go
-      cmd/startup-monitor/main.go
       internal/
         config/config.go
         guardian/guardian.go
-        pdi/windowing.go
         queue/queue.go
       go.mod
 
-    ai-engine/                 # Python AI sidecar
-      app/main.py              # FastAPI /health and /predict endpoints
+    ai-engine/                 # Python AI sidecar (FastAPI)
+      app/main.py              # /health e /predict
+      models/                  # unet_mammo_best.keras (artefato de inferencia)
       requirements.txt
 
   build/
-    electron-builder.yml       # Windows NSIS + Linux DEB targets
     installer/
-      installer.nsh            # NSIS custom hooks
-      README.md               # Build/install flow for Air-gapped setup
-
-  docker/
-    dev.Dockerfile             # Go + Python 3.11 + CUDA + Node toolchain
+      README.md                # Fluxo de empacotamento Wails
 
   docs/
     ARCHITECTURE.md
+
+  tools/
+    run_desktop_dev.sh         # Entrypoint unico de dev (UI + Go + AI)
+    create_macos_app.sh        # Builder do aidentify.app (macOS)
 
   README.md
 ```

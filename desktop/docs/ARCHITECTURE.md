@@ -3,7 +3,7 @@
 ## Why this split
 - Go handles deterministic IO, queueing, local storage and CPU-bound PDI.
 - Python sidecar isolates ML runtime complexity and framework dependencies.
-- Electron wraps UX as native desktop installable app.
+- Wails wraps the Angular UI as a native desktop app using the OS WebView (WebKit/WebView2), avoiding a bundled Chromium.
 
 ## Security / LGPD baseline
 - Local-only communication (`127.0.0.1`).

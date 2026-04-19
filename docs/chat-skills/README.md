@@ -33,5 +33,3 @@ No fluxo desktop, considere como fonte de verdade a stack:
 - UI desktop: Wails + Angular
 - Core local: Go
 - AI sidecar: FastAPI/Python
-
-Referencias antigas a Nextron/Electron devem ser tratadas como legado.

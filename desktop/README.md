@@ -33,10 +33,6 @@ Esse script:
 - instala dependencias do frontend
 - sobe Wails em modo dev
 
-## Observacao importante
-
-Fluxos antigos baseados em Electron/Nextron estao descontinuados neste modulo.
-
 ## Referencias
 
 - Arquitetura: `desktop/docs/ARCHITECTURE.md`
