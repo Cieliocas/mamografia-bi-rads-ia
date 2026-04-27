@@ -1,167 +1,136 @@
-<div *ngIf="showSplash" class="fixed inset-0 z-50 flex items-center justify-center bg-surface-dim p-6">
-  <div class="relative w-[640px] h-[380px] overflow-hidden rounded-sm border border-white/10 bg-surface-container-high p-12 shadow-2xl">
-    <div class="absolute inset-0 opacity-10">
-      <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(175,162,255,0.2),transparent_70%)]"></div>
-      <div class="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(0,227,253,0.15),transparent_60%)]"></div>
-      <div class="absolute inset-0" style="background-image:radial-gradient(circle,rgba(255,255,255,.06) 1px,transparent 1px);background-size:24px 24px"></div>
-    </div>
+<!-- Splash screen -->
+@if (showSplash) {
+  <app-splash [progress]="progress" />
+}
 
-    <div class="relative z-10 flex h-full flex-col justify-between">
-      <div class="flex items-start justify-between">
-        <div>
-          <h1 class="font-headline text-5xl font-black tracking-tighter text-white leading-none">AIdentify<span class="text-secondary">.</span></h1>
-          <p class="mt-3 text-sm font-medium uppercase tracking-[0.2em] text-on-surface-variant">Radiology Precision AI</p>
-        </div>
-        <div class="flex h-12 w-12 items-center justify-center rounded-sm bg-gradient-to-br from-primary to-primary-dim shadow-lg">
-          <lucide-icon name="activity" class="h-7 w-7 text-surface-dim"></lucide-icon>
-        </div>
+@if (!showSplash) {
+  <div class="h-screen overflow-hidden bg-surface-dim text-on-surface flex flex-col">
+
+    <!-- ── Top bar ──────────────────────────────────────────────────────── -->
+    <header class="flex h-12 items-center justify-between border-b border-white/5 px-4 shrink-0">
+      <div class="flex items-center gap-8">
+        <span class="font-headline text-lg font-bold tracking-tighter text-primary">AIdentify</span>
+        <nav class="flex items-center gap-4 text-xs font-medium uppercase tracking-wider">
+          <span class="cursor-default border-b border-secondary pb-1 text-secondary">File</span>
+          <span class="cursor-default text-on-surface-variant">Edit</span>
+          <span class="cursor-default text-on-surface-variant">View</span>
+          <span class="cursor-default text-on-surface-variant">AI Model</span>
+          <span class="cursor-default text-on-surface-variant">Help</span>
+        </nav>
       </div>
+      <div class="flex items-center gap-3">
+        <button
+          class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant transition hover:text-secondary"
+          style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)"
+          (click)="viewer.openFileDialog()"
+        >Open Image</button>
+        <button class="rounded-sm bg-gradient-to-br from-primary to-primary-dim px-4 py-1 text-xs font-bold uppercase tracking-tight text-surface-dim">
+          Activate AI
+        </button>
+      </div>
+    </header>
 
-      <div class="space-y-4">
-        <div class="flex items-center justify-between">
-          <div>
-            <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">System Status</p>
-            <p class="text-xs text-on-surface-variant">Inicializando Go Core, AI Sidecar e interface clínica...</p>
+    <!-- ── Main layout ──────────────────────────────────────────────────── -->
+    <div class="flex flex-1 overflow-hidden">
+
+      <!-- Icon sidebar -->
+      <aside class="w-20 shrink-0 border-r border-white/5 bg-[#121212] py-4">
+        <button (click)="state.setPanel('images')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
+          [class.text-secondary]="state.activePanel==='images'"
+          [class.text-on-surface-variant]="state.activePanel!=='images'">
+          <lucide-icon [img]="icons.FolderOpen" class="h-5 w-5"></lucide-icon> Images
+        </button>
+        <button (click)="state.setPanel('history')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
+          [class.text-secondary]="state.activePanel==='history'"
+          [class.text-on-surface-variant]="state.activePanel!=='history'">
+          <lucide-icon [img]="icons.History" class="h-5 w-5"></lucide-icon> History
+        </button>
+        <button (click)="state.setPanel('analysis')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
+          [class.text-secondary]="state.activePanel==='analysis'"
+          [class.text-on-surface-variant]="state.activePanel!=='analysis'">
+          <lucide-icon [img]="icons.BarChart3" class="h-5 w-5"></lucide-icon> Analysis
+        </button>
+        <button (click)="state.setPanel('tools')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
+          [class.text-secondary]="state.activePanel==='tools'"
+          [class.text-on-surface-variant]="state.activePanel!=='tools'">
+          <lucide-icon [img]="icons.Wrench" class="h-5 w-5"></lucide-icon> Tools
+        </button>
+      </aside>
+
+      <!-- Left panel (files / history) -->
+      @if (state.leftOpen) {
+        <aside class="w-[300px] shrink-0 border-r border-white/5 bg-surface-container-low overflow-y-auto">
+          <div class="border-b border-white/5 p-4">
+            <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Diagnostics / Patient Files</p>
+            <h3 class="mt-3 text-lg font-bold">Radiology Suite</h3>
+            <p class="text-xs text-on-surface-variant">{{ study.historyFiles.length }} arquivo(s) na sessão</p>
           </div>
-          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/40">Version 2026.1</p>
-        </div>
-        <div class="h-1 w-full overflow-hidden bg-surface-container-highest">
-          <div class="h-full bg-gradient-to-r from-secondary to-primary transition-all duration-75" [style.width.%]="progress"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
+          <div class="space-y-2 p-3">
+            <button (click)="viewer.openFileDialog()" class="w-full p-3 text-left" style="background:rgba(175,162,255,.08);border-left:2px solid #afa2ff">
+              <p class="truncate text-xs font-bold">{{ state.activeVPData.imageName || 'Nenhuma imagem carregada' }}</p>
+              <p class="mt-1 text-[10px] text-on-surface-variant">Clique para abrir imagem</p>
+            </button>
+            @for (item of study.historyFiles.slice(0,8); track item.dataUrl) {
+              <button (click)="viewer.loadHistory(item)" class="w-full p-3 text-left transition hover:bg-surface-container-high" style="background:rgba(255,255,255,.02)">
+                <p class="truncate text-xs font-bold">{{ item.name }}</p>
+                <p class="text-[10px] text-on-surface-variant">{{ item.date }}</p>
+              </button>
+            }
+          </div>
+        </aside>
+      }
 
-<input #fileInput type="file" accept="image/*,.dcm" class="hidden" (change)="onFileSelected($event)" />
+      <!-- ── Canvas area ─────────────────────────────────────────────────── -->
+      <main class="relative flex-1 overflow-hidden bg-surface-container-lowest p-2">
 
-<div *ngIf="!showSplash" class="h-screen overflow-hidden bg-surface-dim text-on-surface">
-  <div class="flex h-12 items-center justify-between border-b border-white/5 px-4">
-    <div class="flex items-center gap-8">
-      <span class="font-headline text-lg font-bold tracking-tighter text-primary">AIdentify</span>
-      <nav class="flex items-center gap-4 text-xs font-medium uppercase tracking-wider">
-        <span class="cursor-default border-b border-secondary pb-1 text-secondary">File</span>
-        <span class="cursor-default text-on-surface-variant">Edit</span>
-        <span class="cursor-default text-on-surface-variant">View</span>
-        <span class="cursor-default text-on-surface-variant">AI Model</span>
-        <span class="cursor-default text-on-surface-variant">Help</span>
-      </nav>
-    </div>
-    <div class="flex items-center gap-3">
-      <button (click)="openFileDialog()" class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant transition hover:text-secondary" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)">
-        Open Image
-      </button>
-      <button class="rounded-sm bg-gradient-to-br from-primary to-primary-dim px-4 py-1 text-xs font-bold uppercase tracking-tight text-surface-dim">Activate AI</button>
-    </div>
-  </div>
-
-  <div class="flex h-[calc(100vh-80px)] overflow-hidden">
-    <aside class="w-20 shrink-0 border-r border-white/5 bg-[#121212] py-4">
-      <button (click)="setPanel('images')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold" [class.text-secondary]="activePanel==='images'" [class.text-on-surface-variant]="activePanel!=='images'">
-        <lucide-icon name="folder-open" class="h-5 w-5"></lucide-icon>
-        Images
-      </button>
-      <button (click)="setPanel('history')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold" [class.text-secondary]="activePanel==='history'" [class.text-on-surface-variant]="activePanel!=='history'">
-        <lucide-icon name="history" class="h-5 w-5"></lucide-icon>
-        History
-      </button>
-      <button (click)="setPanel('analysis')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold" [class.text-secondary]="activePanel==='analysis'" [class.text-on-surface-variant]="activePanel!=='analysis'">
-        <lucide-icon name="bar-chart-3" class="h-5 w-5"></lucide-icon>
-        Analysis
-      </button>
-      <button (click)="setPanel('tools')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold" [class.text-secondary]="activePanel==='tools'" [class.text-on-surface-variant]="activePanel!=='tools'">
-        <lucide-icon name="wrench" class="h-5 w-5"></lucide-icon>
-        Tools
-      </button>
-    </aside>
-
-    <aside class="w-[300px] shrink-0 border-r border-white/5 bg-surface-container-low" *ngIf="leftOpen">
-      <div class="border-b border-white/5 p-4">
-        <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Diagnostics / Patient Files</p>
-        <h3 class="mt-3 text-lg font-bold">Radiology Suite</h3>
-        <p class="text-xs text-on-surface-variant">{{ historyFiles.length }} arquivo(s) na sessão</p>
-      </div>
-      <div class="space-y-2 p-3">
-        <button (click)="openFileDialog()" class="w-full p-3 text-left" style="background:rgba(175,162,255,.08);border-left:2px solid #afa2ff">
-          <p class="truncate text-xs font-bold">{{ activeVPData.imageName || 'Nenhuma imagem carregada' }}</p>
-          <p class="mt-1 text-[10px] text-on-surface-variant">Clique para abrir imagem</p>
+        <!-- Left sidebar toggle -->
+        <button (click)="state.toggleLeftSidebar()"
+          class="absolute left-2 top-3 z-20 rounded-sm p-1 text-on-surface-variant hover:text-primary"
+          style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+          <lucide-icon [img]="state.leftOpen ? icons.ChevronLeft : icons.ChevronRight" class="h-4 w-4"></lucide-icon>
         </button>
-        <button *ngFor="let item of historyFiles.slice(0,8)" (click)="loadHistory(item)" class="w-full p-3 text-left transition hover:bg-surface-container-high" style="background:rgba(255,255,255,.02)">
-          <p class="truncate text-xs font-bold">{{ item.name }}</p>
-          <p class="text-[10px] text-on-surface-variant">{{ item.date }}</p>
-        </button>
-      </div>
-    </aside>
 
-    <main class="relative flex-1 overflow-hidden bg-surface-container-lowest">
-      <button (click)="toggleLeftSidebar()" class="absolute left-2 top-3 z-20 rounded-sm p-1 text-on-surface-variant hover:text-primary" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
-        <lucide-icon [name]="leftOpen ? 'chevron-left' : 'chevron-right'" class="h-4 w-4"></lucide-icon>
+        <!-- ViewerComponent owns the canvases + toolbar -->
+        <app-viewer #viewer class="block h-full w-full relative" />
+
+      </main>
+
+      <!-- Right panel (findings) -->
+      @if (state.rightOpen) {
+        <aside class="w-[340px] shrink-0 border-l border-white/5 bg-surface-container-high overflow-hidden">
+          <app-findings-panel
+            (drawRequest)="viewer.draw($event)"
+            (toggleSplit)="state.toggleSplit((i) => viewer.draw(i))"
+            (askDelete)="onAskDelete()"
+            (askReset)="state.askReset()"
+          />
+        </aside>
+      }
+
+      <!-- Right panel toggle -->
+      <button (click)="state.toggleRightPanel()"
+        class="absolute right-0 top-1/2 z-20 h-12 w-5 -translate-y-1/2 text-on-surface-variant hover:text-primary"
+        style="background:rgba(32,31,31,.9);border:1px solid rgba(255,255,255,.08);border-right:none;">
+        <lucide-icon [img]="state.rightOpen ? icons.ChevronRight : icons.ChevronLeft" class="h-3 w-3"></lucide-icon>
       </button>
 
-      <div *ngIf="!activeVPData.loadedImage" class="flex h-full flex-col items-center justify-center gap-4 text-on-surface-variant/40">
-        <lucide-icon name="upload" class="h-12 w-12"></lucide-icon>
-        <p class="text-sm font-bold uppercase tracking-widest">No Image Loaded</p>
-        <button (click)="openFileDialog()" class="px-5 py-2 text-xs font-bold uppercase tracking-wider text-primary" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)">Abrir arquivo</button>
-      </div>
+    </div><!-- /main layout -->
 
-      <div #ct0 class="h-full w-full" *ngIf="activeVPData.loadedImage">
-        <canvas #c0 class="h-full w-full" [class]="cursorClass"
-          (mousedown)="onMouseDown($event,0)"
-          (mousemove)="onMouseMove($event,0)"
-          (mouseup)="onMouseUp($event,0)"
-          (mouseenter)="onMouseEnter(0)"></canvas>
-      </div>
+    <!-- ── Footer ──────────────────────────────────────────────────────── -->
+    <footer class="flex h-8 shrink-0 items-center justify-between border-t border-white/5 px-4 text-[10px] text-on-surface-variant">
+      <span>System Online · Wails + Angular</span>
+      <span>Zoom: {{ state.zoomPct(state.activeVp) }} · Tool: {{ state.activeTool | uppercase }} · ROIs: {{ state.rois.length }}</span>
+    </footer>
 
-      <div *ngIf="activeVPData.loadedImage" class="absolute bottom-6 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-full px-4 py-2" style="background:rgba(14,14,14,.86);border:1px solid rgba(255,255,255,.1)">
-        <button (click)="setTool('pan')" class="rounded-full p-2" [style.color]="activeTool==='pan' ? '#00e3fd' : '#adaaaa'"><lucide-icon name="hand" class="h-4 w-4"></lucide-icon></button>
-        <button (click)="setTool('roi')" class="rounded-full p-2" [style.color]="activeTool==='roi' ? '#ff6e84' : '#adaaaa'"><lucide-icon name="target" class="h-4 w-4"></lucide-icon></button>
-        <button (click)="setTool('ruler')" class="rounded-full p-2" [style.color]="activeTool==='ruler' ? '#afa2ff' : '#adaaaa'"><lucide-icon name="ruler" class="h-4 w-4"></lucide-icon></button>
-        <span class="mx-1 h-5 w-px" style="background:rgba(255,255,255,.1)"></span>
-        <button (click)="zoomOut()" class="p-1 text-on-surface-variant hover:text-secondary"><lucide-icon name="zoom-out" class="h-4 w-4"></lucide-icon></button>
-        <button (click)="zoomIn()" class="p-1 text-on-surface-variant hover:text-secondary"><lucide-icon name="zoom-in" class="h-4 w-4"></lucide-icon></button>
-        <button (click)="fitScreen()" class="p-1 text-on-surface-variant hover:text-secondary"><lucide-icon name="maximize-2" class="h-4 w-4"></lucide-icon></button>
-      </div>
-    </main>
+  </div><!-- /h-screen -->
+}
 
-    <aside class="w-[340px] shrink-0 border-l border-white/5 bg-surface-container-high" *ngIf="rightOpen">
-      <div class="border-b border-white/5 p-4">
-        <h2 class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">AI Diagnostic Insights</h2>
-      </div>
-      <div class="space-y-4 p-4">
-        <div class="p-4" style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)">
-          <p class="text-[10px] font-bold uppercase text-on-surface-variant">Classification Score</p>
-          <h3 class="mt-1 text-3xl font-black text-error">BI-RADS 4C</h3>
-          <p class="mt-2 text-xs text-on-surface-variant">High suspicion for malignancy.</p>
-        </div>
-        <div>
-          <p class="mb-2 text-[10px] font-bold uppercase text-on-surface-variant">Active ROI Markers</p>
-          <div *ngIf="activeVPData.rois.length === 0" class="text-xs text-on-surface-variant">Sem ROI anotada.</div>
-          <button *ngFor="let roi of activeVPData.rois" (click)="selectROI(activeVp, roi.id)" class="mb-2 flex w-full items-center justify-between p-2 text-left" style="background:rgba(255,255,255,.02);border-left:2px solid #ff6e84">
-            <span class="text-xs font-bold">{{ roi.label || ('ROI #' + roi.id) }}</span>
-            <span class="text-[10px] text-on-surface-variant">{{ roi.birads || 'N/A' }}</span>
-          </button>
-        </div>
-      </div>
-    </aside>
-
-    <button (click)="toggleRightPanel()" class="absolute right-0 top-1/2 z-20 h-12 w-5 -translate-y-1/2 text-on-surface-variant hover:text-primary" style="background:rgba(32,31,31,.9);border:1px solid rgba(255,255,255,.08);border-right:none;">
-      <lucide-icon [name]="rightOpen ? 'chevron-right' : 'chevron-left'" class="h-3 w-3"></lucide-icon>
-    </button>
-  </div>
-
-  <footer class="flex h-8 items-center justify-between border-t border-white/5 px-4 text-[10px] text-on-surface-variant">
-    <span>System Online · Wails + Angular</span>
-    <span>Zoom: {{ zoomPct(activeVp) }} · Tool: {{ activeTool | uppercase }} · ROIs: {{ activeVPData.rois.length }}</span>
-  </footer>
-</div>
-
-<div *ngIf="showResetModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60" (click)="closeModal()">
-  <div class="w-[360px] space-y-5 rounded-sm border border-white/10 bg-surface-container-high p-6" (click)="$event.stopPropagation()">
-    <p class="text-sm font-bold text-white">{{ pendingResetAll ? 'Limpar todas as anotações?' : 'Remover ROI selecionada?' }}</p>
-    <p class="text-xs text-on-surface-variant">Esta ação não pode ser desfeita.</p>
-    <div class="flex gap-3">
-      <button (click)="closeModal()" class="flex-1 py-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant" style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">Cancelar</button>
-      <button (click)="confirmModal()" class="flex-1 py-2 text-xs font-bold uppercase tracking-widest text-white" style="background:rgba(255,110,132,.2);border:1px solid rgba(255,110,132,.5)">Confirmar</button>
-    </div>
-  </div>
-</div>
+<!-- Confirm modal (delete ROI / reset all) -->
+@if (state.showResetModal) {
+  <app-confirm-modal
+    [title]="modalTitle"
+    message="Esta ação não pode ser desfeita."
+    (confirmed)="onConfirmModal()"
+    (cancelled)="onCancelModal()"
+  />
+}

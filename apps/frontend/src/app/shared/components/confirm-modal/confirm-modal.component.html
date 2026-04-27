@@ -1,0 +1,20 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+     (click)="cancelled.emit()">
+  <div class="w-[360px] space-y-5 rounded-sm border border-white/10 bg-surface-container-high p-6"
+       (click)="$event.stopPropagation()">
+    <p class="text-sm font-bold text-white">{{ title }}</p>
+    <p class="text-xs text-on-surface-variant">{{ message }}</p>
+    <div class="flex gap-3">
+      <button
+        class="flex-1 py-2 text-xs font-bold uppercase tracking-widest text-on-surface-variant transition hover:text-white"
+        style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)"
+        (click)="cancelled.emit()"
+      >Cancelar</button>
+      <button
+        class="flex-1 py-2 text-xs font-bold uppercase tracking-widest text-white transition"
+        style="background:rgba(255,110,132,.2);border:1px solid rgba(255,110,132,.5)"
+        (click)="confirmed.emit()"
+      >Confirmar</button>
+    </div>
+  </div>
+</div>

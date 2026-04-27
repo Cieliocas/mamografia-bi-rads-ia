@@ -1,0 +1,43 @@
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-surface-dim p-6">
+  <div class="relative w-[640px] h-[380px] overflow-hidden rounded-sm border border-white/10 bg-surface-container-high p-12 shadow-2xl">
+
+    <!-- Background decoration -->
+    <div class="absolute inset-0 opacity-10 pointer-events-none">
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(175,162,255,0.2),transparent_70%)]"></div>
+      <div class="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(0,227,253,0.15),transparent_60%)]"></div>
+      <div class="absolute inset-0" style="background-image:radial-gradient(circle,rgba(255,255,255,.06) 1px,transparent 1px);background-size:24px 24px"></div>
+    </div>
+
+    <div class="relative z-10 flex h-full flex-col justify-between">
+
+      <!-- Logo block -->
+      <div class="flex items-start justify-between">
+        <div>
+          <h1 class="font-headline text-5xl font-black tracking-tighter text-white leading-none">
+            AIdentify<span class="text-secondary">.</span>
+          </h1>
+          <p class="mt-3 text-sm font-medium uppercase tracking-[0.2em] text-on-surface-variant">Radiology Precision AI</p>
+        </div>
+        <div class="flex h-12 w-12 items-center justify-center rounded-sm bg-gradient-to-br from-primary to-primary-dim shadow-lg">
+          <lucide-icon name="activity" class="h-7 w-7 text-surface-dim"></lucide-icon>
+        </div>
+      </div>
+
+      <!-- Progress block -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">System Status</p>
+            <p class="text-xs text-on-surface-variant">Inicializando Go Core, AI Sidecar e interface clínica...</p>
+          </div>
+          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/40">Version 2026.1</p>
+        </div>
+        <div class="h-1 w-full overflow-hidden bg-surface-container-highest">
+          <div class="h-full bg-gradient-to-r from-secondary to-primary transition-all duration-75"
+               [style.width.%]="progress"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>

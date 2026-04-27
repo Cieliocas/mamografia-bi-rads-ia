@@ -1,0 +1,223 @@
+<!-- Right panel: AI Diagnostic Insights + ROI editor + tool controls -->
+<div class="flex h-full flex-col overflow-hidden text-on-surface">
+
+  <!-- ── Header ──────────────────────────────────────────────────────────── -->
+  <div class="flex items-center justify-between border-b border-white/5 px-4 py-3 shrink-0">
+    <h2 class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">AI Diagnostic Insights</h2>
+    <!-- Split toggle -->
+    <button
+      title="Modo dividido"
+      class="rounded p-1 transition"
+      [class.text-violet-400]="state.splitMode"
+      [class.text-neutral-500]="!state.splitMode"
+      [class.bg-violet-900\/30]="state.splitMode"
+      (click)="toggleSplit.emit()"
+    >
+      <lucide-icon [img]="icons.Columns" [size]="14" />
+    </button>
+  </div>
+
+  <!-- ── Scrollable body ─────────────────────────────────────────────────── -->
+  <div class="flex-1 overflow-y-auto space-y-4 p-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-neutral-700">
+
+    <!-- ── Selected ROI editor ──────────────────────────────────────────── -->
+    @if (state.selectedROI) {
+      <section class="space-y-3">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">ROI Selecionada</p>
+
+        <!-- BI-RADS chips -->
+        <div class="flex flex-wrap gap-1">
+          @for (chip of state.biradsChips; track chip) {
+            <button
+              class="rounded px-2 py-0.5 text-[10px] font-bold transition border"
+              [style.border-color]="biradsColor(chip)"
+              [style.color]="state.selectedROI!.birads === chip ? '#111' : biradsColor(chip)"
+              [style.background]="state.selectedROI!.birads === chip ? biradsColor(chip) : 'transparent'"
+              (click)="setBirads(chip)"
+            >{{ chip }}</button>
+          }
+        </div>
+
+        <!-- Classification label -->
+        @if (state.selectedROI.birads) {
+          <div class="rounded border border-white/8 px-3 py-2" [style.border-left-color]="biradsColor(state.selectedROI.birads)" style="border-left-width:3px">
+            <p class="text-[10px] uppercase text-on-surface-variant">Classificação</p>
+            <p class="text-sm font-bold" [style.color]="biradsColor(state.selectedROI.birads)">
+              BI-RADS {{ state.selectedROI.birads }}
+              <span class="font-normal text-on-surface-variant"> — {{ state.biradsInfo[state.selectedROI.birads] }}</span>
+            </p>
+          </div>
+        }
+
+        <!-- Label input -->
+        <div class="space-y-1">
+          <label class="text-[10px] uppercase tracking-wider text-on-surface-variant">Rótulo</label>
+          <input
+            type="text"
+            class="w-full rounded border border-white/10 bg-surface-container-highest px-2 py-1.5 text-xs outline-none focus:border-violet-500 transition"
+            placeholder="Ex.: Nódulo espiculado"
+            [(ngModel)]="state.selectedROI.label"
+            (ngModelChange)="updateROI()"
+          />
+        </div>
+
+        <!-- Notes textarea -->
+        <div class="space-y-1">
+          <label class="text-[10px] uppercase tracking-wider text-on-surface-variant">Observações</label>
+          <textarea
+            rows="2"
+            class="w-full rounded border border-white/10 bg-surface-container-highest px-2 py-1.5 text-xs outline-none focus:border-violet-500 resize-none transition"
+            placeholder="Notas clínicas..."
+            [(ngModel)]="state.selectedROI.notes"
+            (ngModelChange)="updateROI()"
+          ></textarea>
+        </div>
+
+        <!-- Shape toggle -->
+        <div class="flex gap-2">
+          <button
+            class="flex flex-1 items-center justify-center gap-1.5 rounded border py-1.5 text-xs transition"
+            [class.border-violet-500]="state.activeShape === 'ellipse'"
+            [class.text-violet-300]="state.activeShape === 'ellipse'"
+            [class.bg-violet-900\/20]="state.activeShape === 'ellipse'"
+            [class.border-white\/10]="state.activeShape !== 'ellipse'"
+            [class.text-neutral-500]="state.activeShape !== 'ellipse'"
+            (click)="state.activeShape = 'ellipse'"
+          >
+            <lucide-icon [img]="icons.Circle" [size]="12" /> Elipse
+          </button>
+          <button
+            class="flex flex-1 items-center justify-center gap-1.5 rounded border py-1.5 text-xs transition"
+            [class.border-violet-500]="state.activeShape === 'rect'"
+            [class.text-violet-300]="state.activeShape === 'rect'"
+            [class.bg-violet-900\/20]="state.activeShape === 'rect'"
+            [class.border-white\/10]="state.activeShape !== 'rect'"
+            [class.text-neutral-500]="state.activeShape !== 'rect'"
+            (click)="state.activeShape = 'rect'"
+          >
+            <lucide-icon [img]="icons.Square" [size]="12" /> Retângulo
+          </button>
+        </div>
+
+        <!-- Action row: copy, paste, delete -->
+        <div class="flex items-center gap-2">
+          <button title="Copiar (Ctrl+C)" class="rounded p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-700 transition" (click)="copyROI()">
+            <lucide-icon [img]="icons.Copy" [size]="14" />
+          </button>
+          <button title="Colar (Ctrl+V)" class="rounded p-1.5 text-neutral-400 hover:text-white hover:bg-neutral-700 transition"
+            [class.opacity-40]="!state.clipboard"
+            (click)="pasteROI()">
+            <lucide-icon [img]="icons.Clipboard" [size]="14" />
+          </button>
+          <span class="flex-1"></span>
+          <button title="Remover ROI" class="rounded p-1.5 text-red-500/70 hover:text-red-400 hover:bg-red-900/20 transition" (click)="askDelete.emit()">
+            <lucide-icon [img]="icons.Trash2" [size]="14" />
+          </button>
+        </div>
+      </section>
+
+      <hr class="border-white/5" />
+    }
+
+    <!-- ── ROI list ──────────────────────────────────────────────────────── -->
+    <section>
+      <div class="mb-2 flex items-center justify-between">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+          ROIs ({{ state.rois.length }})
+        </p>
+        @if (state.rois.length > 0) {
+          <button class="text-[10px] text-red-500/60 hover:text-red-400 transition" (click)="askReset.emit()">Limpar</button>
+        }
+      </div>
+
+      @if (state.rois.length === 0) {
+        <p class="text-xs text-neutral-600">Sem ROIs anotadas.</p>
+      }
+
+      @for (roi of state.rois; track roi.id) {
+        <button
+          class="mb-1.5 flex w-full items-center gap-2 rounded border px-2 py-1.5 text-left transition"
+          [style.border-left-color]="biradsColor(roi.birads)"
+          style="border-left-width:2px"
+          [class.bg-violet-900\/15]="roi.isSelected"
+          [class.border-violet-500\/30]="roi.isSelected"
+          [class.bg-neutral-900\/40]="!roi.isSelected"
+          [class.border-white\/5]="!roi.isSelected"
+          (click)="selectROI(state.activeVp, roi.id)"
+        >
+          <span class="flex-1 truncate text-xs font-medium">{{ roi.label || ('ROI #' + roi.id) }}</span>
+          <span class="shrink-0 text-[10px] font-bold" [style.color]="biradsColor(roi.birads)">
+            {{ roi.birads || '—' }}
+          </span>
+        </button>
+      }
+    </section>
+
+    <!-- ── Ruler list ────────────────────────────────────────────────────── -->
+    @if (state.rulers.length > 0) {
+      <section>
+        <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+          Réguas ({{ state.rulers.length }})
+        </p>
+        @for (ru of state.rulers; track ru.id) {
+          <div class="mb-1.5 flex items-center rounded border border-white/5 bg-neutral-900/40 px-2 py-1.5 text-xs text-neutral-400">
+            <span class="flex-1">Régua #{{ ru.id }}</span>
+            <span class="tabular-nums text-[10px]">
+              {{ rulerLength(ru.x1, ru.y1, ru.x2, ru.y2) }}px
+            </span>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- ── Windowing ─────────────────────────────────────────────────────── -->
+    <section class="space-y-3">
+      <div class="flex items-center justify-between">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Janelamento</p>
+        <button title="Resetar" class="rounded p-1 text-neutral-500 hover:text-white transition" (click)="resetWindowing()">
+          <lucide-icon [img]="icons.RotateCw" [size]="12" />
+        </button>
+      </div>
+
+      <!-- Contrast -->
+      <div class="space-y-1">
+        <div class="flex justify-between text-[10px] text-neutral-500">
+          <span>Contraste</span><span class="tabular-nums">{{ state.activeVPData.contrast }}%</span>
+        </div>
+        <input type="range" min="20" max="200" step="1" class="w-full accent-violet-500"
+          [(ngModel)]="state.activeVPData.contrast"
+          (ngModelChange)="onContrastChange()" />
+      </div>
+
+      <!-- Brightness -->
+      <div class="space-y-1">
+        <div class="flex justify-between text-[10px] text-neutral-500">
+          <span>Brilho</span><span class="tabular-nums">{{ state.activeVPData.brightness }}%</span>
+        </div>
+        <input type="range" min="20" max="200" step="1" class="w-full accent-violet-500"
+          [(ngModel)]="state.activeVPData.brightness"
+          (ngModelChange)="onBrightnessChange()" />
+      </div>
+    </section>
+
+    <!-- ── Undo / Redo ────────────────────────────────────────────────────── -->
+    <section>
+      <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Histórico</p>
+      <div class="flex gap-2">
+        <button title="Desfazer (Ctrl+Z)"
+          class="flex flex-1 items-center justify-center gap-1.5 rounded border border-white/8 py-1.5 text-xs text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+          [class.opacity-30]="!state.activeVPData.undoStack.length"
+          (click)="undo()">
+          <lucide-icon [img]="icons.Undo2" [size]="13" /> Desfazer
+        </button>
+        <button title="Refazer (Ctrl+Y)"
+          class="flex flex-1 items-center justify-center gap-1.5 rounded border border-white/8 py-1.5 text-xs text-neutral-400 hover:text-white hover:bg-neutral-800 transition"
+          [class.opacity-30]="!state.activeVPData.redoStack.length"
+          (click)="redo()">
+          Refazer <lucide-icon [img]="icons.Redo2" [size]="13" />
+        </button>
+      </div>
+    </section>
+
+  </div><!-- /scroll -->
+</div>
