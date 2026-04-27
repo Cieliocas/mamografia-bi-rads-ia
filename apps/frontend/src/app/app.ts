@@ -10,60 +10,10 @@ import {
   RotateCw, Activity, Upload, X, Trash2, Pencil, Target,
   Circle, Square, Edit3, Columns, Copy, Undo, Redo
 } from 'lucide-angular';
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-export type BiRads = '1'|'2'|'3'|'4A'|'4B'|'4C'|'5'|'6'|null;
-
-export interface ROI {
-  id: number; x: number; y: number;
-  rx: number; ry: number;
-  shape: 'ellipse'|'rect';
-  birads: BiRads; label: string; notes: string;
-  isSelected: boolean;
-}
-
-export interface RulerLine {
-  id: number; x1: number; y1: number; x2: number; y2: number;
-  isSelected: boolean;
-}
-
-interface Snapshot { rois: ROI[]; rulers: RulerLine[]; }
-
-export interface VP {
-  loadedImage: HTMLImageElement|null;
-  imageDataUrl: string|null; imageName: string;
-  zoom: number; panX: number; panY: number;
-  contrast: number; brightness: number;
-  rois: ROI[]; rulers: RulerLine[];
-  selectedROIId: number|null;
-  roiCounter: number; rulerCounter: number;
-  undoStack: Snapshot[]; redoStack: Snapshot[];
-}
-
-type IxMode = 'pan'|'draw-roi'|'draw-ruler'|'move-roi'|'move-ruler-full'|'move-ruler-start'|'move-ruler-end';
-
-interface Ix {
-  vpIdx: number; mode: IxMode;
-  imgX0: number; imgY0: number;
-  clientX0: number; clientY0: number;
-  panX0: number; panY0: number;
-  roiX0: number; roiY0: number;
-  rulerIdx: number;
-  rx1: number; ry1: number; rx2: number; ry2: number;
-  tempROI: ROI|null; tempRuler: RulerLine|null;
-}
-
-function mkVP(): VP {
-  return {
-    loadedImage: null, imageDataUrl: null, imageName: '',
-    zoom: 1, panX: 0, panY: 0, contrast: 80, brightness: 100,
-    rois: [], rulers: [], selectedROIId: null,
-    roiCounter: 1, rulerCounter: 1, undoStack: [], redoStack: []
-  };
-}
-
-function clone<T>(v: T): T { return JSON.parse(JSON.stringify(v)); }
-function d2(ax: number, ay: number, bx: number, by: number) { return Math.sqrt((ax-bx)**2+(ay-by)**2); }
+import {
+  BiRads, ROI, RulerLine, Snapshot, VP, IxMode, Ix,
+  mkVP, clone, d2, biradsColor, rgba, BIRADS_INFO, BIRADS_CHIPS
+} from './shared/models/types';
 
 @Component({
   selector: 'app-root', standalone: true,
@@ -100,12 +50,8 @@ export class App implements OnInit, OnDestroy {
   // History
   historyFiles: {name:string; dataUrl:string; date:string}[] = [];
 
-  readonly biradsChips: BiRads[] = ['1','2','3','4A','4B','4C','5','6'];
-  readonly biradsInfo: Record<string,string> = {
-    '1':'Negativo','2':'Benigno','3':'Provavelmente benigno',
-    '4A':'Baixa suspeita','4B':'Suspeita moderada',
-    '4C':'Alta suspeita','5':'Maligno','6':'Biópsia confirmada'
-  };
+  readonly biradsChips: BiRads[] = BIRADS_CHIPS;
+  readonly biradsInfo = BIRADS_INFO;
 
   readonly icons = {
     FolderOpen, History, BarChart3, Wrench, HelpCircle, Plus,
@@ -148,19 +94,7 @@ export class App implements OnInit, OnDestroy {
   private cv(i: number) { return i===0 ? this.c0?.nativeElement : this.c1?.nativeElement; }
   private ct(i: number) { return i===0 ? this.ct0?.nativeElement : this.ct1?.nativeElement; }
 
-  biradsColor(b: BiRads|string|null): string {
-    if (b==='1'||b==='2') return '#4ade80';
-    if (b==='3') return '#facc15';
-    if (b==='4A') return '#fb923c';
-    if (b==='4B') return '#f97316';
-    if (b==='4C') return '#ff6e84';
-    if (b==='5'||b==='6') return '#dc2626';
-    return '#afa2ff';
-  }
-
-  private rgba(hex: string, a: number) {
-    return `rgba(${parseInt(hex.slice(1,3),16)},${parseInt(hex.slice(3,5),16)},${parseInt(hex.slice(5,7),16)},${a})`;
-  }
+  biradsColor(b: BiRads|string|null): string { return biradsColor(b); }
 
   private i2s(vp: VP, ix: number, iy: number, cw: number, ch: number) {
     const cx = cw/2+vp.panX, cy = ch/2+vp.panY, img = vp.loadedImage!;
@@ -412,7 +346,7 @@ export class App implements OnInit, OnDestroy {
       const srx = Math.max(2, roi.rx*vp.zoom), sry = Math.max(2, roi.ry*vp.zoom);
       const col = roi.isSelected ? '#afa2ff' : this.biradsColor(roi.birads);
       ctx.strokeStyle = col; ctx.lineWidth = roi.isSelected ? 2.5 : 1.8;
-      ctx.fillStyle = this.rgba(col, roi.isSelected ? 0.18 : 0.11);
+      ctx.fillStyle = rgba(col, roi.isSelected ? 0.18 : 0.11);
       ctx.beginPath();
       if (roi.shape === 'ellipse') ctx.ellipse(c.x, c.y, srx, sry, 0, 0, Math.PI*2);
       else ctx.rect(c.x-srx, c.y-sry, srx*2, sry*2);
