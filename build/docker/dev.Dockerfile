@@ -32,7 +32,7 @@ COPY . /workspace
 
 RUN python3.11 -m venv /opt/venv && \
     /opt/venv/bin/pip install --upgrade pip && \
-    /opt/venv/bin/pip install -r desktop/apps/ai-engine/requirements.txt
+    /opt/venv/bin/pip install -r apps/ai-engine/requirements.txt
 
 ENV PATH="/opt/venv/bin:${PATH}"
 CMD ["bash"]

@@ -3,7 +3,7 @@
 > Ponte entre as chat skills (Cluster Trainer, Desktop Builder, Daily Reporter).
 > Atualize este arquivo sempre que o estado real mudar.
 
-Ultima atualizacao: 2026-04-19
+Ultima atualizacao: 2026-04-19 (Plano 02 concluido)
 
 ---
 
@@ -13,9 +13,9 @@ Ultima atualizacao: 2026-04-19
 |---|---|
 | Desktop shell | Wails v2 + Go 1.22+ |
 | Frontend | Angular 18 (standalone) + Tailwind |
-| Core local | Go (orquestrador, guardian, proxy) em `desktop/apps/go-core` |
-| AI sidecar | Python + FastAPI em `desktop/apps/ai-engine` |
-| Modelo de inferencia | `desktop/apps/ai-engine/models/unet_mammo_best.keras` |
+| Core local | Go (orquestrador, guardian, proxy) em `apps/core` |
+| AI sidecar | Python + FastAPI em `apps/ai-engine` |
+| Modelo de inferencia | `apps/ai-engine/models/unet_mammo_best.keras` |
 
 Pipelines de treino **nao** sao mais versionados neste repo (removidos em `0c7f4aad`). Apenas o artefato final de inferencia permanece.
 
@@ -25,7 +25,7 @@ Pipelines de treino **nao** sao mais versionados neste repo (removidos em `0c7f4
 
 ```bash
 cd /Users/francieliocastro/Developer/ICIT/mamografia-bi-rads-ia
-bash desktop/tools/run_desktop_dev.sh --rebuild-go
+bash tools/run_desktop_dev.sh --rebuild-go
 ```
 
 Sobe Go Core, AI sidecar e Wails + Angular no mesmo fluxo. Ha lock anti-duplicata em `/tmp/mammo-desktop-dev.lock`.
@@ -65,7 +65,7 @@ Ver [relatorios/RELATORIO_TREINO_2026-03-24.md](RELATORIO_TREINO_2026-03-24.md).
 
 ### IA / Treino
 - Proxima rodada de treino para superar `val_dice = 0.566`.
-- Promover melhor checkpoint para `desktop/apps/ai-engine/models/unet_mammo_best.keras` quando estavel.
+- Promover melhor checkpoint para `apps/ai-engine/models/unet_mammo_best.keras` quando estavel.
 
 ### Documentacao
 - Manter este arquivo como fonte de verdade entre skills.
@@ -83,3 +83,18 @@ Ver [relatorios/RELATORIO_TREINO_2026-03-24.md](RELATORIO_TREINO_2026-03-24.md).
 - Lixo local (fora do git): ~8.4 GB de `data/`, `venv/`, `venv_tf/`, `frontend/` e `.DS_Store` removidos do checkout principal.
 - Documentacao consolidada em `docs/` (ARCHITECTURE, RUNBOOK, DESIGN_SYSTEM, CHAT_SKILLS). Removidos 9 READMEs fragmentados (`desktop/README.md`, `desktop/MONOREPO_STRUCTURE.md`, `desktop/docs/`, READMEs de `apps/*`, `build/installer/`, `docs/chat-skills/`).
 - Publicados dois planos de refatoracao em `docs/plans/`: 01 (Clean Architecture no Go Core) e 02 (Reestruturacao do Layout). Ordem recomendada: 01 -> 02.
+
+## Plano 02 concluido em 2026-04-19
+
+Layout reorganizado conforme spec em `docs/plans/02-reestruturacao-layout.md`:
+
+- `desktop/` deixou de existir. `apps/` subiu para a raiz.
+- `apps/desktop/` = shell Wails (Go + wails.json). `apps/frontend/` = Angular 18 separado.
+- `apps/core/` = Go Core (modulo renomeado de `mammo/desktop/go-core` para `mammo/apps/core`).
+- `apps/ai-engine/` = sidecar FastAPI.
+- `tools/` e `build/docker/` promovidos para a raiz.
+- `data/` explicita como runtime store (gitignored exceto `.gitkeep`).
+- Restricao tecnica do `//go:embed`: `apps/desktop/dist/` abriga o build do frontend copiado via `wails.json` (gitignored, mas placeholder versionado).
+- Skeleton feature-sliced criado em `apps/frontend/src/app/{core,features,shared}/` (decomposicao do `app.ts` fica para Plano 03).
+
+**Atencao:** o bundle `.app` externo (fora do repo) que chama o `.command` continua valido — o `Mammo-Desktop-Dev.command` versionado foi atualizado para apontar para `tools/run_desktop_dev.sh`.
