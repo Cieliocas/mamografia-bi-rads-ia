@@ -112,3 +112,21 @@ func (s *Supervisor) LastStartError() error {
 	defer s.mu.Unlock()
 	return s.lastStartErr
 }
+
+// Watch runs EnsureHealthy on a ticker until ctx is cancelled.
+// Intended to be called as a goroutine from the composition root.
+func (s *Supervisor) Watch(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := s.EnsureHealthy(ctx); err != nil {
+				// non-fatal: log from caller via EnsureHealthy
+				_ = err
+			}
+		}
+	}
+}

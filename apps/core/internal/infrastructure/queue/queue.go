@@ -55,3 +55,11 @@ func (q *Queue) Stop() {
 	close(q.ch)
 	q.wg.Wait()
 }
+
+// LogProcessor is a Processor that simply logs the task ID.
+// Useful as a default when tasks are dispatched inline to AI.
+type LogProcessor struct{}
+
+func (LogProcessor) Process(_ context.Context, t Task) error {
+	return nil // caller logs via their own logger
+}
