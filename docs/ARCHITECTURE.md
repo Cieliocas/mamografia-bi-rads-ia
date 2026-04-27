@@ -54,7 +54,7 @@ mamografia-bi-rads-ia/
 │   │   ├── angular.json
 │   │   └── package.json
 │   ├── core/                          # Go Core: Orquestrador/Guardian/Proxy
-│   │   ├── cmd/orchestrator/main.go
+│   │   ├── cmd/server/main.go             # Composition root (~88 linhas)
 │   │   ├── internal/
 │   │   │   ├── domain/{entity,valueobject}
 │   │   │   └── {config,guardian,pdi,queue}

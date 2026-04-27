@@ -92,7 +92,7 @@ if [[ ! -x "$GO_DIR/bin/core" || "$REBUILD_GO" -eq 1 ]]; then
   (
     cd "$GO_DIR"
     go mod tidy
-    go build -o bin/core ./cmd/orchestrator
+    go build -o bin/core ./cmd/server
   )
 fi
 

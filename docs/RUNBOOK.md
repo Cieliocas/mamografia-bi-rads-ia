@@ -53,8 +53,8 @@ pip install -r requirements.txt
 
 # Go core
 cd apps/core
-go mod tidy && go build -o bin/go-core ./cmd/orchestrator
-./bin/go-core
+go mod tidy && go build -o bin/core ./cmd/server
+./bin/core
 
 # UI (dev Wails puro)
 cd apps/desktop
