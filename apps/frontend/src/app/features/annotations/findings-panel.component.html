@@ -20,6 +20,58 @@
   <!-- ── Scrollable body ─────────────────────────────────────────────────── -->
   <div class="flex-1 overflow-y-auto space-y-4 p-4 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-neutral-700">
 
+    <!-- ── Backend / AI controls ───────────────────────────────────────── -->
+    <section class="space-y-2 rounded border border-white/8 bg-neutral-900/40 p-3">
+      <div class="flex items-center justify-between">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Go Core</p>
+        <span class="text-[10px] tabular-nums"
+          [class.text-emerald-400]="study.backendOnline()"
+          [class.text-red-400]="!study.backendOnline()">
+          {{ study.backendOnline() ? '● online' : '○ offline' }}
+        </span>
+      </div>
+      @if (study.currentStudyId(); as sid) {
+        <p class="truncate text-[10px] text-neutral-500">study: {{ sid }}</p>
+      }
+      <div class="flex gap-2">
+        <button
+          class="flex-1 rounded border border-violet-500/30 bg-violet-900/20 px-2 py-1.5 text-[11px] font-semibold text-violet-200 transition hover:bg-violet-900/40 disabled:opacity-30"
+          [disabled]="!study.backendOnline() || !study.currentFilePath()"
+          (click)="runInference()">
+          Rodar IA
+        </button>
+        <button
+          class="flex-1 rounded border border-white/10 bg-neutral-800/40 px-2 py-1.5 text-[11px] font-semibold text-neutral-300 transition hover:bg-neutral-700/60 disabled:opacity-30"
+          [disabled]="!study.backendOnline() || !study.currentStudyId() || state.rois.length === 0"
+          (click)="persist()">
+          Salvar
+        </button>
+      </div>
+      @if (study.latestFindings().length) {
+        <div class="space-y-1 pt-1">
+          <p class="text-[10px] uppercase text-on-surface-variant">Achados IA</p>
+          @for (f of study.latestFindings(); track $index) {
+            <div class="rounded border border-white/5 bg-neutral-950/40 px-2 py-1 text-[11px]">
+              <div class="flex items-center justify-between">
+                <span class="font-semibold" [style.color]="biradsColor(f.birads ?? null)">
+                  {{ f.kind || 'finding' }}
+                  @if (f.birads) { <span class="ml-1 text-[10px]">BI-RADS {{ f.birads }}</span> }
+                </span>
+                @if (f.confidence != null) {
+                  <span class="tabular-nums text-[10px] text-neutral-400">
+                    {{ (f.confidence * 100).toFixed(0) }}%
+                  </span>
+                }
+              </div>
+              @if (f.notes) {
+                <p class="text-[10px] text-neutral-500">{{ f.notes }}</p>
+              }
+            </div>
+          }
+        </div>
+      }
+    </section>
+
     <!-- ── Selected ROI editor ──────────────────────────────────────────── -->
     @if (state.selectedROI) {
       <section class="space-y-3">

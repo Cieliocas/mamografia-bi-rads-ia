@@ -1,4 +1,5 @@
 import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
+import { provideHttpClient, withFetch } from '@angular/common/http';
 import { LUCIDE_ICONS, LucideIconProvider } from 'lucide-angular';
 import {
   FolderOpen, History, BarChart3, Wrench, HelpCircle, Plus,
@@ -10,6 +11,7 @@ import {
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
+    provideHttpClient(withFetch()),
     {
       provide: LUCIDE_ICONS, multi: true,
       useValue: new LucideIconProvider({

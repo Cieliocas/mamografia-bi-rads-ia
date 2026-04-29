@@ -8,6 +8,7 @@ import {
 } from 'lucide-angular';
 
 import { ViewerStateService } from '../../core/services/viewer-state.service';
+import { StudyService } from '../../core/services/study.service';
 import { biradsColor } from '../../shared/models/types';
 import type { BiRads } from '../../shared/models/types';
 
@@ -20,8 +21,13 @@ import type { BiRads } from '../../shared/models/types';
 export class FindingsPanelComponent {
 
   readonly state = inject(ViewerStateService);
+  readonly study = inject(StudyService);
 
   readonly icons = { Trash2, Copy, Clipboard, Undo2, Redo2, Circle, Square, Columns, RotateCw };
+
+  // ── Backend integration ─────────────────────────────────────────────────────
+  runInference()  { this.study.runInference(); }
+  persist()        { this.study.saveAnnotations(this.state.rois); }
 
   /** Emitted when the consumer should redraw a viewport. */
   @Output() drawRequest = new EventEmitter<number>();
