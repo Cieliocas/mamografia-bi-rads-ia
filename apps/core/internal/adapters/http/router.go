@@ -14,6 +14,7 @@ func NewRouter(
 	inference *InferenceHandler,
 	export    *ExportHandler,
 	preview   *PreviewHandler,
+	backup    *BackupHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -25,6 +26,7 @@ func NewRouter(
 	inference.RegisterRoutes(api)
 	export.RegisterRoutes(api)
 	preview.RegisterRoutes(api)
+	backup.RegisterRoutes(api)
 
 	return r
 }

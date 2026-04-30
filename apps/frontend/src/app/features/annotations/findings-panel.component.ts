@@ -43,6 +43,7 @@ export class FindingsPanelComponent {
     if (sid) this.api.openReport(sid);
     this.showExportModal = false;
   }
+  exportBackup() { this.api.downloadBackup(); this.showExportModal = false; }
 
   // ── Backend integration ─────────────────────────────────────────────────────
   runInference() { this.study.runInference(); }

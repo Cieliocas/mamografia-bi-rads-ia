@@ -176,6 +176,14 @@ export class ApiService {
     window.open(`${this.base}/api/export/report/${studyId}`, 'mammo-report');
   }
 
+  /** Triggers a download of the SQLite database snapshot. */
+  downloadBackup() {
+    const a = document.createElement('a');
+    a.href = `${this.base}/api/backup`;
+    a.download = '';
+    a.click();
+  }
+
   /** URL of the rendered DICOM preview (PNG with WW/WC applied server-side). */
   previewURL(studyId: string, ww?: number, wc?: number): string {
     const q: string[] = [];
