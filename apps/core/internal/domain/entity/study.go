@@ -14,6 +14,7 @@ type Study struct {
 	ID         StudyID
 	PatientID  string
 	StudyDate  time.Time
+	FilePath   string // absolute path to source DICOM, used for preview rendering
 	Density    *valueobject.Density
 	Series     []Series
 	CreatedAt  time.Time

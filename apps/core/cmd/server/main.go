@@ -59,11 +59,12 @@ func main() {
 	studyRepo := sqlite.NewStudyRepository(db)
 	annotRepo := sqlite.NewAnnotationRepository(db)
 	aiClient  := aiclient.New(cfg.AISidecarURL, cfg.AISharedToken)
+	dicomReader := filesystem.NewDICOMReader()
 
 	router := httpadapter.NewRouter(
 		httpadapter.NewPDIHandler(usecase.NewApplyWindowing()),
 		httpadapter.NewStudyHandler(
-			usecase.NewOpenStudy(studyRepo, filesystem.NewDICOMReader()),
+			usecase.NewOpenStudy(studyRepo, dicomReader),
 			usecase.NewSaveAnnotations(annotRepo),
 			usecase.NewLoadAnnotations(annotRepo),
 			studyRepo,
@@ -74,6 +75,7 @@ func main() {
 			studyRepo,
 			annotRepo,
 		),
+		httpadapter.NewPreviewHandler(studyRepo, dicomReader),
 	)
 	httpadapter.NewHealthHandler(supervisor).RegisterRoutes(router)
 

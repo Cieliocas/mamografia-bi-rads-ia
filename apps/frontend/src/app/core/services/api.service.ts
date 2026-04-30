@@ -176,6 +176,15 @@ export class ApiService {
     window.open(`${this.base}/api/export/report/${studyId}`, 'mammo-report');
   }
 
+  /** URL of the rendered DICOM preview (PNG with WW/WC applied server-side). */
+  previewURL(studyId: string, ww?: number, wc?: number): string {
+    const q: string[] = [];
+    if (ww) q.push(`ww=${ww}`);
+    if (wc) q.push(`wc=${wc}`);
+    const qs = q.length ? `?${q.join('&')}` : '';
+    return `${this.base}/api/studies/${studyId}/preview${qs}`;
+  }
+
   // ── windowing ─────────────────────────────────────────────────────────────
   applyWindowing(req: WindowingRequest): Observable<WindowingResponse | null> {
     return this.http.post<WindowingResponse>(`${this.base}/api/pdi/windowing`, req).pipe(

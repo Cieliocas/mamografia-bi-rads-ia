@@ -133,31 +133,33 @@ export class StudyService {
     this.currentFilePath.set(filePath);
     this.latestFindings.set([]);
 
-    const img = new Image();
-    img.onload = () => {
-      vp.loadedImage = img;
-      vp.imageDataUrl = filePath;
-      onLoaded(vpIdx);
+    // The browser can't decode .dcm; we open the study server-side and load
+    // the rendered preview PNG (with WW/WC applied) as the canvas image.
+    this.api.openStudy(filePath).subscribe(resp => {
+      if (!resp?.id) return;
+      this.currentStudyId.set(resp.id);
+      this.applyOpenStudyMetadata(resp);
+      this.refreshBackendStudies();
 
-      const entry: HistoryEntry = {
-        name: vp.imageName,
-        dataUrl: filePath,
-        date: new Date().toLocaleString('pt-BR'),
-        filePath
+      const previewURL = this.api.previewURL(resp.id);
+      const img = new Image();
+      img.onload = () => {
+        vp.loadedImage = img;
+        vp.imageDataUrl = previewURL;
+        onLoaded(vpIdx);
+
+        const entry: HistoryEntry = {
+          name: vp.imageName,
+          dataUrl: previewURL,
+          date: new Date().toLocaleString('pt-BR'),
+          filePath,
+          studyId: resp.id,
+        };
+        this.historyFiles.unshift(entry);
+        if (this.historyFiles.length > 20) this.historyFiles.pop();
       };
-      this.historyFiles.unshift(entry);
-      if (this.historyFiles.length > 20) this.historyFiles.pop();
-
-      this.api.openStudy(filePath).subscribe(resp => {
-        if (resp?.id) {
-          this.currentStudyId.set(resp.id);
-          entry.studyId = resp.id;
-          this.refreshBackendStudies();
-        }
-      });
-    };
-    // Wails serves local files via a special protocol; fall back to path.
-    img.src = filePath;
+      img.src = previewURL;
+    });
   }
 
   /**

@@ -70,7 +70,7 @@ func (r *StudyRepository) Save(ctx context.Context, s *entity.Study) error {
 		s.StudyDate.Format(time.RFC3339),
 		"MG", // mammography modality constant for now
 		"",
-		"",
+		s.FilePath,
 		s.CreatedAt.Format(time.RFC3339),
 	)
 	return err
@@ -78,13 +78,13 @@ func (r *StudyRepository) Save(ctx context.Context, s *entity.Study) error {
 
 func (r *StudyRepository) FindByID(ctx context.Context, id string) (*entity.Study, error) {
 	row := r.db.QueryRowContext(ctx,
-		`SELECT id, patient_id, study_date, created_at FROM studies WHERE id = ?`, id)
+		`SELECT id, patient_id, study_date, file_path, created_at FROM studies WHERE id = ?`, id)
 	return scanStudy(row)
 }
 
 func (r *StudyRepository) List(ctx context.Context) ([]*entity.Study, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, patient_id, study_date, created_at FROM studies ORDER BY created_at DESC`)
+		`SELECT id, patient_id, study_date, file_path, created_at FROM studies ORDER BY created_at DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -113,12 +113,13 @@ type scanner interface {
 
 func scanStudy(s scanner) (*entity.Study, error) {
 	var study entity.Study
-	var id, patientID, studyDate, createdAt string
-	if err := s.Scan(&id, &patientID, &studyDate, &createdAt); err != nil {
+	var id, patientID, studyDate, filePath, createdAt string
+	if err := s.Scan(&id, &patientID, &studyDate, &filePath, &createdAt); err != nil {
 		return nil, err
 	}
 	study.ID = entity.StudyID(id)
 	study.PatientID = patientID
+	study.FilePath = filePath
 
 	if t, err := time.Parse(time.RFC3339, studyDate); err == nil {
 		study.StudyDate = t

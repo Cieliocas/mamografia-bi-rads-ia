@@ -46,6 +46,7 @@ func (uc *OpenStudy) Execute(ctx context.Context, in OpenStudyInput) (*OpenStudy
 		ID:        entity.StudyID(uuid.NewString()),
 		PatientID: meta.PatientID,
 		StudyDate: time.Now(),
+		FilePath:  in.FilePath,
 		CreatedAt: time.Now(),
 	}
 
