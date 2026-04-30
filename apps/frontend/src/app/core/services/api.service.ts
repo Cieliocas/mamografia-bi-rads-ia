@@ -146,6 +146,20 @@ export class ApiService {
     } as RunInferenceRequest).pipe(catchError(() => of(null)));
   }
 
+  // ── export ────────────────────────────────────────────────────────────────
+  /** Triggers a download of JSON or CSV export via the browser. */
+  downloadExport(format: 'json' | 'csv', studyIds?: string[]) {
+    const ids = studyIds?.length ? `&study_ids=${studyIds.join(',')}` : '';
+    const url = `${this.base}/api/export?format=${format}${ids}`;
+    const a = document.createElement('a');
+    a.href = url; a.download = ''; a.click();
+  }
+
+  /** Opens the HTML report in a new window for PDF printing. */
+  openReport(studyId: string) {
+    window.open(`${this.base}/api/export/report/${studyId}`, 'mammo-report');
+  }
+
   // ── windowing ─────────────────────────────────────────────────────────────
   applyWindowing(req: WindowingRequest): Observable<WindowingResponse | null> {
     return this.http.post<WindowingResponse>(`${this.base}/api/pdi/windowing`, req).pipe(

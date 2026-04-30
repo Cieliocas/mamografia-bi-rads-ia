@@ -62,6 +62,11 @@ func main() {
 			studyRepo,
 		),
 		httpadapter.NewInferenceHandler(usecase.NewRunInference(aiClient, taskQ)),
+		httpadapter.NewExportHandler(
+			usecase.NewExportDataset(studyRepo, annotRepo),
+			studyRepo,
+			annotRepo,
+		),
 	)
 	httpadapter.NewHealthHandler(supervisor).RegisterRoutes(router)
 

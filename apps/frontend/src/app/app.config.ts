@@ -5,7 +5,8 @@ import {
   FolderOpen, History, BarChart3, Wrench, HelpCircle, Plus,
   ZoomIn, ZoomOut, Hand, Ruler, Maximize2, ChevronRight, ChevronLeft,
   AlertTriangle, Settings, User, RotateCw, Activity, Upload, X,
-  Trash2, Pencil, Target, Circle, Square, Edit3, Columns, Copy, Undo, Redo
+  Trash2, Pencil, Target, Circle, Square, Edit3, Columns, Copy, Undo, Redo,
+  Download, FileText, FileJson
 } from 'lucide-angular';
 
 export const appConfig: ApplicationConfig = {
@@ -18,7 +19,8 @@ export const appConfig: ApplicationConfig = {
         FolderOpen, History, BarChart3, Wrench, HelpCircle, Plus,
         ZoomIn, ZoomOut, Hand, Ruler, Maximize2, ChevronRight, ChevronLeft,
         AlertTriangle, Settings, User, RotateCw, Activity, Upload, X,
-        Trash2, Pencil, Target, Circle, Square, Edit3, Columns, Copy, Undo, Redo
+        Trash2, Pencil, Target, Circle, Square, Edit3, Columns, Copy, Undo, Redo,
+        Download, FileText, FileJson
       })
     }
   ]

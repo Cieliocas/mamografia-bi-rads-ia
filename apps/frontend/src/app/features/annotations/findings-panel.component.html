@@ -252,6 +252,19 @@
       </div>
     </section>
 
+    <!-- ── Export ──────────────────────────────────────────────────────────── -->
+    <section>
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Exportar</p>
+      </div>
+      <button
+        class="flex w-full items-center justify-center gap-1.5 rounded border border-white/10 bg-neutral-800/40 px-2 py-1.5 text-[11px] font-semibold text-neutral-300 transition hover:bg-neutral-700/60 disabled:opacity-30"
+        [disabled]="!study.backendOnline()"
+        (click)="openExportModal()">
+        <lucide-icon [img]="icons.Download" [size]="13" /> Exportar dados
+      </button>
+    </section>
+
     <!-- ── Undo / Redo ────────────────────────────────────────────────────── -->
     <section>
       <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Histórico</p>
@@ -273,3 +286,67 @@
 
   </div><!-- /scroll -->
 </div>
+
+<!-- ── Export Modal ─────────────────────────────────────────────────────────── -->
+@if (showExportModal) {
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+    (click)="showExportModal = false">
+    <div class="w-72 rounded-xl border border-white/10 bg-surface-container-high p-5 shadow-2xl"
+      (click)="$event.stopPropagation()">
+
+      <div class="mb-4 flex items-center justify-between">
+        <h3 class="text-sm font-bold text-on-surface">Exportar Dados</h3>
+        <button class="rounded p-1 text-neutral-500 hover:text-white transition"
+          (click)="showExportModal = false">✕</button>
+      </div>
+
+      @if (exportStudyIds.length) {
+        <p class="mb-3 truncate text-[10px] text-neutral-500">
+          Estudo: {{ exportStudyIds[0] }}
+        </p>
+      } @else {
+        <p class="mb-3 text-[10px] text-neutral-500">
+          Todos os estudos
+        </p>
+      }
+
+      <div class="space-y-2">
+        <!-- JSON -->
+        <button
+          class="flex w-full items-center gap-3 rounded border border-white/8 bg-neutral-900/50 px-3 py-2.5 text-left transition hover:border-violet-500/40 hover:bg-violet-900/15"
+          (click)="exportJSON()">
+          <lucide-icon [img]="icons.FileJson" [size]="16" class="text-violet-400 shrink-0" />
+          <div>
+            <p class="text-xs font-semibold text-on-surface">JSON</p>
+            <p class="text-[10px] text-neutral-500">Estruturado, ideal para pipelines</p>
+          </div>
+        </button>
+
+        <!-- CSV -->
+        <button
+          class="flex w-full items-center gap-3 rounded border border-white/8 bg-neutral-900/50 px-3 py-2.5 text-left transition hover:border-emerald-500/40 hover:bg-emerald-900/15"
+          (click)="exportCSV()">
+          <lucide-icon [img]="icons.FileText" [size]="16" class="text-emerald-400 shrink-0" />
+          <div>
+            <p class="text-xs font-semibold text-on-surface">CSV</p>
+            <p class="text-[10px] text-neutral-500">Planilhas e análise estatística</p>
+          </div>
+        </button>
+
+        <!-- PDF Report -->
+        <button
+          class="flex w-full items-center gap-3 rounded border border-white/8 bg-neutral-900/50 px-3 py-2.5 text-left transition hover:border-cyan-500/40 hover:bg-cyan-900/15 disabled:opacity-40"
+          [disabled]="!study.currentStudyId()"
+          (click)="exportReport()">
+          <lucide-icon [img]="icons.Download" [size]="16" class="text-cyan-400 shrink-0" />
+          <div>
+            <p class="text-xs font-semibold text-on-surface">Relatório PDF</p>
+            <p class="text-[10px] text-neutral-500">
+              {{ study.currentStudyId() ? 'Abrir relatório para impressão' : 'Requer estudo aberto' }}
+            </p>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+}

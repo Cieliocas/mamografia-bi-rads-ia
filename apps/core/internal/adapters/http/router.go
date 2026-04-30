@@ -9,9 +9,10 @@ import (
 // NewRouter returns a configured gin engine with CORS middleware and
 // all handler routes registered. Handlers are passed as dependencies.
 func NewRouter(
-	pdi      *PDIHandler,
-	study    *StudyHandler,
+	pdi       *PDIHandler,
+	study     *StudyHandler,
 	inference *InferenceHandler,
+	export    *ExportHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -21,6 +22,7 @@ func NewRouter(
 	pdi.RegisterRoutes(api)
 	study.RegisterRoutes(api)
 	inference.RegisterRoutes(api)
+	export.RegisterRoutes(api)
 
 	return r
 }
