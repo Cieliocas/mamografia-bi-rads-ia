@@ -1,6 +1,6 @@
 # Design System — "Clinical Obsidian"
 
-Paleta otimizada para salas de laudo: fundo escuro de alto contraste, acentos de cor para achados críticos. Implementada em `desktop/apps/ui/frontend/tailwind.config.js` + `src/styles.css`.
+Paleta otimizada para salas de laudo: fundo escuro de alto contraste, acentos de cor para achados críticos. Implementada em `apps/frontend/tailwind.config.js` + `src/styles.css`.
 
 ## Tokens principais
 

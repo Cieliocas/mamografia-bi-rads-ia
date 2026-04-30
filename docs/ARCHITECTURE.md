@@ -39,26 +39,39 @@ flowchart LR
 mamografia-bi-rads-ia/
 ├── README.md                          # Cartão de visitas do projeto
 ├── Mammo-Desktop-Dev.command          # Launcher one-click macOS
-├── desktop/
-│   ├── apps/
-│   │   ├── ui/                        # Wails shell + Angular
-│   │   │   ├── main.go                # Entry Wails
-│   │   │   ├── app.go                 # Bindings Go → Angular
-│   │   │   ├── wails.json
-│   │   │   ├── frontend/              # Angular 18
-│   │   │   │   └── src/app/           # app.ts, app.html, app.css
-│   │   │   └── build/                 # Artefatos `wails build`
-│   │   ├── go-core/                   # Orquestrador/Guardian/Proxy
-│   │   │   ├── cmd/orchestrator/main.go
-│   │   │   └── internal/{config,guardian,pdi,queue}
-│   │   └── ai-engine/                 # Sidecar FastAPI
-│   │       ├── app/main.py            # /health, /predict
-│   │       ├── models/                # unet_mammo_best.keras
-│   │       └── requirements.txt
-│   ├── build/installer/               # Empacotamento Wails (macOS/Windows)
-│   └── tools/
-│       ├── run_desktop_dev.sh         # Entrypoint único de dev
-│       └── create_macos_app.sh
+├── apps/
+│   ├── desktop/                       # Wails shell (Go)
+│   │   ├── main.go                    # Entry Wails (embeds dist/)
+│   │   ├── app.go                     # Bindings Go → Angular
+│   │   ├── wails.json                 # Build config (frontend em ../frontend)
+│   │   ├── dist/                      # Populado pelo build do frontend (gitignored)
+│   │   └── build/                     # Artefatos `wails build` (darwin/windows)
+│   ├── frontend/                      # Angular 18
+│   │   ├── src/app/
+│   │   │   ├── core/                  # Serviços globais
+│   │   │   ├── features/              # viewer, annotations, study
+│   │   │   └── shared/
+│   │   ├── angular.json
+│   │   └── package.json
+│   ├── core/                          # Go Core: Orquestrador/Guardian/Proxy
+│   │   ├── cmd/server/main.go             # Composition root (~88 linhas)
+│   │   ├── internal/
+│   │   │   ├── domain/{entity,valueobject}
+│   │   │   └── {config,guardian,pdi,queue}
+│   │   └── go.mod                     # module mammo/apps/core
+│   └── ai-engine/                     # Sidecar FastAPI
+│       ├── app/main.py                # /health, /predict
+│       ├── models/                    # unet_mammo_best.keras
+│       └── requirements.txt
+├── data/                              # Runtime local (gitignored)
+│   ├── studies/{study_id}/images, annotations.json, metadata.json
+│   ├── db/app.db
+│   └── cache/
+├── build/                             # Artefatos de build compartilhados (gitignored)
+│   └── docker/dev.Dockerfile          # Imagem de dev com CUDA
+├── tools/
+│   ├── run_desktop_dev.sh             # Entrypoint único de dev
+│   └── create_macos_app.sh
 ├── docs/                              # Documentação consolidada (este diretório)
 ├── projetos/treinamento/              # Referência histórica de treinos
 └── relatorios/                        # Relatórios e status atual
@@ -99,6 +112,6 @@ mamografia-bi-rads-ia/
 
 ## Política do modelo no repositório
 
-Apenas o artefato final de inferência é versionado: `desktop/apps/ai-engine/models/unet_mammo_best.keras`.
+Apenas o artefato final de inferência é versionado: `apps/ai-engine/models/unet_mammo_best.keras`.
 Pipelines de treino, datasets e checkpoints não são versionados (removidos em `0c7f4aad`).
 Material de referência histórica fica em `projetos/treinamento/`.

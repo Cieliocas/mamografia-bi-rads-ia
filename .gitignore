@@ -20,7 +20,10 @@ Thumbs.db
 */.ipynb_checkpoints/
 
 # --- Dados locais (nunca versionar) ---
-data/
+data/*
+!data/.gitkeep
+build/*
+!build/.gitkeep
 *.jpg
 *.jpeg
 *.png
@@ -35,10 +38,9 @@ data/
 *.pth
 *.onnx
 *.tflite
-desktop/apps/ai-engine/models/*
-!desktop/apps/ai-engine/models/.gitkeep
-!desktop/apps/ai-engine/models/README.md
-!desktop/apps/ai-engine/models/unet_mammo_best.keras
+apps/ai-engine/models/*
+!apps/ai-engine/models/.gitkeep
+!apps/ai-engine/models/unet_mammo_best.keras
 
 # --- Logs e Cache ---
 *.log
@@ -49,7 +51,11 @@ wandb/
 node_modules/
 
 # --- Go build output ---
-desktop/apps/go-core/bin/
+apps/core/bin/
+
+# --- Wails embed dir (populated by frontend build) ---
+apps/desktop/dist/*
+!apps/desktop/dist/.gitkeep
 
 # --- Artefatos locais ---
 *.pdf

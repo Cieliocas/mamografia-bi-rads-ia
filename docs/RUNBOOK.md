@@ -20,7 +20,7 @@ Entrypoint único — sobe Go Core, AI sidecar e UI Wails+Angular com hot-reload
 
 ```bash
 cd /Users/francieliocastro/Developer/ICIT/mamografia-bi-rads-ia
-bash desktop/tools/run_desktop_dev.sh --rebuild-go
+bash tools/run_desktop_dev.sh --rebuild-go
 ```
 
 Flags:
@@ -47,17 +47,17 @@ Use `Mammo-Desktop-Dev.command` na raiz ou o bundle `Mammo BI-RADS Desktop Dev.a
 
 ```bash
 # AI sidecar
-cd desktop/apps/ai-engine
+cd apps/ai-engine
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 
 # Go core
-cd desktop/apps/go-core
-go mod tidy && go build -o bin/go-core ./cmd/orchestrator
-./bin/go-core
+cd apps/core
+go mod tidy && go build -o bin/core ./cmd/server
+./bin/core
 
 # UI (dev Wails puro)
-cd desktop/apps/ui
+cd apps/desktop
 wails dev
 ```
 
@@ -75,18 +75,18 @@ wails dev
 
 ```bash
 # Binário nativo Wails (.app no macOS, .exe no Windows)
-cd desktop/apps/ui
+cd apps/desktop
 wails build
 
 # Bundle .app macOS customizado
-bash desktop/tools/create_macos_app.sh
+bash tools/create_macos_app.sh
 ```
 
-Saída: `desktop/apps/ui/build/bin/`.
+Saída: `apps/desktop/build/bin/`.
 
 ## Troubleshooting
 
-**Erro `background.js` ou `apps/ui/app/background.js`** — resquício de launcher antigo (Nextron/Electron). Confira se o atalho/`.app` que você clicou aponta para `desktop/tools/run_desktop_dev.sh`.
+**Erro `background.js` ou `apps/ui/app/background.js`** — resquício de launcher antigo (Nextron/Electron). Confira se o atalho/`.app` que você clicou aponta para `tools/run_desktop_dev.sh`.
 
 **Lock preso** — `rm -rf /tmp/mammo-desktop-dev.lock` e tente de novo.
 
@@ -94,7 +94,7 @@ Saída: `desktop/apps/ui/build/bin/`.
 
 **Porta ocupada** — mate processos residuais: `lsof -ti:8088,8090,4200,34115 | xargs kill -9`.
 
-**Modelo ausente** — garanta `desktop/apps/ai-engine/models/unet_mammo_best.keras` existe. Sem ele o sidecar sobe mas `/predict` falha.
+**Modelo ausente** — garanta `apps/ai-engine/models/unet_mammo_best.keras` existe. Sem ele o sidecar sobe mas `/predict` falha.
 
 ## Smoke test manual
 

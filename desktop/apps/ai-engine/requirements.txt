@@ -1,8 +1,0 @@
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-numpy==2.2.1
-opencv-python-headless==4.10.0.84
-pydicom==3.0.1
-# TensorFlow fica opcional no desktop dev quando apenas Python 3.14 esta disponivel.
-# O sidecar segue funcional em modo mock (sem modelo carregado).
-python-multipart==0.0.20

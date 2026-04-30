@@ -1,0 +1,171 @@
+<!-- Splash screen -->
+@if (showSplash) {
+  <app-splash [progress]="progress" />
+}
+
+@if (!showSplash) {
+  <div class="h-screen overflow-hidden bg-surface-dim text-on-surface flex flex-col">
+
+    <!-- ── Top bar ──────────────────────────────────────────────────────── -->
+    <header class="flex h-12 items-center justify-between border-b border-white/5 px-4 shrink-0">
+      <div class="flex items-center gap-8">
+        <span class="font-headline text-lg font-bold tracking-tighter text-primary">AIdentify</span>
+        <nav class="flex items-center gap-4 text-xs font-medium uppercase tracking-wider">
+          <span class="cursor-default border-b border-secondary pb-1 text-secondary">File</span>
+          <span class="cursor-default text-on-surface-variant">Edit</span>
+          <span class="cursor-default text-on-surface-variant">View</span>
+          <span class="cursor-default text-on-surface-variant">AI Model</span>
+          <span class="cursor-default text-on-surface-variant">Help</span>
+        </nav>
+      </div>
+      <div class="flex items-center gap-3">
+        <button
+          class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant transition hover:text-secondary"
+          style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)"
+          (click)="viewer.openFileDialog()"
+        >Open Image</button>
+        <button class="rounded-sm bg-gradient-to-br from-primary to-primary-dim px-4 py-1 text-xs font-bold uppercase tracking-tight text-surface-dim">
+          Activate AI
+        </button>
+      </div>
+    </header>
+
+    <!-- ── Main layout ──────────────────────────────────────────────────── -->
+    <div class="flex flex-1 overflow-hidden">
+
+      <!-- Icon sidebar -->
+      <aside class="w-20 shrink-0 border-r border-white/5 bg-[#121212] py-4">
+        <button (click)="state.setPanel('images')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
+          [class.text-secondary]="state.activePanel==='images'"
+          [class.text-on-surface-variant]="state.activePanel!=='images'">
+          <lucide-icon [img]="icons.FolderOpen" class="h-5 w-5"></lucide-icon> Images
+        </button>
+        <button (click)="state.setPanel('history')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
+          [class.text-secondary]="state.activePanel==='history'"
+          [class.text-on-surface-variant]="state.activePanel!=='history'">
+          <lucide-icon [img]="icons.History" class="h-5 w-5"></lucide-icon> History
+        </button>
+        <button (click)="state.setPanel('analysis')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
+          [class.text-secondary]="state.activePanel==='analysis'"
+          [class.text-on-surface-variant]="state.activePanel!=='analysis'">
+          <lucide-icon [img]="icons.BarChart3" class="h-5 w-5"></lucide-icon> Analysis
+        </button>
+        <button (click)="state.setPanel('tools')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
+          [class.text-secondary]="state.activePanel==='tools'"
+          [class.text-on-surface-variant]="state.activePanel!=='tools'">
+          <lucide-icon [img]="icons.Wrench" class="h-5 w-5"></lucide-icon> Tools
+        </button>
+      </aside>
+
+      <!-- Left panel (files / history) -->
+      @if (state.leftOpen) {
+        <aside class="w-[300px] shrink-0 border-r border-white/5 bg-surface-container-low overflow-y-auto">
+          <div class="border-b border-white/5 p-4">
+            <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Diagnostics / Patient Files</p>
+            <h3 class="mt-3 text-lg font-bold">Radiology Suite</h3>
+            <p class="text-xs text-on-surface-variant">{{ study.historyFiles.length }} arquivo(s) na sessão</p>
+          </div>
+          <div class="space-y-2 p-3">
+            <button (click)="viewer.openFileDialog()" class="w-full p-3 text-left" style="background:rgba(175,162,255,.08);border-left:2px solid #afa2ff">
+              <p class="truncate text-xs font-bold">{{ state.activeVPData.imageName || 'Nenhuma imagem carregada' }}</p>
+              <p class="mt-1 text-[10px] text-on-surface-variant">Clique para abrir imagem</p>
+            </button>
+
+            @if (state.activePanel === 'images') {
+              <!-- Session history (in-memory) -->
+              @for (item of study.historyFiles.slice(0,8); track item.dataUrl) {
+                <button (click)="viewer.loadHistory(item)" class="w-full p-3 text-left transition hover:bg-surface-container-high" style="background:rgba(255,255,255,.02)">
+                  <p class="truncate text-xs font-bold">{{ item.name }}</p>
+                  <p class="text-[10px] text-on-surface-variant">{{ item.date }}</p>
+                </button>
+              }
+            }
+
+            @if (state.activePanel === 'history') {
+              <!-- Backend studies (Step 3) -->
+              <div class="flex items-center justify-between pb-1">
+                <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                  Estudos no servidor ({{ study.backendStudies().length }})
+                </p>
+                <button class="text-[10px] text-violet-400 hover:text-violet-300 transition"
+                  (click)="study.refreshBackendStudies()">↻</button>
+              </div>
+              @if (!study.backendOnline()) {
+                <p class="text-[10px] text-red-400">Backend offline</p>
+              }
+              @for (s of study.backendStudies(); track s.id) {
+                <div class="rounded border border-white/5 bg-neutral-900/40 p-2">
+                  <p class="truncate text-xs font-bold">{{ s.patient_id || s.id }}</p>
+                  <p class="text-[10px] text-neutral-500 tabular-nums">{{ s.id }}</p>
+                </div>
+              }
+              @if (study.backendStudies().length === 0 && study.backendOnline()) {
+                <p class="text-[10px] text-neutral-600">Nenhum estudo persistido.</p>
+              }
+            }
+          </div>
+        </aside>
+      }
+
+      <!-- ── Canvas area ─────────────────────────────────────────────────── -->
+      <main class="relative flex-1 overflow-hidden bg-surface-container-lowest p-2">
+
+        <!-- Left sidebar toggle -->
+        <button (click)="state.toggleLeftSidebar()"
+          class="absolute left-2 top-3 z-20 rounded-sm p-1 text-on-surface-variant hover:text-primary"
+          style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08)">
+          <lucide-icon [img]="state.leftOpen ? icons.ChevronLeft : icons.ChevronRight" class="h-4 w-4"></lucide-icon>
+        </button>
+
+        <!-- ViewerComponent owns the canvases + toolbar -->
+        <app-viewer #viewer class="block h-full w-full relative" />
+
+      </main>
+
+      <!-- Right panel (findings) -->
+      @if (state.rightOpen) {
+        <aside class="w-[340px] shrink-0 border-l border-white/5 bg-surface-container-high overflow-hidden">
+          <app-findings-panel
+            (drawRequest)="viewer.draw($event)"
+            (toggleSplit)="state.toggleSplit((i) => viewer.draw(i))"
+            (askDelete)="onAskDelete()"
+            (askReset)="state.askReset()"
+          />
+        </aside>
+      }
+
+      <!-- Right panel toggle -->
+      <button (click)="state.toggleRightPanel()"
+        class="absolute right-0 top-1/2 z-20 h-12 w-5 -translate-y-1/2 text-on-surface-variant hover:text-primary"
+        style="background:rgba(32,31,31,.9);border:1px solid rgba(255,255,255,.08);border-right:none;">
+        <lucide-icon [img]="state.rightOpen ? icons.ChevronRight : icons.ChevronLeft" class="h-3 w-3"></lucide-icon>
+      </button>
+
+    </div><!-- /main layout -->
+
+    <!-- ── Footer ──────────────────────────────────────────────────────── -->
+    <footer class="flex h-8 shrink-0 items-center justify-between border-t border-white/5 px-4 text-[10px] text-on-surface-variant">
+      <span class="flex items-center gap-3">
+        <span>Wails + Angular</span>
+        <span [class.text-emerald-400]="study.backendOnline()" [class.text-red-400]="!study.backendOnline()">
+          {{ study.backendOnline() ? '● Go Core online' : '○ Go Core offline' }}
+        </span>
+        @if (study.currentStudyId()) {
+          <span class="text-neutral-600">ID: {{ study.currentStudyId() }}</span>
+        }
+      </span>
+      <span>Zoom: {{ state.zoomPct(state.activeVp) }} · Tool: {{ state.activeTool | uppercase }} · ROIs: {{ state.rois.length }}</span>
+    </footer>
+
+  </div><!-- /h-screen -->
+}
+
+<!-- Confirm modal (delete ROI / reset all) -->
+@if (state.showResetModal) {
+  <app-confirm-modal
+    [title]="modalTitle"
+    message="Esta ação não pode ser desfeita."
+    (confirmed)="onConfirmModal()"
+    (cancelled)="onCancelModal()"
+  />
+}
