@@ -69,6 +69,12 @@ export interface HealthStatus {
   error?: string;
   message?: string;
   state?: string;
+  /** Set by /readyz: "up" if Go core is reachable. */
+  go_core?: string;
+  /** Set by /readyz: "ready" | "down" | "disabled". */
+  ai_engine?: 'ready' | 'down' | 'disabled';
+  /** Human-readable reason when ai_engine === "disabled". */
+  ai_engine_reason?: string;
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────

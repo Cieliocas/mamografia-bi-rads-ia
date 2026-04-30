@@ -28,15 +28,32 @@ func (h *HealthHandler) liveness(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"status": "go-core-up"})
 }
 
+// readiness reports the state of both the Go core (always up if this handler
+// runs) and the optional AI sidecar. The frontend uses ai_engine to decide
+// whether to enable IA-related controls. Returns 200 even when AI is down or
+// disabled — those are valid runtime states for the no-model release.
 func (h *HealthHandler) readiness(c *gin.Context) {
-	if err := h.supervisor.HealthCheck(); err != nil {
-		c.JSON(http.StatusServiceUnavailable, gin.H{"status": "ai-down", "error": err.Error()})
-		return
+	body := gin.H{
+		"status":    "ready",
+		"go_core":   "up",
+		"ai_engine": h.aiEngineState(),
 	}
-	c.JSON(http.StatusOK, gin.H{"status": "ready"})
+	if reason := h.supervisor.DisabledReason(); reason != "" {
+		body["ai_engine_reason"] = reason
+	}
+	c.JSON(http.StatusOK, body)
 }
 
 func (h *HealthHandler) startupStatus(c *gin.Context) {
+	if h.supervisor.IsDisabled() {
+		c.JSON(http.StatusOK, gin.H{
+			"state":     "ready",
+			"message":   "Go core ready; AI engine disabled",
+			"ai_engine": "disabled",
+			"reason":    h.supervisor.DisabledReason(),
+		})
+		return
+	}
 	if err := h.supervisor.EnsureHealthy(c.Request.Context()); err != nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{
 			"state":   "starting",
@@ -46,4 +63,15 @@ func (h *HealthHandler) startupStatus(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"state": "ready", "message": "AI engine online"})
+}
+
+// aiEngineState returns one of "ready", "down", "disabled".
+func (h *HealthHandler) aiEngineState() string {
+	if h.supervisor.IsDisabled() {
+		return "disabled"
+	}
+	if err := h.supervisor.HealthCheck(); err != nil {
+		return "down"
+	}
+	return "ready"
 }

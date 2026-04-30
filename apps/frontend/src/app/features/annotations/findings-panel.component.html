@@ -30,13 +30,34 @@
           {{ study.backendOnline() ? '● online' : '○ offline' }}
         </span>
       </div>
+      <div class="flex items-center justify-between">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">IA</p>
+        <span class="text-[10px] tabular-nums"
+          [class.text-emerald-400]="study.aiEngineState() === 'ready'"
+          [class.text-amber-400]="study.aiEngineState() === 'disabled'"
+          [class.text-red-400]="study.aiEngineState() === 'down'"
+          [class.text-neutral-500]="study.aiEngineState() === 'unknown'">
+          {{
+            study.aiEngineState() === 'ready'    ? '● disponível' :
+            study.aiEngineState() === 'disabled' ? '◌ desativada'  :
+            study.aiEngineState() === 'down'     ? '○ indisponível' :
+                                                   '— ?'
+          }}
+        </span>
+      </div>
+      @if (study.aiEngineState() === 'disabled' && study.aiEngineReason()) {
+        <p class="truncate text-[10px] text-neutral-500" [title]="study.aiEngineReason()">
+          {{ study.aiEngineReason() }}
+        </p>
+      }
       @if (study.currentStudyId(); as sid) {
         <p class="truncate text-[10px] text-neutral-500">study: {{ sid }}</p>
       }
       <div class="flex gap-2">
         <button
           class="flex-1 rounded border border-violet-500/30 bg-violet-900/20 px-2 py-1.5 text-[11px] font-semibold text-violet-200 transition hover:bg-violet-900/40 disabled:opacity-30"
-          [disabled]="!study.backendOnline() || !study.currentFilePath()"
+          [disabled]="study.aiEngineState() !== 'ready' || !study.currentFilePath()"
+          [title]="study.aiEngineState() === 'ready' ? 'Rodar inferência da IA na imagem atual' : 'IA não disponível'"
           (click)="runInference()">
           Rodar IA
         </button>

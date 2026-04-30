@@ -22,16 +22,32 @@ export class StudyService {
   currentFilePath = signal<string | null>(null);
   /** Latest inference response — shown in the findings panel. */
   latestFindings = signal<FindingDTO[]>([]);
-  /** Backend connectivity state — surfaced in status bar and AI panel. */
+  /** Go Core connectivity state — surfaced in status bar. */
   backendOnline = signal<boolean>(false);
+  /** AI sidecar state: 'ready' | 'down' | 'disabled' | 'unknown'. */
+  aiEngineState = signal<'ready' | 'down' | 'disabled' | 'unknown'>('unknown');
+  /** Reason text when AI is disabled (auto-disabled or via env var). */
+  aiEngineReason = signal<string>('');
   /** Studies persisted on the backend (shown in History tab). */
   backendStudies = signal<StudyListItem[]>([]);
 
   constructor() {
+    this.refreshHealth();
+    // Poll readiness every 5 s so the UI reflects sidecar transitions.
+    setInterval(() => this.refreshHealth(), 5000);
+  }
+
+  /** Polls /healthz + /readyz and updates the connectivity signals. */
+  refreshHealth() {
     this.api.health().subscribe(s => {
       const online = s.status === 'go-core-up';
       this.backendOnline.set(online);
-      if (online) this.refreshBackendStudies();
+      if (online && this.backendStudies().length === 0) this.refreshBackendStudies();
+    });
+    this.api.ready().subscribe(s => {
+      const ai = s.ai_engine ?? 'unknown';
+      this.aiEngineState.set(ai === 'ready' || ai === 'down' || ai === 'disabled' ? ai : 'unknown');
+      this.aiEngineReason.set(s.ai_engine_reason ?? '');
     });
   }
 
