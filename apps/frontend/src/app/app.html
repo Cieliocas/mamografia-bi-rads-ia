@@ -70,11 +70,38 @@
               <p class="truncate text-xs font-bold">{{ state.activeVPData.imageName || 'Nenhuma imagem carregada' }}</p>
               <p class="mt-1 text-[10px] text-on-surface-variant">Clique para abrir imagem</p>
             </button>
-            @for (item of study.historyFiles.slice(0,8); track item.dataUrl) {
-              <button (click)="viewer.loadHistory(item)" class="w-full p-3 text-left transition hover:bg-surface-container-high" style="background:rgba(255,255,255,.02)">
-                <p class="truncate text-xs font-bold">{{ item.name }}</p>
-                <p class="text-[10px] text-on-surface-variant">{{ item.date }}</p>
-              </button>
+
+            @if (state.activePanel === 'images') {
+              <!-- Session history (in-memory) -->
+              @for (item of study.historyFiles.slice(0,8); track item.dataUrl) {
+                <button (click)="viewer.loadHistory(item)" class="w-full p-3 text-left transition hover:bg-surface-container-high" style="background:rgba(255,255,255,.02)">
+                  <p class="truncate text-xs font-bold">{{ item.name }}</p>
+                  <p class="text-[10px] text-on-surface-variant">{{ item.date }}</p>
+                </button>
+              }
+            }
+
+            @if (state.activePanel === 'history') {
+              <!-- Backend studies (Step 3) -->
+              <div class="flex items-center justify-between pb-1">
+                <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                  Estudos no servidor ({{ study.backendStudies().length }})
+                </p>
+                <button class="text-[10px] text-violet-400 hover:text-violet-300 transition"
+                  (click)="study.refreshBackendStudies()">↻</button>
+              </div>
+              @if (!study.backendOnline()) {
+                <p class="text-[10px] text-red-400">Backend offline</p>
+              }
+              @for (s of study.backendStudies(); track s.id) {
+                <div class="rounded border border-white/5 bg-neutral-900/40 p-2">
+                  <p class="truncate text-xs font-bold">{{ s.patient_id || s.id }}</p>
+                  <p class="text-[10px] text-neutral-500 tabular-nums">{{ s.id }}</p>
+                </div>
+              }
+              @if (study.backendStudies().length === 0 && study.backendOnline()) {
+                <p class="text-[10px] text-neutral-600">Nenhum estudo persistido.</p>
+              }
             }
           </div>
         </aside>
@@ -118,7 +145,15 @@
 
     <!-- ── Footer ──────────────────────────────────────────────────────── -->
     <footer class="flex h-8 shrink-0 items-center justify-between border-t border-white/5 px-4 text-[10px] text-on-surface-variant">
-      <span>System Online · Wails + Angular</span>
+      <span class="flex items-center gap-3">
+        <span>Wails + Angular</span>
+        <span [class.text-emerald-400]="study.backendOnline()" [class.text-red-400]="!study.backendOnline()">
+          {{ study.backendOnline() ? '● Go Core online' : '○ Go Core offline' }}
+        </span>
+        @if (study.currentStudyId()) {
+          <span class="text-neutral-600">ID: {{ study.currentStudyId() }}</span>
+        }
+      </span>
       <span>Zoom: {{ state.zoomPct(state.activeVp) }} · Tool: {{ state.activeTool | uppercase }} · ROIs: {{ state.rois.length }}</span>
     </footer>
 

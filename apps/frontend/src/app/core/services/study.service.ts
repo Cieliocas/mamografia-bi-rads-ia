@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { VP } from '../../shared/models/types';
-import { ApiService, FindingDTO } from './api.service';
+import { VP, ROI } from '../../shared/models/types';
+import { ApiService, FindingDTO, StudyListItem } from './api.service';
 
 export interface HistoryEntry {
   name: string;
@@ -16,23 +16,33 @@ export class StudyService {
 
   historyFiles: HistoryEntry[] = [];
 
-  /** Active study returned from POST /api/studies (null while running offline). */
+  /** Active study returned from POST /api/studies. */
   currentStudyId = signal<string | null>(null);
-  /** Last filesystem path opened (used by inference / windowing endpoints). */
+  /** Last filesystem path opened (used by inference / windowing). */
   currentFilePath = signal<string | null>(null);
-  /** Latest inference response, exposed for the findings panel. */
+  /** Latest inference response — shown in the findings panel. */
   latestFindings = signal<FindingDTO[]>([]);
-  /** Backend connectivity state, surfaced in the status bar. */
+  /** Backend connectivity state — surfaced in status bar and AI panel. */
   backendOnline = signal<boolean>(false);
+  /** Studies persisted on the backend (shown in History tab). */
+  backendStudies = signal<StudyListItem[]>([]);
 
   constructor() {
-    this.api.health().subscribe(s => this.backendOnline.set(s.status === 'go-core-up'));
+    this.api.health().subscribe(s => {
+      const online = s.status === 'go-core-up';
+      this.backendOnline.set(online);
+      if (online) this.refreshBackendStudies();
+    });
+  }
+
+  /** Reloads the study list from the Go Core. */
+  refreshBackendStudies() {
+    this.api.listStudies().subscribe(list => this.backendStudies.set(list));
   }
 
   /**
    * Loads a File into the given VP and pushes it to historyFiles.
-   * Calls onLoaded(vpIdx) when the image is ready to draw.
-   * Also tries to register the study in the Go Core (silently no-ops if backend offline).
+   * Also registers the study in the Go Core (best-effort).
    */
   loadFile(file: File, vpIdx: number, vp: VP, onLoaded: (vpIdx: number) => void) {
     vp.imageName = file.name;
@@ -47,6 +57,7 @@ export class StudyService {
 
         const fakePath = `/uploads/${file.name}`;
         this.currentFilePath.set(fakePath);
+        this.latestFindings.set([]);
 
         const entry: HistoryEntry = {
           name: file.name,
@@ -57,11 +68,12 @@ export class StudyService {
         this.historyFiles.unshift(entry);
         if (this.historyFiles.length > 20) this.historyFiles.pop();
 
-        // Best-effort: register the study in the backend.
+        // Best-effort: register in backend.
         this.api.openStudy(fakePath).subscribe(resp => {
           if (resp?.id) {
             this.currentStudyId.set(resp.id);
             entry.studyId = resp.id;
+            this.refreshBackendStudies();
           }
         });
       };
@@ -71,10 +83,52 @@ export class StudyService {
   }
 
   /**
-   * Re-loads a history entry into the given VP.
-   * Calls onLoaded(vpIdx) when the image is ready to draw.
+   * Loads a file from a native path (Wails desktop mode).
+   * Since there's no File object, the image is loaded via URL.
    */
-  loadHistoryEntry(entry: HistoryEntry, vpIdx: number, vp: VP, onLoaded: (vpIdx: number) => void) {
+  loadNativePath(filePath: string, vpIdx: number, vp: VP, onLoaded: (vpIdx: number) => void) {
+    vp.imageName = filePath.split(/[\\/]/).pop() ?? filePath;
+    this.currentFilePath.set(filePath);
+    this.latestFindings.set([]);
+
+    const img = new Image();
+    img.onload = () => {
+      vp.loadedImage = img;
+      vp.imageDataUrl = filePath;
+      onLoaded(vpIdx);
+
+      const entry: HistoryEntry = {
+        name: vp.imageName,
+        dataUrl: filePath,
+        date: new Date().toLocaleString('pt-BR'),
+        filePath
+      };
+      this.historyFiles.unshift(entry);
+      if (this.historyFiles.length > 20) this.historyFiles.pop();
+
+      this.api.openStudy(filePath).subscribe(resp => {
+        if (resp?.id) {
+          this.currentStudyId.set(resp.id);
+          entry.studyId = resp.id;
+          this.refreshBackendStudies();
+        }
+      });
+    };
+    // Wails serves local files via a special protocol; fall back to path.
+    img.src = filePath;
+  }
+
+  /**
+   * Re-loads a history entry into the given VP.
+   * If studyId is available, also restores annotations from the backend.
+   */
+  loadHistoryEntry(
+    entry: HistoryEntry,
+    vpIdx: number,
+    vp: VP,
+    onLoaded: (vpIdx: number) => void,
+    onAnnotations?: (rois: Partial<ROI>[]) => void
+  ) {
     vp.imageName = entry.name;
     vp.imageDataUrl = entry.dataUrl;
     const img = new Image();
@@ -83,11 +137,31 @@ export class StudyService {
       onLoaded(vpIdx);
       if (entry.studyId) this.currentStudyId.set(entry.studyId);
       if (entry.filePath) this.currentFilePath.set(entry.filePath);
+      this.latestFindings.set([]);
+
+      // Step 4 — restore annotations from backend.
+      if (entry.studyId && onAnnotations) {
+        this.api.getAnnotations(entry.studyId).subscribe(res => {
+          const rois: Partial<ROI>[] = (res.annotations ?? []).map((a, i) => ({
+            id: i + 1,
+            x: (a.x ?? 0) + (a.w ?? 0) / 2,
+            y: (a.y ?? 0) + (a.h ?? 0) / 2,
+            rx: (a.w ?? 0) / 2,
+            ry: (a.h ?? 0) / 2,
+            shape: a.kind === 'rect' ? 'rect' : 'ellipse',
+            birads: null,
+            label: '',
+            notes: '',
+            isSelected: false,
+          }));
+          onAnnotations(rois);
+        });
+      }
     };
     img.src = entry.dataUrl;
   }
 
-  /** Triggers POST /api/tasks/predict and stores the findings on success. */
+  /** Triggers POST /api/tasks/predict and stores the results. */
   runInference() {
     const path = this.currentFilePath();
     if (!path) return;

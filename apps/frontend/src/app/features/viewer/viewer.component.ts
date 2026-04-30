@@ -36,9 +36,27 @@ export class ViewerComponent implements AfterViewInit {
   private cv(i: number) { return i === 0 ? this.c0?.nativeElement : this.c1?.nativeElement; }
   private ct(i: number) { return i === 0 ? this.ct0?.nativeElement : this.ct1?.nativeElement; }
 
+  /** True when running inside the Wails desktop shell. */
+  private get inWails(): boolean {
+    return !!(window as any).go?.main?.App?.OpenFileDialog;
+  }
+
   // ── File loading ───────────────────────────────────────────────────────────
-  openFileDialog(vpIdx = this.state.activeVp) {
+  async openFileDialog(vpIdx = this.state.activeVp) {
     this.state.pendingVp = vpIdx;
+    if (this.inWails) {
+      // Use native Wails file picker (no File object — just a path).
+      const { OpenFileDialog } = await import('../../wailsjs/go/main/App');
+      const path = await OpenFileDialog();
+      if (path) {
+        this.study.loadNativePath(path, vpIdx, this.state.vp[vpIdx], (idx) => {
+          this.resetVP(idx);
+          this.state.clearAll(idx, false, (i) => this.draw(i));
+          setTimeout(() => this.draw(idx), 50);
+        });
+      }
+      return;
+    }
     this.fileInput.nativeElement.click();
   }
 
@@ -55,13 +73,23 @@ export class ViewerComponent implements AfterViewInit {
     input.value = '';
   }
 
-  loadHistory(entry: { name: string; dataUrl: string }) {
+  loadHistory(entry: import('../../core/services/study.service').HistoryEntry) {
     const vpIdx = this.state.activeVp;
-    this.study.loadHistoryEntry(entry as any, vpIdx, this.state.vp[vpIdx], (idx) => {
-      this.resetVP(idx);
-      this.state.clearAll(idx, false, (i) => this.draw(i));
-      setTimeout(() => this.draw(idx), 50);
-    });
+    this.study.loadHistoryEntry(entry, vpIdx, this.state.vp[vpIdx],
+      (idx) => {
+        this.resetVP(idx);
+        this.state.clearAll(idx, false, (i) => this.draw(i));
+        setTimeout(() => this.draw(idx), 50);
+      },
+      // Step 4: restore annotations into the viewport after load.
+      (rois) => {
+        const vp = this.state.vp[vpIdx];
+        let counter = 1;
+        vp.rois = rois.map(r => ({ ...r, id: counter++ } as import('../../shared/models/types').ROI));
+        vp.roiCounter = counter;
+        this.draw(vpIdx);
+      }
+    );
     this.state.activePanel = 'images';
   }
 

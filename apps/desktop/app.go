@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -21,7 +22,19 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, It's show time!", name)
+// OpenFileDialog opens a native OS file picker and returns the chosen path.
+// Returns an empty string if the user cancels.
+func (a *App) OpenFileDialog() string {
+	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Abrir Imagem",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Imagens DICOM (*.dcm)", Pattern: "*.dcm"},
+			{DisplayName: "Imagens (*.png;*.jpg;*.jpeg)", Pattern: "*.png;*.jpg;*.jpeg"},
+			{DisplayName: "Todos os arquivos (*.*)", Pattern: "*.*"},
+		},
+	})
+	if err != nil {
+		return ""
+	}
+	return path
 }
