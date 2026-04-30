@@ -1,6 +1,16 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { VP, ROI } from '../../shared/models/types';
-import { ApiService, FindingDTO, StudyListItem } from './api.service';
+import { ApiService, FindingDTO, OpenStudyResponse, StudyListItem } from './api.service';
+
+export interface StudyMetadata {
+  modality?: string;
+  description?: string;
+  windowCenter?: number;
+  windowWidth?: number;
+  bitsStored?: number;
+  width?: number;
+  height?: number;
+}
 
 export interface HistoryEntry {
   name: string;
@@ -30,6 +40,8 @@ export class StudyService {
   aiEngineReason = signal<string>('');
   /** Studies persisted on the backend (shown in History tab). */
   backendStudies = signal<StudyListItem[]>([]);
+  /** DICOM metadata for the active study (WW/WC, modality, dims). */
+  currentMetadata = signal<StudyMetadata | null>(null);
 
   constructor() {
     this.refreshHealth();
@@ -48,6 +60,19 @@ export class StudyService {
       const ai = s.ai_engine ?? 'unknown';
       this.aiEngineState.set(ai === 'ready' || ai === 'down' || ai === 'disabled' ? ai : 'unknown');
       this.aiEngineReason.set(s.ai_engine_reason ?? '');
+    });
+  }
+
+  /** Stores the parsed DICOM metadata so the viewer can use WW/WC defaults. */
+  private applyOpenStudyMetadata(resp: OpenStudyResponse) {
+    this.currentMetadata.set({
+      modality:     resp.modality,
+      description:  resp.description,
+      windowCenter: resp.window_center || undefined,
+      windowWidth:  resp.window_width  || undefined,
+      bitsStored:   resp.bits_stored   || undefined,
+      width:        resp.width,
+      height:       resp.height,
     });
   }
 
@@ -88,6 +113,7 @@ export class StudyService {
         this.api.openStudy(fakePath).subscribe(resp => {
           if (resp?.id) {
             this.currentStudyId.set(resp.id);
+            this.applyOpenStudyMetadata(resp);
             entry.studyId = resp.id;
             this.refreshBackendStudies();
           }

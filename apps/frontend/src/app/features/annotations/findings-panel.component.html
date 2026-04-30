@@ -53,6 +53,15 @@
       @if (study.currentStudyId(); as sid) {
         <p class="truncate text-[10px] text-neutral-500">study: {{ sid }}</p>
       }
+      @if (study.currentMetadata(); as m) {
+        <div class="space-y-0.5 rounded bg-neutral-950/40 px-2 py-1 text-[10px] text-neutral-400">
+          @if (m.modality)    { <p>modality: <span class="text-neutral-200">{{ m.modality }}</span></p> }
+          @if (m.width && m.height) { <p>dims: <span class="tabular-nums text-neutral-200">{{ m.width }}×{{ m.height }}</span></p> }
+          @if (m.windowCenter || m.windowWidth) {
+            <p>WW/WC: <span class="tabular-nums text-neutral-200">{{ m.windowWidth || '—' }} / {{ m.windowCenter || '—' }}</span></p>
+          }
+        </div>
+      }
       <div class="flex gap-2">
         <button
           class="flex-1 rounded border border-violet-500/30 bg-violet-900/20 px-2 py-1.5 text-[11px] font-semibold text-violet-200 transition hover:bg-violet-900/40 disabled:opacity-30"

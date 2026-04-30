@@ -14,6 +14,16 @@ export interface OpenStudyResponse {
   id: string;
   patient_id: string;
   study_date: string;
+  /** Image dimensions parsed from the DICOM PixelData. */
+  width?: number;
+  height?: number;
+  /** Header fields useful for windowing and display. */
+  modality?: string;
+  description?: string;
+  /** Default WW/WC from DICOM (0028,1050 / 0028,1051). 0 when absent. */
+  window_center?: number;
+  window_width?: number;
+  bits_stored?: number;
 }
 
 export interface StudyListItem {

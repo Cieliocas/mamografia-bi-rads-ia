@@ -52,11 +52,21 @@ func (h *StudyHandler) createStudy(c *gin.Context) {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusCreated, gin.H{
+	resp := gin.H{
 		"id":         string(out.Study.ID),
 		"patient_id": out.Study.PatientID,
 		"study_date": out.Study.StudyDate,
-	})
+		"width":      out.Width,
+		"height":     out.Height,
+	}
+	if m := out.Metadata; m != nil {
+		resp["modality"] = m.Modality
+		resp["description"] = m.Description
+		resp["window_center"] = m.WindowCenter
+		resp["window_width"] = m.WindowWidth
+		resp["bits_stored"] = m.BitsStored
+	}
+	c.JSON(http.StatusCreated, resp)
 }
 
 func (h *StudyHandler) listStudies(c *gin.Context) {
