@@ -5,14 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"mammo/apps/core/internal/domain/entity"
 	"mammo/apps/core/internal/infrastructure/queue"
 	"mammo/apps/core/internal/ports/outbound"
 )
 
 // RunInference enqueues a predict task and calls the AI client.
-// The queue is used for back-pressure; the call is still synchronous
-// from the caller's perspective (response waits for AI result).
 type RunInference struct {
 	aiClient outbound.AIClient
 	taskQ    *queue.Queue
@@ -29,7 +26,7 @@ type RunInferenceInput struct {
 
 type RunInferenceOutput struct {
 	TaskID   string
-	Findings []*entity.Finding
+	Findings []*outbound.RichFinding
 	ModelID  string
 }
 
@@ -40,7 +37,6 @@ func (uc *RunInference) Execute(ctx context.Context, in RunInferenceInput) (*Run
 
 	taskID := fmt.Sprintf("infer-%d", time.Now().UnixNano())
 
-	// Enqueue for auditing and back-pressure; result comes back inline.
 	uc.taskQ.Enqueue(queue.Task{ID: taskID, Payload: map[string]any{
 		"image_path": in.ImagePath,
 		"study_id":   in.StudyID,

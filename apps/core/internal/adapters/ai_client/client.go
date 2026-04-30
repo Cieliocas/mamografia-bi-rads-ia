@@ -1,3 +1,4 @@
+// Package ai_client is the outbound adapter that talks to the Python sidecar.
 package ai_client
 
 import (
@@ -12,8 +13,7 @@ import (
 	"mammo/apps/core/internal/ports/outbound"
 )
 
-// HTTPClient is the outbound.AIClient implementation that talks to the
-// FastAPI sidecar over HTTP with shared-token authentication.
+// HTTPClient implements outbound.AIClient over the FastAPI sidecar.
 type HTTPClient struct {
 	baseURL     string
 	sharedToken string
@@ -40,8 +40,39 @@ func (c *HTTPClient) HealthCheck(_ context.Context) error {
 	return nil
 }
 
+// ── wire types (mirror the Python FindingResponse schema) ────────────────────
+
+type predictReq struct {
+	ImagePath string `json:"image_path"`
+	StudyID   string `json:"study_id,omitempty"`
+}
+
+type sidecarBBox struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+	W float64 `json:"w"`
+	H float64 `json:"h"`
+}
+
+type sidecarFinding struct {
+	ID         string      `json:"id"`
+	Kind       string      `json:"kind"`
+	BIRADS     string      `json:"birads"`
+	Confidence float64     `json:"confidence"`
+	BBox       sidecarBBox `json:"bbox"`
+	Notes      string      `json:"notes"`
+}
+
+type sidecarResp struct {
+	TaskID    string           `json:"task_id"`
+	ModelID   string           `json:"model_id"`
+	Findings  []sidecarFinding `json:"findings"`
+	ElapsedMs int              `json:"elapsed_ms"`
+}
+
+// Predict calls POST /predict (JSON body) and maps results to domain types.
 func (c *HTTPClient) Predict(ctx context.Context, imagePath string) (*outbound.FindingCandidates, error) {
-	body, _ := json.Marshal(map[string]string{"image_path": imagePath})
+	body, _ := json.Marshal(predictReq{ImagePath: imagePath})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/predict", bytes.NewReader(body))
 	if err != nil {
 		return nil, err
@@ -59,24 +90,24 @@ func (c *HTTPClient) Predict(ctx context.Context, imagePath string) (*outbound.F
 		return nil, fmt.Errorf("ai predict: status %d", resp.StatusCode)
 	}
 
-	var raw struct {
-		Findings []struct {
-			BIRADS    string  `json:"birads"`
-			X         float64 `json:"x"`
-			Y         float64 `json:"y"`
-			W         float64 `json:"w"`
-			H         float64 `json:"h"`
-		} `json:"findings"`
-		ModelID string `json:"model_id"`
-	}
+	var raw sidecarResp
 	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		return nil, fmt.Errorf("ai predict decode: %w", err)
 	}
 
 	candidates := &outbound.FindingCandidates{ModelID: raw.ModelID}
 	for _, f := range raw.Findings {
-		candidates.Findings = append(candidates.Findings, &entity.Finding{
-			ID: entity.FindingID(fmt.Sprintf("f-%s", f.BIRADS)),
+		candidates.Findings = append(candidates.Findings, &outbound.RichFinding{
+			Finding: &entity.Finding{
+				ID:          entity.FindingID(f.ID),
+				Kind:        entity.FindingKind(f.Kind),
+				Description: f.Notes,
+				Source:      entity.FindingSourceAI,
+			},
+			BIRADS:     f.BIRADS,
+			Confidence: f.Confidence,
+			BBox:       outbound.BBox{X: f.BBox.X, Y: f.BBox.Y, W: f.BBox.W, H: f.BBox.H},
+			Notes:      f.Notes,
 		})
 	}
 	return candidates, nil
