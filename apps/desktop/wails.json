@@ -2,9 +2,10 @@
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "AIdentify",
   "outputfilename": "AIdentify",
-  "frontend:install": "npm --prefix ../frontend install",
-  "frontend:build": "npm --prefix ../frontend run build && rm -rf dist && cp -R ../frontend/dist dist",
-  "frontend:dev:watcher": "npm --prefix ../frontend start",
+  "frontend:dir": "../frontend",
+  "frontend:install": "/usr/local/bin/npm install",
+  "frontend:build": "./build-into-desktop.sh",
+  "frontend:dev:watcher": "/usr/local/bin/npm start",
   "frontend:dev:serverUrl": "http://localhost:4200",
   "wailsjsdir": "../frontend/src/app",
   "author": {
