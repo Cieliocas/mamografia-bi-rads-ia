@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { Subject } from 'rxjs';
 import {
   BiRads, ROI, RulerLine, VP, Ix,
   mkVP, clone, BIRADS_CHIPS, BIRADS_INFO
@@ -63,12 +64,17 @@ export class ViewerStateService {
     setTimeout(() => { drawFn(0); if (this.splitMode) drawFn(1); }, 150);
   }
 
+  // Emits the active vpIdx every time annotations change. Subscribers
+  // (e.g. autosave) can debounce off this signal.
+  readonly annotationsChanged$ = new Subject<number>();
+
   // ── Undo / Redo ───────────────────────────────────────────────────────────
   snap(vpIdx: number) {
     const vp = this.vp[vpIdx];
     vp.undoStack.push({ rois: clone(vp.rois), rulers: clone(vp.rulers) });
     if (vp.undoStack.length > 50) vp.undoStack.shift();
     vp.redoStack = [];
+    this.annotationsChanged$.next(vpIdx);
   }
 
   undo(vpIdx: number, drawFn: (i: number) => void) {
@@ -77,6 +83,7 @@ export class ViewerStateService {
     vp.redoStack.push({ rois: clone(vp.rois), rulers: clone(vp.rulers) });
     const s = vp.undoStack.pop()!;
     vp.rois = s.rois; vp.rulers = s.rulers;
+    this.annotationsChanged$.next(vpIdx);
     vp.selectedROIId = null; this.selectedROI = null;
     drawFn(vpIdx);
   }
@@ -87,6 +94,7 @@ export class ViewerStateService {
     vp.undoStack.push({ rois: clone(vp.rois), rulers: clone(vp.rulers) });
     const s = vp.redoStack.pop()!;
     vp.rois = s.rois; vp.rulers = s.rulers;
+    this.annotationsChanged$.next(vpIdx);
     vp.selectedROIId = null; this.selectedROI = null;
     drawFn(vpIdx);
   }

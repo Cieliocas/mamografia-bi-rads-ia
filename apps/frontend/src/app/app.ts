@@ -1,6 +1,8 @@
 import {
   Component, OnInit, OnDestroy, HostListener, ViewChild, inject
 } from '@angular/core';
+import { Subscription } from 'rxjs';
+import { debounceTime } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import {
   LucideAngularModule,
@@ -36,6 +38,7 @@ export class App implements OnInit, OnDestroy {
   progress   = 0;
   private splashTick:     ReturnType<typeof setInterval> | null = null;
   private splashFailSafe: ReturnType<typeof setTimeout>  | null = null;
+  private autoSaveSub:    Subscription | null = null;
 
   readonly icons = { FolderOpen, History, BarChart3, Wrench, ChevronRight, ChevronLeft };
 
@@ -46,11 +49,23 @@ export class App implements OnInit, OnDestroy {
       if (this.progress >= 100) { this.progress = 100; this.finishSplash(450); }
     }, 30);
     this.splashFailSafe = setTimeout(() => this.finishSplash(0), 8000);
+
+    // Autosave: persist annotations 1.5s after the last change, but only when
+    // a study is bound to the active VP. Saves are no-ops on the backend if
+    // currentStudyId is null, so we guard up-front.
+    this.autoSaveSub = this.state.annotationsChanged$
+      .pipe(debounceTime(1500))
+      .subscribe(vpIdx => {
+        if (this.study.currentStudyId()) {
+          this.study.saveAnnotations(this.state.vp[vpIdx].rois);
+        }
+      });
   }
 
   ngOnDestroy() {
     if (this.splashTick)     clearInterval(this.splashTick);
     if (this.splashFailSafe) clearTimeout(this.splashFailSafe);
+    if (this.autoSaveSub)    this.autoSaveSub.unsubscribe();
   }
 
   private finishSplash(delay = 0) {
@@ -99,8 +114,44 @@ export class App implements OnInit, OnDestroy {
     else if (e.key === 'p' || e.key === 'P') this.state.setTool('pan');
     else if (e.key === 'r' || e.key === 'R') this.state.setTool('roi');
     else if (e.key === 'l' || e.key === 'L') this.state.setTool('ruler');
+    // Zoom
+    else if (!inField && (e.key === '+' || e.key === '=')) {
+      e.preventDefault();
+      this.state.zoomIn(this.state.activeVp, (i) => this.viewerRef!.draw(i));
+    }
+    else if (!inField && e.key === '-') {
+      e.preventDefault();
+      this.state.zoomOut(this.state.activeVp, (i) => this.viewerRef!.draw(i));
+    }
+    else if (!inField && (e.key === '0' || e.key === 'f' || e.key === 'F')) {
+      e.preventDefault();
+      this.viewerRef!.fitScreen(this.state.activeVp);
+    }
+    // BI-RADS quick set on selected ROI: 1, 2, 3, 4 (cycles 4A→4B→4C), 5, 6
+    else if (!inField && this.state.selectedROI && /^[1-6]$/.test(e.key)) {
+      e.preventDefault();
+      this.state.setBirads(quickBirads(e.key, this.state.selectedROI.birads),
+        (i) => this.viewerRef!.draw(i));
+    }
+    // Save current annotations explicitly
+    else if (ctrl && e.key === 's') {
+      e.preventDefault();
+      this.study.saveAnnotations(this.state.activeVPData.rois);
+    }
   }
 
   // ── ViewerComponent reference (for keyboard shortcuts) ───────────────────
   @ViewChild('viewer') viewerRef?: ViewerComponent;
+}
+
+import type { BiRads } from './shared/models/types';
+
+/** Maps a digit key to a BI-RADS value, cycling 4A→4B→4C when '4' repeats. */
+function quickBirads(key: string, current: BiRads): BiRads {
+  if (key === '4') {
+    if (current === '4A') return '4B';
+    if (current === '4B') return '4C';
+    return '4A';
+  }
+  return key as BiRads;
 }
