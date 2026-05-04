@@ -9,10 +9,13 @@ type Pixels16 struct {
 
 // DICOMMetadata captures the essential DICOM header fields.
 type DICOMMetadata struct {
-	PatientID   string
-	StudyDate   string
-	Modality    string
-	Description string
+	PatientID    string
+	StudyDate    string
+	Modality     string
+	Description  string
+	WindowCenter float64 // 0 if absent
+	WindowWidth  float64 // 0 if absent
+	BitsStored   int     // 0 if absent
 }
 
 // FilesystemReader provides raw access to DICOM files on disk.

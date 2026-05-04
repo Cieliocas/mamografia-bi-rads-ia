@@ -26,7 +26,10 @@ type OpenStudyInput struct {
 }
 
 type OpenStudyOutput struct {
-	Study *entity.Study
+	Study    *entity.Study
+	Metadata *outbound.DICOMMetadata
+	Width    int
+	Height   int
 }
 
 func (uc *OpenStudy) Execute(ctx context.Context, in OpenStudyInput) (*OpenStudyOutput, error) {
@@ -34,7 +37,7 @@ func (uc *OpenStudy) Execute(ctx context.Context, in OpenStudyInput) (*OpenStudy
 		return nil, fmt.Errorf("file_path is required")
 	}
 
-	_, meta, err := uc.reader.ReadDICOM(in.FilePath)
+	pixels, meta, err := uc.reader.ReadDICOM(in.FilePath)
 	if err != nil {
 		return nil, fmt.Errorf("read dicom: %w", err)
 	}
@@ -43,6 +46,7 @@ func (uc *OpenStudy) Execute(ctx context.Context, in OpenStudyInput) (*OpenStudy
 		ID:        entity.StudyID(uuid.NewString()),
 		PatientID: meta.PatientID,
 		StudyDate: time.Now(),
+		FilePath:  in.FilePath,
 		CreatedAt: time.Now(),
 	}
 
@@ -50,5 +54,10 @@ func (uc *OpenStudy) Execute(ctx context.Context, in OpenStudyInput) (*OpenStudy
 		return nil, fmt.Errorf("save study: %w", err)
 	}
 
-	return &OpenStudyOutput{Study: study}, nil
+	return &OpenStudyOutput{
+		Study:    study,
+		Metadata: meta,
+		Width:    pixels.Width,
+		Height:   pixels.Height,
+	}, nil
 }

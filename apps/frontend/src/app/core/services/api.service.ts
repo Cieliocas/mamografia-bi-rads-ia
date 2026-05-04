@@ -14,6 +14,16 @@ export interface OpenStudyResponse {
   id: string;
   patient_id: string;
   study_date: string;
+  /** Image dimensions parsed from the DICOM PixelData. */
+  width?: number;
+  height?: number;
+  /** Header fields useful for windowing and display. */
+  modality?: string;
+  description?: string;
+  /** Default WW/WC from DICOM (0028,1050 / 0028,1051). 0 when absent. */
+  window_center?: number;
+  window_width?: number;
+  bits_stored?: number;
 }
 
 export interface StudyListItem {
@@ -69,6 +79,12 @@ export interface HealthStatus {
   error?: string;
   message?: string;
   state?: string;
+  /** Set by /readyz: "up" if Go core is reachable. */
+  go_core?: string;
+  /** Set by /readyz: "ready" | "down" | "disabled". */
+  ai_engine?: 'ready' | 'down' | 'disabled';
+  /** Human-readable reason when ai_engine === "disabled". */
+  ai_engine_reason?: string;
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────
@@ -158,6 +174,23 @@ export class ApiService {
   /** Opens the HTML report in a new window for PDF printing. */
   openReport(studyId: string) {
     window.open(`${this.base}/api/export/report/${studyId}`, 'mammo-report');
+  }
+
+  /** Triggers a download of the SQLite database snapshot. */
+  downloadBackup() {
+    const a = document.createElement('a');
+    a.href = `${this.base}/api/backup`;
+    a.download = '';
+    a.click();
+  }
+
+  /** URL of the rendered DICOM preview (PNG with WW/WC applied server-side). */
+  previewURL(studyId: string, ww?: number, wc?: number): string {
+    const q: string[] = [];
+    if (ww) q.push(`ww=${ww}`);
+    if (wc) q.push(`wc=${wc}`);
+    const qs = q.length ? `?${q.join('&')}` : '';
+    return `${this.base}/api/studies/${studyId}/preview${qs}`;
   }
 
   // ── windowing ─────────────────────────────────────────────────────────────

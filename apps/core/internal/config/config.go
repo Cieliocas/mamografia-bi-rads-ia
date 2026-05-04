@@ -18,6 +18,8 @@ type Config struct {
 	SQLitePath        string
 	LocalDataRoot     string
 	GuardianBackoffMs int
+	GuardianMaxFails  int
+	AIEngineDisabled  bool
 }
 
 func Load() Config {
@@ -36,7 +38,19 @@ func Load() Config {
 		SQLitePath:        env("SQLITE_PATH", filepath.Join(defaultDataRoot, "mammo.db")),
 		LocalDataRoot:     env("MAMMO_LOCAL_ROOT", defaultDataRoot),
 		GuardianBackoffMs: envInt("AI_GUARDIAN_BACKOFF_MS", 2000),
+		GuardianMaxFails:  envInt("AI_GUARDIAN_MAX_FAILS", 5),
+		AIEngineDisabled:  envBool("AI_ENGINE_DISABLED", false),
 	}
+}
+
+func envBool(key string, fallback bool) bool {
+	switch os.Getenv(key) {
+	case "1", "true", "TRUE", "yes":
+		return true
+	case "0", "false", "FALSE", "no":
+		return false
+	}
+	return fallback
 }
 
 func env(key, fallback string) string {

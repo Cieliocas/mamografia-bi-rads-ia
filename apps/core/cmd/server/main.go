@@ -40,11 +40,18 @@ func main() {
 	sidecarBin, sidecarArgs, sidecarDir := buildSidecarCmd(cfg)
 	supervisor := guardian.New(sidecarBin, sidecarArgs, sidecarDir,
 		cfg.AISidecarURL+"/health",
-		time.Duration(cfg.GuardianBackoffMs)*time.Millisecond)
-	if err := supervisor.Start(ctx); err != nil {
-		log.Printf("sidecar start: %v", err)
+		time.Duration(cfg.GuardianBackoffMs)*time.Millisecond,
+		cfg.GuardianMaxFails)
+	switch {
+	case cfg.AIEngineDisabled:
+		supervisor.Disable("AI_ENGINE_DISABLED=1")
+		log.Printf("ai sidecar disabled by config")
+	default:
+		if err := supervisor.Start(ctx); err != nil {
+			log.Printf("sidecar start: %v", err)
+		}
+		go supervisor.Watch(ctx, 2*time.Second)
 	}
-	go supervisor.Watch(ctx, 2*time.Second)
 
 	taskQ := queue.New(4, 128)
 	taskQ.Start(ctx, queue.LogProcessor{})
@@ -52,11 +59,12 @@ func main() {
 	studyRepo := sqlite.NewStudyRepository(db)
 	annotRepo := sqlite.NewAnnotationRepository(db)
 	aiClient  := aiclient.New(cfg.AISidecarURL, cfg.AISharedToken)
+	dicomReader := filesystem.NewDICOMReader()
 
 	router := httpadapter.NewRouter(
 		httpadapter.NewPDIHandler(usecase.NewApplyWindowing()),
 		httpadapter.NewStudyHandler(
-			usecase.NewOpenStudy(studyRepo, filesystem.NewDICOMReader()),
+			usecase.NewOpenStudy(studyRepo, dicomReader),
 			usecase.NewSaveAnnotations(annotRepo),
 			usecase.NewLoadAnnotations(annotRepo),
 			studyRepo,
@@ -67,6 +75,8 @@ func main() {
 			studyRepo,
 			annotRepo,
 		),
+		httpadapter.NewPreviewHandler(studyRepo, dicomReader),
+		httpadapter.NewBackupHandler(db, cfg.SQLitePath),
 	)
 	httpadapter.NewHealthHandler(supervisor).RegisterRoutes(router)
 

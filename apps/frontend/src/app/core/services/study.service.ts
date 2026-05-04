@@ -1,6 +1,16 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { VP, ROI } from '../../shared/models/types';
-import { ApiService, FindingDTO, StudyListItem } from './api.service';
+import { ApiService, FindingDTO, OpenStudyResponse, StudyListItem } from './api.service';
+
+export interface StudyMetadata {
+  modality?: string;
+  description?: string;
+  windowCenter?: number;
+  windowWidth?: number;
+  bitsStored?: number;
+  width?: number;
+  height?: number;
+}
 
 export interface HistoryEntry {
   name: string;
@@ -22,16 +32,47 @@ export class StudyService {
   currentFilePath = signal<string | null>(null);
   /** Latest inference response — shown in the findings panel. */
   latestFindings = signal<FindingDTO[]>([]);
-  /** Backend connectivity state — surfaced in status bar and AI panel. */
+  /** Go Core connectivity state — surfaced in status bar. */
   backendOnline = signal<boolean>(false);
+  /** AI sidecar state: 'ready' | 'down' | 'disabled' | 'unknown'. */
+  aiEngineState = signal<'ready' | 'down' | 'disabled' | 'unknown'>('unknown');
+  /** Reason text when AI is disabled (auto-disabled or via env var). */
+  aiEngineReason = signal<string>('');
   /** Studies persisted on the backend (shown in History tab). */
   backendStudies = signal<StudyListItem[]>([]);
+  /** DICOM metadata for the active study (WW/WC, modality, dims). */
+  currentMetadata = signal<StudyMetadata | null>(null);
 
   constructor() {
+    this.refreshHealth();
+    // Poll readiness every 5 s so the UI reflects sidecar transitions.
+    setInterval(() => this.refreshHealth(), 5000);
+  }
+
+  /** Polls /healthz + /readyz and updates the connectivity signals. */
+  refreshHealth() {
     this.api.health().subscribe(s => {
       const online = s.status === 'go-core-up';
       this.backendOnline.set(online);
-      if (online) this.refreshBackendStudies();
+      if (online && this.backendStudies().length === 0) this.refreshBackendStudies();
+    });
+    this.api.ready().subscribe(s => {
+      const ai = s.ai_engine ?? 'unknown';
+      this.aiEngineState.set(ai === 'ready' || ai === 'down' || ai === 'disabled' ? ai : 'unknown');
+      this.aiEngineReason.set(s.ai_engine_reason ?? '');
+    });
+  }
+
+  /** Stores the parsed DICOM metadata so the viewer can use WW/WC defaults. */
+  private applyOpenStudyMetadata(resp: OpenStudyResponse) {
+    this.currentMetadata.set({
+      modality:     resp.modality,
+      description:  resp.description,
+      windowCenter: resp.window_center || undefined,
+      windowWidth:  resp.window_width  || undefined,
+      bitsStored:   resp.bits_stored   || undefined,
+      width:        resp.width,
+      height:       resp.height,
     });
   }
 
@@ -72,6 +113,7 @@ export class StudyService {
         this.api.openStudy(fakePath).subscribe(resp => {
           if (resp?.id) {
             this.currentStudyId.set(resp.id);
+            this.applyOpenStudyMetadata(resp);
             entry.studyId = resp.id;
             this.refreshBackendStudies();
           }
@@ -91,31 +133,33 @@ export class StudyService {
     this.currentFilePath.set(filePath);
     this.latestFindings.set([]);
 
-    const img = new Image();
-    img.onload = () => {
-      vp.loadedImage = img;
-      vp.imageDataUrl = filePath;
-      onLoaded(vpIdx);
+    // The browser can't decode .dcm; we open the study server-side and load
+    // the rendered preview PNG (with WW/WC applied) as the canvas image.
+    this.api.openStudy(filePath).subscribe(resp => {
+      if (!resp?.id) return;
+      this.currentStudyId.set(resp.id);
+      this.applyOpenStudyMetadata(resp);
+      this.refreshBackendStudies();
 
-      const entry: HistoryEntry = {
-        name: vp.imageName,
-        dataUrl: filePath,
-        date: new Date().toLocaleString('pt-BR'),
-        filePath
+      const previewURL = this.api.previewURL(resp.id);
+      const img = new Image();
+      img.onload = () => {
+        vp.loadedImage = img;
+        vp.imageDataUrl = previewURL;
+        onLoaded(vpIdx);
+
+        const entry: HistoryEntry = {
+          name: vp.imageName,
+          dataUrl: previewURL,
+          date: new Date().toLocaleString('pt-BR'),
+          filePath,
+          studyId: resp.id,
+        };
+        this.historyFiles.unshift(entry);
+        if (this.historyFiles.length > 20) this.historyFiles.pop();
       };
-      this.historyFiles.unshift(entry);
-      if (this.historyFiles.length > 20) this.historyFiles.pop();
-
-      this.api.openStudy(filePath).subscribe(resp => {
-        if (resp?.id) {
-          this.currentStudyId.set(resp.id);
-          entry.studyId = resp.id;
-          this.refreshBackendStudies();
-        }
-      });
-    };
-    // Wails serves local files via a special protocol; fall back to path.
-    img.src = filePath;
+      img.src = previewURL;
+    });
   }
 
   /**
