@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter, inject } from '@angular/core';
+import { Component, Output, EventEmitter, effect, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -44,6 +44,50 @@ export class FindingsPanelComponent {
     this.showExportModal = false;
   }
   exportBackup() { this.api.downloadBackup(); this.showExportModal = false; }
+  exportMarkedImage() {
+    const sid = this.study.currentStudyId();
+    if (sid) this.api.downloadAnnotatedPNG(sid);
+    this.showExportModal = false;
+  }
+
+  // ── Clinical fields ────────────────────────────────────────────────────────
+  clinical = {
+    birads_global: '',
+    conclusion: '',
+    recommendation: '',
+    signed_by: '',
+  };
+  clinicalSaving = false;
+  clinicalSavedAt = '';
+
+  constructor() {
+    // Hydrate the form when a study (re)loads or the backend pushes clinical data.
+    effect(() => {
+      const c = this.study.currentClinical();
+      if (!c) return;
+      this.clinical = {
+        birads_global:  c.birads_global  ?? '',
+        conclusion:     c.conclusion     ?? '',
+        recommendation: c.recommendation ?? '',
+        signed_by:      c.signed_by      ?? '',
+      };
+      this.clinicalSavedAt = c.signed_at ?? '';
+    });
+  }
+
+  saveClinical() {
+    const sid = this.study.currentStudyId();
+    if (!sid) return;
+    this.clinicalSaving = true;
+    const payload = {
+      ...this.clinical,
+      signed_at: new Date().toLocaleString('pt-BR'),
+    };
+    this.api.patchClinical(sid, payload).subscribe(ok => {
+      this.clinicalSaving = false;
+      if (ok) this.clinicalSavedAt = payload.signed_at;
+    });
+  }
 
   // ── Backend integration ─────────────────────────────────────────────────────
   runInference() { this.study.runInference(); }

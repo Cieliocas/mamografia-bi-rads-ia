@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { VP, ROI } from '../../shared/models/types';
-import { ApiService, FindingDTO, OpenStudyResponse, StudyListItem } from './api.service';
+import { ApiService, ClinicalFields, FindingDTO, OpenStudyResponse, StudyListItem } from './api.service';
 
 export interface StudyMetadata {
   modality?: string;
@@ -42,6 +42,8 @@ export class StudyService {
   backendStudies = signal<StudyListItem[]>([]);
   /** DICOM metadata for the active study (WW/WC, modality, dims). */
   currentMetadata = signal<StudyMetadata | null>(null);
+  /** Clinical report fields for the active study. */
+  currentClinical = signal<ClinicalFields | null>(null);
 
   constructor() {
     this.refreshHealth();
@@ -60,6 +62,20 @@ export class StudyService {
       const ai = s.ai_engine ?? 'unknown';
       this.aiEngineState.set(ai === 'ready' || ai === 'down' || ai === 'disabled' ? ai : 'unknown');
       this.aiEngineReason.set(s.ai_engine_reason ?? '');
+    });
+  }
+
+  /** Fetches the persisted clinical report fields for the given study. */
+  loadClinical(studyId: string) {
+    this.api.getStudy(studyId).subscribe(s => {
+      if (!s) return;
+      this.currentClinical.set({
+        birads_global:  s.birads_global  ?? '',
+        conclusion:     s.conclusion     ?? '',
+        recommendation: s.recommendation ?? '',
+        signed_by:      s.signed_by      ?? '',
+        signed_at:      s.signed_at      ?? '',
+      });
     });
   }
 
@@ -140,6 +156,7 @@ export class StudyService {
       this.currentStudyId.set(resp.id);
       this.applyOpenStudyMetadata(resp);
       this.refreshBackendStudies();
+      this.loadClinical(resp.id);
 
       const previewURL = this.api.previewURL(resp.id);
       const img = new Image();

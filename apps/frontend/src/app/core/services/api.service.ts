@@ -10,6 +10,14 @@ export interface OpenStudyRequest {
   file_path: string;
 }
 
+export interface ClinicalFields {
+  birads_global?: string;
+  conclusion?: string;
+  recommendation?: string;
+  signed_by?: string;
+  signed_at?: string;
+}
+
 export interface OpenStudyResponse {
   id: string;
   patient_id: string;
@@ -126,8 +134,8 @@ export class ApiService {
       file_path: filePath
     } as OpenStudyRequest).pipe(catchError(() => of(null)));
   }
-  getStudy(id: string): Observable<OpenStudyResponse | null> {
-    return this.http.get<OpenStudyResponse>(`${this.base}/api/studies/${id}`).pipe(
+  getStudy(id: string): Observable<(OpenStudyResponse & ClinicalFields) | null> {
+    return this.http.get<OpenStudyResponse & ClinicalFields>(`${this.base}/api/studies/${id}`).pipe(
       catchError(() => of(null))
     );
   }
@@ -174,6 +182,33 @@ export class ApiService {
   /** Opens the HTML report in a new window for PDF printing. */
   openReport(studyId: string) {
     window.open(`${this.base}/api/export/report/${studyId}`, 'mammo-report');
+  }
+
+  /** Updates the clinical report fields on a study (BI-RADS, conclusion, …). */
+  patchClinical(studyId: string, fields: {
+    birads_global?: string;
+    conclusion?: string;
+    recommendation?: string;
+    signed_by?: string;
+    signed_at?: string;
+  }): Observable<boolean> {
+    return this.http.patch(`${this.base}/api/studies/${studyId}/clinical`, fields).pipe(
+      map(() => true),
+      catchError(() => of(false))
+    );
+  }
+
+  /** Direct URL of the annotated DICOM preview (PNG with ROIs overlaid). */
+  annotatedPreviewURL(studyId: string): string {
+    return `${this.base}/api/studies/${studyId}/preview/annotated`;
+  }
+
+  /** Triggers a download of the annotated PNG as a standalone file. */
+  downloadAnnotatedPNG(studyId: string) {
+    const a = document.createElement('a');
+    a.href = this.annotatedPreviewURL(studyId);
+    a.download = `aidentify-marked-${studyId.slice(0, 8)}.png`;
+    a.click();
   }
 
   /** Triggers a download of the SQLite database snapshot. */
