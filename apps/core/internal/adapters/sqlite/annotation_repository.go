@@ -18,7 +18,7 @@ func NewAnnotationRepository(db *sql.DB) *AnnotationRepository {
 	return &AnnotationRepository{db: db}
 }
 
-func (r *AnnotationRepository) Save(ctx context.Context, a *entity.Annotation) error {
+func (r *AnnotationRepository) Save(ctx context.Context, studyID string, a *entity.Annotation) error {
 	data, err := marshalAnnotationData(a)
 	if err != nil {
 		return err
@@ -27,7 +27,7 @@ func (r *AnnotationRepository) Save(ctx context.Context, a *entity.Annotation) e
 		INSERT INTO annotations (id, study_id, finding_id, kind, data)
 		VALUES (?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET kind = excluded.kind, data = excluded.data`,
-		string(a.ID), "", "", string(a.Kind), data,
+		string(a.ID), studyID, "", string(a.Kind), data,
 	)
 	return err
 }

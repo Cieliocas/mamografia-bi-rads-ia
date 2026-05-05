@@ -75,7 +75,7 @@ func main() {
 			studyRepo,
 			annotRepo,
 		),
-		httpadapter.NewPreviewHandler(studyRepo, dicomReader),
+		httpadapter.NewPreviewHandler(studyRepo, annotRepo, dicomReader),
 		httpadapter.NewBackupHandler(db, cfg.SQLitePath),
 	)
 	httpadapter.NewHealthHandler(supervisor).RegisterRoutes(router)

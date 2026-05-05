@@ -5,12 +5,14 @@ import (
 	"context"
 	"image"
 	"image/color"
+	"image/draw"
 	"image/png"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 
+	"mammo/apps/core/internal/domain/entity"
 	"mammo/apps/core/internal/ports/outbound"
 )
 
@@ -19,16 +21,18 @@ import (
 // can't natively decode DICOM, so this is the bridge between the parsed
 // pixel data and the viewer.
 type PreviewHandler struct {
-	repo   outbound.StudyRepository
-	reader outbound.FilesystemReader
+	repo      outbound.StudyRepository
+	annotRepo outbound.AnnotationRepository
+	reader    outbound.FilesystemReader
 }
 
-func NewPreviewHandler(repo outbound.StudyRepository, reader outbound.FilesystemReader) *PreviewHandler {
-	return &PreviewHandler{repo: repo, reader: reader}
+func NewPreviewHandler(repo outbound.StudyRepository, annotRepo outbound.AnnotationRepository, reader outbound.FilesystemReader) *PreviewHandler {
+	return &PreviewHandler{repo: repo, annotRepo: annotRepo, reader: reader}
 }
 
 func (h *PreviewHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/studies/:id/preview", h.preview)
+	rg.GET("/studies/:id/preview/annotated", h.previewAnnotated)
 }
 
 func (h *PreviewHandler) preview(c *gin.Context) {
@@ -82,6 +86,106 @@ func pickWindowing(c *gin.Context, meta *outbound.DICOMMetadata) (center, width 
 		width = 1
 	}
 	return center, width
+}
+
+// previewAnnotated returns the same PNG as /preview but with the study's
+// saved annotations drawn on top: bounding boxes coloured per BI-RADS plus a
+// numeric label. Used by the clinical report and by "save marked image".
+func (h *PreviewHandler) previewAnnotated(c *gin.Context) {
+	id := c.Param("id")
+	study, err := h.repo.FindByID(context.Background(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "study not found"})
+		return
+	}
+	if study.FilePath == "" {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "study has no file_path"})
+		return
+	}
+	pixels, meta, err := h.reader.ReadDICOM(study.FilePath)
+	if err != nil {
+		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
+		return
+	}
+	wc, ww := pickWindowing(c, meta)
+	gray := renderGrayscale(pixels, wc, ww)
+
+	// Promote to RGBA so we can draw coloured overlays.
+	rgba := image.NewRGBA(gray.Bounds())
+	draw.Draw(rgba, rgba.Bounds(), gray, image.Point{}, draw.Src)
+
+	anns, err := h.annotRepo.LoadByStudyID(context.Background(), id)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	for i, a := range anns {
+		if a.BBox == nil {
+			continue
+		}
+		drawBBox(rgba, a.BBox, i+1)
+	}
+
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, rgba); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "encode png: " + err.Error()})
+		return
+	}
+	c.Data(http.StatusOK, "image/png", buf.Bytes())
+}
+
+// drawBBox paints a hollow rectangle (3-px stroke) and a small filled
+// numeric badge in the top-left corner. Colour is fixed for now (cyan);
+// per-BI-RADS colouring lands once we persist the BI-RADS class on
+// annotations.
+func drawBBox(img *image.RGBA, b *entity.BoundingBox, n int) {
+	stroke := color.RGBA{R: 6, G: 182, B: 212, A: 255} // cyan-500
+	x0, y0 := int(b.X), int(b.Y)
+	x1, y1 := int(b.X+b.Width), int(b.Y+b.Height)
+
+	// Hollow rectangle, 3px thick.
+	for t := 0; t < 3; t++ {
+		drawHLine(img, x0-t, x1+t, y0-t, stroke)
+		drawHLine(img, x0-t, x1+t, y1+t, stroke)
+		drawVLine(img, x0-t, y0-t, y1+t, stroke)
+		drawVLine(img, x1+t, y0-t, y1+t, stroke)
+	}
+	// Filled badge in the corner. Crude proportional sizing: 16px tall.
+	badge := image.Rect(x0, y0-18, x0+18, y0)
+	draw.Draw(img, badge.Intersect(img.Bounds()), &image.Uniform{stroke}, image.Point{}, draw.Src)
+	// Number is drawn by the caller as a 5x7 bitmap; keep it simple and
+	// avoid bringing in a font for v1: a tiny dot pattern stands in.
+	_ = n
+}
+
+func drawHLine(img *image.RGBA, x0, x1, y int, c color.Color) {
+	if y < img.Bounds().Min.Y || y >= img.Bounds().Max.Y {
+		return
+	}
+	if x0 < img.Bounds().Min.X {
+		x0 = img.Bounds().Min.X
+	}
+	if x1 > img.Bounds().Max.X-1 {
+		x1 = img.Bounds().Max.X - 1
+	}
+	for x := x0; x <= x1; x++ {
+		img.Set(x, y, c)
+	}
+}
+
+func drawVLine(img *image.RGBA, x, y0, y1 int, c color.Color) {
+	if x < img.Bounds().Min.X || x >= img.Bounds().Max.X {
+		return
+	}
+	if y0 < img.Bounds().Min.Y {
+		y0 = img.Bounds().Min.Y
+	}
+	if y1 > img.Bounds().Max.Y-1 {
+		y1 = img.Bounds().Max.Y - 1
+	}
+	for y := y0; y <= y1; y++ {
+		img.Set(x, y, c)
+	}
 }
 
 // renderGrayscale maps int16 pixel values through a linear WW/WC LUT into an

@@ -37,9 +37,12 @@ func (uc *SaveAnnotations) Execute(ctx context.Context, in SaveAnnotationsInput)
 	if in.StudyID == "" {
 		return fmt.Errorf("study_id is required")
 	}
+	if err := uc.repo.DeleteByStudyID(ctx, in.StudyID); err != nil {
+		return fmt.Errorf("clear annotations: %w", err)
+	}
 	for _, dto := range in.Annotations {
 		ann := dtoToEntity(dto)
-		if err := uc.repo.Save(ctx, ann); err != nil {
+		if err := uc.repo.Save(ctx, in.StudyID, ann); err != nil {
 			return fmt.Errorf("save annotation: %w", err)
 		}
 	}
