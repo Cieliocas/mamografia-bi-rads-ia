@@ -33,6 +33,7 @@ export interface PatientStudyDTO {
   study_date: string;
   birads_global?: string;
   created_at?: string;
+  file_path?: string;
 }
 
 export interface OpenStudyResponse {

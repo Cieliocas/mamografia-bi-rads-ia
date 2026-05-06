@@ -73,6 +73,17 @@ export class ViewerComponent implements AfterViewInit {
     input.value = '';
   }
 
+  /** Open a DICOM by its absolute filesystem path (native/Wails only). */
+  openPath(filePath: string) {
+    const vpIdx = this.state.activeVp;
+    this.study.loadNativePath(filePath, vpIdx, this.state.vp[vpIdx], (idx) => {
+      this.resetVP(idx);
+      this.state.clearAll(idx, false, (i) => this.draw(i));
+      setTimeout(() => this.draw(idx), 50);
+    });
+    this.state.activePanel = 'images';
+  }
+
   loadHistory(entry: import('../../core/services/study.service').HistoryEntry) {
     const vpIdx = this.state.activeVp;
     this.study.loadHistoryEntry(entry, vpIdx, this.state.vp[vpIdx],

@@ -142,10 +142,11 @@ func (h *PatientHandler) listStudies(c *gin.Context) {
 	out := make([]gin.H, 0, len(studies))
 	for _, s := range studies {
 		out = append(out, gin.H{
-			"id":             string(s.ID),
-			"study_date":     s.StudyDate,
-			"birads_global":  s.BiradsGlobal,
-			"created_at":     s.CreatedAt,
+			"id":            string(s.ID),
+			"study_date":    s.StudyDate,
+			"birads_global": s.BiradsGlobal,
+			"created_at":    s.CreatedAt,
+			"file_path":     s.FilePath,
 		})
 	}
 	c.JSON(http.StatusOK, out)

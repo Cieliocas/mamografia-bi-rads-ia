@@ -125,7 +125,13 @@
                     Estudos ({{ patientStudies.length }})
                   </p>
                   @for (s of patientStudies; track s.id) {
-                    <div class="rounded border border-white/5 bg-neutral-950/40 px-2 py-1.5 text-[10px]">
+                    <div
+                      class="rounded border border-white/5 bg-neutral-950/40 px-2 py-1.5 text-[10px] transition"
+                      [class.cursor-pointer]="!!s.file_path"
+                      [class.hover:bg-violet-900\/15]="!!s.file_path"
+                      [class.hover:border-violet-500\/30]="!!s.file_path"
+                      [title]="s.file_path ? 'Abrir imagem' : ''"
+                      (click)="s.file_path && viewer.openPath(s.file_path)">
                       <div class="flex items-center justify-between">
                         <span class="tabular-nums text-neutral-300">{{ s.study_date | date:'dd/MM/yyyy HH:mm' }}</span>
                         @if (s.birads_global) {
@@ -133,6 +139,9 @@
                         }
                       </div>
                       <p class="truncate text-[9px] text-neutral-600">{{ s.id }}</p>
+                      @if (s.file_path) {
+                        <p class="truncate text-[9px] text-violet-500/60 mt-0.5">{{ s.file_path }}</p>
+                      }
                     </div>
                   }
                 </div>
