@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { VP, ROI } from '../../shared/models/types';
-import { ApiService, ClinicalFields, FindingDTO, OpenStudyResponse, StudyListItem } from './api.service';
+import { ApiService, ClinicalFields, FindingDTO, OpenStudyResponse, PatientDTO, StudyListItem } from './api.service';
 
 export interface StudyMetadata {
   modality?: string;
@@ -44,6 +44,8 @@ export class StudyService {
   currentMetadata = signal<StudyMetadata | null>(null);
   /** Clinical report fields for the active study. */
   currentClinical = signal<ClinicalFields | null>(null);
+  /** Patient associated with the active study. */
+  currentPatient = signal<PatientDTO | null>(null);
 
   constructor() {
     this.refreshHealth();
@@ -76,6 +78,20 @@ export class StudyService {
         signed_by:      s.signed_by      ?? '',
         signed_at:      s.signed_at      ?? '',
       });
+      if (s.patient_uuid && (!this.currentPatient() || this.currentPatient()!.id !== s.patient_uuid)) {
+        this.api.getPatient(s.patient_uuid).subscribe(p => {
+          if (p) this.currentPatient.set(p);
+        });
+      }
+    });
+  }
+
+  /** Saves edits to the current patient and refreshes the local signal. */
+  savePatient(updates: Partial<PatientDTO>): void {
+    const p = this.currentPatient();
+    if (!p) return;
+    this.api.patchPatient(p.id, updates).subscribe(updated => {
+      if (updated) this.currentPatient.set(updated);
     });
   }
 
@@ -155,6 +171,7 @@ export class StudyService {
       if (!resp?.id) return;
       this.currentStudyId.set(resp.id);
       this.applyOpenStudyMetadata(resp);
+      this.currentPatient.set(resp.patient ?? null);
       this.refreshBackendStudies();
       this.loadClinical(resp.id);
 

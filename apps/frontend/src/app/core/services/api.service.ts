@@ -18,9 +18,28 @@ export interface ClinicalFields {
   signed_at?: string;
 }
 
+export interface PatientDTO {
+  id: string;
+  external_id: string;
+  name: string;
+  birth_date?: string;
+  sex?: string;
+  notes?: string;
+  created_at?: string;
+}
+
+export interface PatientStudyDTO {
+  id: string;
+  study_date: string;
+  birads_global?: string;
+  created_at?: string;
+}
+
 export interface OpenStudyResponse {
   id: string;
   patient_id: string;
+  patient_uuid?: string;
+  patient?: PatientDTO;
   study_date: string;
   /** Image dimensions parsed from the DICOM PixelData. */
   width?: number;
@@ -217,6 +236,40 @@ export class ApiService {
     a.href = `${this.base}/api/backup`;
     a.download = '';
     a.click();
+  }
+
+  // ── patients ──────────────────────────────────────────────────────────────
+  listPatients(query?: string, limit = 50): Observable<PatientDTO[]> {
+    const q = query ? `?q=${encodeURIComponent(query)}&limit=${limit}` : `?limit=${limit}`;
+    return this.http.get<PatientDTO[]>(`${this.base}/api/patients${q}`).pipe(
+      catchError(() => of([] as PatientDTO[]))
+    );
+  }
+  getPatient(id: string): Observable<PatientDTO | null> {
+    return this.http.get<PatientDTO>(`${this.base}/api/patients/${id}`).pipe(
+      catchError(() => of(null))
+    );
+  }
+  createPatient(p: Partial<PatientDTO>): Observable<PatientDTO | null> {
+    return this.http.post<PatientDTO>(`${this.base}/api/patients`, p).pipe(
+      catchError(() => of(null))
+    );
+  }
+  patchPatient(id: string, p: Partial<PatientDTO>): Observable<PatientDTO | null> {
+    return this.http.patch<PatientDTO>(`${this.base}/api/patients/${id}`, p).pipe(
+      catchError(() => of(null))
+    );
+  }
+  listPatientStudies(id: string): Observable<PatientStudyDTO[]> {
+    return this.http.get<PatientStudyDTO[]>(`${this.base}/api/patients/${id}/studies`).pipe(
+      catchError(() => of([] as PatientStudyDTO[]))
+    );
+  }
+  assignStudyToPatient(studyId: string, patientUUID: string): Observable<boolean> {
+    return this.http.patch(`${this.base}/api/studies/${studyId}/patient`, { patient_uuid: patientUUID }).pipe(
+      map(() => true),
+      catchError(() => of(false))
+    );
   }
 
   /** URL of the rendered DICOM preview (PNG with WW/WC applied server-side). */

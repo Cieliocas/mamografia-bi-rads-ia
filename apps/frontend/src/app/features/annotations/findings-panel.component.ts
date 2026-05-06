@@ -60,6 +60,10 @@ export class FindingsPanelComponent {
   clinicalSaving = false;
   clinicalSavedAt = '';
 
+  // ── Patient editor ─────────────────────────────────────────────────────────
+  patient = { name: '', birth_date: '', sex: '' };
+  patientSaving = false;
+
   constructor() {
     // Hydrate the form when a study (re)loads or the backend pushes clinical data.
     effect(() => {
@@ -73,6 +77,22 @@ export class FindingsPanelComponent {
       };
       this.clinicalSavedAt = c.signed_at ?? '';
     });
+    // Hydrate patient form whenever the active patient changes.
+    effect(() => {
+      const p = this.study.currentPatient();
+      if (!p) return;
+      this.patient = {
+        name:       p.name       ?? '',
+        birth_date: p.birth_date ?? '',
+        sex:        p.sex        ?? '',
+      };
+    });
+  }
+
+  savePatient() {
+    this.patientSaving = true;
+    this.study.savePatient(this.patient);
+    setTimeout(() => this.patientSaving = false, 500);
   }
 
   saveClinical() {

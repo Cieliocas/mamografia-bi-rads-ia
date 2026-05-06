@@ -102,6 +102,57 @@
       }
     </section>
 
+    <!-- ── Patient ──────────────────────────────────────────────────────── -->
+    @if (study.currentPatient(); as pat) {
+    <section class="space-y-2 rounded border border-white/8 bg-neutral-900/40 p-3">
+      <div class="flex items-center justify-between">
+        <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Paciente</p>
+        @if (pat.external_id) {
+          <span class="text-[10px] tabular-nums text-neutral-500" [title]="'DICOM PatientID: ' + pat.external_id">
+            ext: {{ pat.external_id }}
+          </span>
+        }
+      </div>
+
+      <label class="block">
+        <span class="text-[10px] text-neutral-400">Nome</span>
+        <input
+          type="text"
+          [(ngModel)]="patient.name"
+          placeholder="—"
+          class="mt-0.5 w-full rounded border border-white/10 bg-neutral-950/60 px-2 py-1 text-[11px] text-on-surface"/>
+      </label>
+
+      <div class="flex gap-2">
+        <label class="block flex-1">
+          <span class="text-[10px] text-neutral-400">Nasc.</span>
+          <input
+            type="date"
+            [(ngModel)]="patient.birth_date"
+            class="mt-0.5 w-full rounded border border-white/10 bg-neutral-950/60 px-2 py-1 text-[11px] text-on-surface"/>
+        </label>
+        <label class="block w-20">
+          <span class="text-[10px] text-neutral-400">Sexo</span>
+          <select
+            [(ngModel)]="patient.sex"
+            class="mt-0.5 w-full rounded border border-white/10 bg-neutral-950/60 px-2 py-1 text-[11px] text-on-surface">
+            <option value="">—</option>
+            <option value="F">F</option>
+            <option value="M">M</option>
+            <option value="O">O</option>
+          </select>
+        </label>
+      </div>
+
+      <button
+        class="w-full rounded border border-violet-500/30 bg-violet-900/20 px-2 py-1.5 text-[11px] font-semibold text-violet-200 transition hover:bg-violet-900/40 disabled:opacity-30"
+        [disabled]="patientSaving"
+        (click)="savePatient()">
+        {{ patientSaving ? 'Salvando…' : 'Salvar paciente' }}
+      </button>
+    </section>
+    }
+
     <!-- ── Clinical report fields ───────────────────────────────────────── -->
     @if (study.currentStudyId()) {
     <section class="space-y-2 rounded border border-white/8 bg-neutral-900/40 p-3">
