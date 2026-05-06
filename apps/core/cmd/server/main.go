@@ -80,7 +80,7 @@ func main() {
 			annotRepo,
 		),
 		httpadapter.NewPreviewHandler(studyRepo, annotRepo, dicomReader),
-		httpadapter.NewBackupHandler(db, cfg.SQLitePath),
+		httpadapter.NewBackupHandler(db, cfg.SQLitePath, cfg.LocalDataRoot),
 		httpadapter.NewPatientHandler(patientRepo, studyRepo, updatePatient),
 		httpadapter.NewAudioHandler(annotRepo, cfg.LocalDataRoot),
 	)
