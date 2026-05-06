@@ -45,6 +45,11 @@
           [class.text-on-surface-variant]="state.activePanel!=='history'">
           <lucide-icon [img]="icons.History" class="h-5 w-5"></lucide-icon> History
         </button>
+        <button (click)="state.setPanel('patients'); loadPatients()" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
+          [class.text-secondary]="state.activePanel==='patients'"
+          [class.text-on-surface-variant]="state.activePanel!=='patients'">
+          <lucide-icon [img]="icons.Users" class="h-5 w-5"></lucide-icon> Patients
+        </button>
         <button (click)="state.setPanel('analysis')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
           [class.text-secondary]="state.activePanel==='analysis'"
           [class.text-on-surface-variant]="state.activePanel!=='analysis'">
@@ -78,6 +83,59 @@
                   <p class="truncate text-xs font-bold">{{ item.name }}</p>
                   <p class="text-[10px] text-on-surface-variant">{{ item.date }}</p>
                 </button>
+              }
+            }
+
+            @if (state.activePanel === 'patients') {
+              <div class="flex items-center gap-2 pb-2">
+                <input
+                  type="text"
+                  [(ngModel)]="patientQuery"
+                  (keyup.enter)="loadPatients()"
+                  placeholder="Buscar por nome ou ID DICOM…"
+                  class="flex-1 rounded border border-white/10 bg-neutral-950/60 px-2 py-1 text-[11px] text-on-surface"/>
+                <button class="rounded border border-violet-500/30 bg-violet-900/20 px-2 py-1 text-[11px] text-violet-200 hover:bg-violet-900/40"
+                  (click)="loadPatients()">↻</button>
+              </div>
+
+              @if (patients.length === 0) {
+                <p class="text-[10px] text-neutral-600">Nenhum paciente encontrado.</p>
+              }
+
+              @for (p of patients; track p.id) {
+                <button
+                  class="w-full rounded border p-2 text-left transition"
+                  [class.border-violet-500\\/40]="selectedPatient?.id === p.id"
+                  [class.bg-violet-900\\/20]="selectedPatient?.id === p.id"
+                  [class.border-white\\/5]="selectedPatient?.id !== p.id"
+                  [class.bg-neutral-900\\/40]="selectedPatient?.id !== p.id"
+                  (click)="selectPatient(p)">
+                  <p class="truncate text-xs font-bold">{{ p.name || '— sem nome —' }}</p>
+                  <p class="truncate text-[10px] text-neutral-500">
+                    @if (p.external_id) { <span>ext: {{ p.external_id }}</span> }
+                    @if (p.birth_date) { <span class="ml-2">nasc: {{ p.birth_date }}</span> }
+                    @if (p.sex) { <span class="ml-2">{{ p.sex }}</span> }
+                  </p>
+                </button>
+              }
+
+              @if (selectedPatient && patientStudies.length > 0) {
+                <div class="mt-3 space-y-1">
+                  <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                    Estudos ({{ patientStudies.length }})
+                  </p>
+                  @for (s of patientStudies; track s.id) {
+                    <div class="rounded border border-white/5 bg-neutral-950/40 px-2 py-1.5 text-[10px]">
+                      <div class="flex items-center justify-between">
+                        <span class="tabular-nums text-neutral-300">{{ s.study_date | date:'dd/MM/yyyy HH:mm' }}</span>
+                        @if (s.birads_global) {
+                          <span class="rounded bg-violet-900/40 px-1.5 py-0.5 font-bold text-violet-200">BI-RADS {{ s.birads_global }}</span>
+                        }
+                      </div>
+                      <p class="truncate text-[9px] text-neutral-600">{{ s.id }}</p>
+                    </div>
+                  }
+                </div>
               }
             }
 
