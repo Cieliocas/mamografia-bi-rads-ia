@@ -59,11 +59,14 @@ export interface StudyListItem {
 }
 
 export interface AnnotationDTO {
+  id?: string;
   kind: string;
   x?: number;
   y?: number;
   w?: number;
   h?: number;
+  bbox?: { x: number; y: number; w: number; h: number };
+  audio_duration_ms?: number;
 }
 
 export interface SaveAnnotationsRequest {
@@ -162,6 +165,7 @@ export class ApiService {
   // ── annotations ───────────────────────────────────────────────────────────
   saveAnnotations(studyId: string, rois: ROI[]): Observable<boolean> {
     const annotations: AnnotationDTO[] = rois.map(r => ({
+      ...(r.annotationId ? { id: r.annotationId } : {}),
       kind: r.shape === 'rect' ? 'rect' : 'ellipse',
       x: r.x - r.rx,
       y: r.y - r.ry,
@@ -279,6 +283,27 @@ export class ApiService {
     if (wc) q.push(`wc=${wc}`);
     const qs = q.length ? `?${q.join('&')}` : '';
     return `${this.base}/api/studies/${studyId}/preview${qs}`;
+  }
+
+  // ── audio annotations ─────────────────────────────────────────────────────
+  /** Upload raw WebM audio blob for an annotation. Returns duration_ms on success. */
+  uploadAnnotationAudio(annotId: string, blob: Blob, durationMs: number): Observable<{ audio_duration_ms: number } | null> {
+    return this.http.post<{ audio_duration_ms: number }>(
+      `${this.base}/api/annotations/${annotId}/audio?duration_ms=${durationMs}`,
+      blob,
+      { headers: { 'Content-Type': 'audio/webm' } }
+    ).pipe(catchError(() => of(null)));
+  }
+
+  annotationAudioURL(annotId: string): string {
+    return `${this.base}/api/annotations/${annotId}/audio`;
+  }
+
+  deleteAnnotationAudio(annotId: string): Observable<boolean> {
+    return this.http.delete(`${this.base}/api/annotations/${annotId}/audio`).pipe(
+      map(() => true),
+      catchError(() => of(false))
+    );
   }
 
   // ── windowing ─────────────────────────────────────────────────────────────

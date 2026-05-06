@@ -12,6 +12,9 @@ import (
 
 // AnnotationDTO is used for JSON serialization in HTTP handlers.
 type AnnotationDTO struct {
+	// ID is optional; when present the existing annotation row is reused so
+	// voice notes attached to it survive a re-save.
+	ID   string  `json:"id,omitempty"`
 	Kind string  `json:"kind"`
 	X    float64 `json:"x,omitempty"`
 	Y    float64 `json:"y,omitempty"`
@@ -37,11 +40,24 @@ func (uc *SaveAnnotations) Execute(ctx context.Context, in SaveAnnotationsInput)
 	if in.StudyID == "" {
 		return fmt.Errorf("study_id is required")
 	}
-	if err := uc.repo.DeleteByStudyID(ctx, in.StudyID); err != nil {
-		return fmt.Errorf("clear annotations: %w", err)
-	}
+
+	// Collect the IDs that the client is sending so we can delete rows that
+	// were removed, without touching rows that still exist (and may have audio).
+	incoming := make(map[string]struct{}, len(in.Annotations))
+	entities := make([]*entity.Annotation, 0, len(in.Annotations))
 	for _, dto := range in.Annotations {
 		ann := dtoToEntity(dto)
+		incoming[string(ann.ID)] = struct{}{}
+		entities = append(entities, ann)
+	}
+
+	// Delete only annotations not present in the incoming set.
+	if err := uc.repo.DeleteByStudyIDExcept(ctx, in.StudyID, incoming); err != nil {
+		return fmt.Errorf("prune annotations: %w", err)
+	}
+
+	// Upsert each annotation (ON CONFLICT already handled in Save).
+	for _, ann := range entities {
 		if err := uc.repo.Save(ctx, in.StudyID, ann); err != nil {
 			return fmt.Errorf("save annotation: %w", err)
 		}
@@ -74,7 +90,11 @@ func (uc *LoadAnnotations) Execute(ctx context.Context, studyID string) (*LoadAn
 }
 
 func dtoToEntity(dto AnnotationDTO) *entity.Annotation {
-	ann := &entity.Annotation{ID: entity.AnnotationID(uuid.NewString())}
+	id := dto.ID
+	if id == "" {
+		id = uuid.NewString()
+	}
+	ann := &entity.Annotation{ID: entity.AnnotationID(id)}
 	switch dto.Kind {
 	case "polygon":
 		ann.Kind = entity.AnnotationPolygon

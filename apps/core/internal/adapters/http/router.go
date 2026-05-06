@@ -16,6 +16,7 @@ func NewRouter(
 	preview   *PreviewHandler,
 	backup    *BackupHandler,
 	patient   *PatientHandler,
+	audio     *AudioHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
@@ -29,6 +30,7 @@ func NewRouter(
 	preview.RegisterRoutes(api)
 	backup.RegisterRoutes(api)
 	patient.RegisterRoutes(api)
+	audio.RegisterRoutes(api)
 
 	return r
 }

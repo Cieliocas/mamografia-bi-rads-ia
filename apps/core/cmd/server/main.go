@@ -82,6 +82,7 @@ func main() {
 		httpadapter.NewPreviewHandler(studyRepo, annotRepo, dicomReader),
 		httpadapter.NewBackupHandler(db, cfg.SQLitePath),
 		httpadapter.NewPatientHandler(patientRepo, studyRepo, updatePatient),
+		httpadapter.NewAudioHandler(annotRepo, cfg.LocalDataRoot),
 	)
 	httpadapter.NewHealthHandler(supervisor).RegisterRoutes(router)
 

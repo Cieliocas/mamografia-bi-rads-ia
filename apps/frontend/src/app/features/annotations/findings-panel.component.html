@@ -262,6 +262,57 @@
           ></textarea>
         </div>
 
+        <!-- Voice note -->
+        <div class="space-y-1.5">
+          <label class="text-[10px] uppercase tracking-wider text-on-surface-variant">Nota de voz</label>
+
+          @if (!state.selectedROI.annotationId) {
+            <p class="text-[10px] text-amber-400/80">Salve as anotações para habilitar o áudio.</p>
+          } @else {
+
+            <!-- Existing audio -->
+            @if ((state.selectedROI.audioDurationMs ?? 0) > 0) {
+              <div class="flex items-center gap-2 rounded border border-white/8 bg-neutral-900/50 px-2 py-1.5">
+                <button
+                  class="rounded p-1 text-violet-300 hover:text-violet-100 transition"
+                  [title]="audioPlaying && audioPlayingId === state.selectedROI.annotationId ? 'Pausar' : 'Reproduzir'"
+                  (click)="togglePlayback(state.selectedROI.annotationId!)">
+                  <lucide-icon [img]="audioPlaying && audioPlayingId === state.selectedROI.annotationId ? icons.Pause : icons.Play" [size]="13" />
+                </button>
+                <span class="flex-1 tabular-nums text-[10px] text-neutral-300">
+                  {{ formatAudioDuration(state.selectedROI.audioDurationMs ?? 0) }}
+                </span>
+                <button class="rounded p-1 text-red-500/60 hover:text-red-400 transition" title="Excluir áudio" (click)="deleteAudio()">
+                  <lucide-icon [img]="icons.XIcon" [size]="11" />
+                </button>
+              </div>
+            }
+
+            <!-- Recording controls -->
+            @if (audioRecording) {
+              <div class="flex items-center gap-2 rounded border border-red-500/40 bg-red-900/15 px-2 py-1.5">
+                <span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
+                <span class="flex-1 tabular-nums text-[10px] text-red-300">{{ audioRecordingSec }}s</span>
+                <button
+                  class="rounded border border-red-500/40 bg-red-900/30 px-2 py-0.5 text-[10px] font-semibold text-red-200 hover:bg-red-900/50 transition"
+                  (click)="stopRecording(true)">Parar</button>
+              </div>
+            } @else {
+              <button
+                class="flex w-full items-center justify-center gap-1.5 rounded border border-white/10 bg-neutral-800/40 px-2 py-1.5 text-[11px] font-semibold text-neutral-300 hover:bg-neutral-700/60 transition disabled:opacity-30"
+                [disabled]="audioUploading"
+                (click)="startRecording()">
+                <lucide-icon [img]="icons.Mic" [size]="12" />
+                {{ audioUploading ? 'Enviando…' : ((state.selectedROI.audioDurationMs ?? 0) > 0 ? 'Regravar' : 'Gravar voz') }}
+              </button>
+            }
+
+            @if (audioError) {
+              <p class="text-[10px] text-red-400">{{ audioError }}</p>
+            }
+          }
+        </div>
+
         <!-- Shape toggle -->
         <div class="flex gap-2">
           <button

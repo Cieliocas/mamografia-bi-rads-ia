@@ -220,18 +220,27 @@ export class StudyService {
       // Step 4 — restore annotations from backend.
       if (entry.studyId && onAnnotations) {
         this.api.getAnnotations(entry.studyId).subscribe(res => {
-          const rois: Partial<ROI>[] = (res.annotations ?? []).map((a, i) => ({
-            id: i + 1,
-            x: (a.x ?? 0) + (a.w ?? 0) / 2,
-            y: (a.y ?? 0) + (a.h ?? 0) / 2,
-            rx: (a.w ?? 0) / 2,
-            ry: (a.h ?? 0) / 2,
-            shape: a.kind === 'rect' ? 'rect' : 'ellipse',
-            birads: null,
-            label: '',
-            notes: '',
-            isSelected: false,
-          }));
+          const rois: Partial<ROI>[] = (res.annotations ?? []).map((a, i) => {
+            // Backend returns entity.Annotation with bbox nested as {x,y,w,h}.
+            const bx = a.bbox?.x ?? a.x ?? 0;
+            const by = a.bbox?.y ?? a.y ?? 0;
+            const bw = a.bbox?.w ?? a.w ?? 0;
+            const bh = a.bbox?.h ?? a.h ?? 0;
+            return {
+              id: i + 1,
+              annotationId: a.id,
+              x: bx + bw / 2,
+              y: by + bh / 2,
+              rx: bw / 2,
+              ry: bh / 2,
+              shape: (a.kind === 'rect' || a.kind === 'bbox') ? 'rect' : 'ellipse',
+              birads: null,
+              label: '',
+              notes: '',
+              isSelected: false,
+              audioDurationMs: a.audio_duration_ms ?? 0,
+            };
+          });
           onAnnotations(rois);
         });
       }
