@@ -82,14 +82,22 @@ func (h *ExportHandler) reportHTML(c *gin.Context) {
 	}
 
 	type annRow struct {
-		Index int
-		ID    string
-		Kind  string
-		X, Y, W, H float64
+		Index           int
+		ID              string
+		Kind            string
+		X, Y, W, H      float64
+		AudioDurationMs int
+		AudioTranscript string
 	}
 	rows := make([]annRow, 0, len(anns))
 	for i, a := range anns {
-		r := annRow{Index: i + 1, ID: string(a.ID), Kind: string(a.Kind)}
+		r := annRow{
+			Index:           i + 1,
+			ID:              string(a.ID),
+			Kind:            string(a.Kind),
+			AudioDurationMs: a.AudioDurationMs,
+			AudioTranscript: a.AudioTranscript,
+		}
 		if a.BBox != nil {
 			r.X, r.Y, r.W, r.H = a.BBox.X, a.BBox.Y, a.BBox.Width, a.BBox.Height
 		}
@@ -137,6 +145,13 @@ func (h *ExportHandler) reportHTML(c *gin.Context) {
 // reportTpl is the printable HTML report template.
 var reportTpl = template.Must(template.New("report").Funcs(template.FuncMap{
 	"add": func(a, b int) int { return a + b },
+	"fmtAudio": func(ms int) string {
+		if ms <= 0 {
+			return ""
+		}
+		s := ms / 1000
+		return fmt.Sprintf("%d:%02d", s/60, s%60)
+	},
 }).Parse(`<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -172,6 +187,8 @@ var reportTpl = template.Must(template.New("report").Funcs(template.FuncMap{
   thead th { padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
   tbody tr:nth-child(even) { background: #f9fafb; }
   tbody td { padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 12px; }
+  .audio-badge { display: inline-block; background: #f3e8ff; color: #7c3aed; border-radius: 10px; padding: 1px 7px; font-size: 10px; font-weight: 600; }
+  .transcript { font-style: italic; color: #374151; margin-top: 3px; font-size: 11px; }
   .empty { text-align: center; color: #9ca3af; padding: 24px; font-style: italic; }
   footer { border-top: 1px solid #e5e7eb; padding-top: 12px; font-size: 10px; color: #9ca3af; display: flex; justify-content: space-between; }
   @media print {
@@ -242,6 +259,7 @@ var reportTpl = template.Must(template.New("report").Funcs(template.FuncMap{
       <th>Y</th>
       <th>Largura</th>
       <th>Altura</th>
+      <th>Nota de voz</th>
     </tr>
   </thead>
   <tbody>
@@ -254,10 +272,16 @@ var reportTpl = template.Must(template.New("report").Funcs(template.FuncMap{
         <td>{{ printf "%.1f" .Y }}</td>
         <td>{{ printf "%.1f" .W }}</td>
         <td>{{ printf "%.1f" .H }}</td>
+        <td>
+          {{ $dur := fmtAudio .AudioDurationMs }}
+          {{ if $dur }}<span class="audio-badge">&#127908; {{ $dur }}</span>{{ end }}
+          {{ if .AudioTranscript }}<div class="transcript">"{{ .AudioTranscript }}"</div>{{ end }}
+          {{ if not $dur }}—{{ end }}
+        </td>
       </tr>
       {{ end }}
     {{ else }}
-      <tr><td colspan="6" class="empty">Nenhuma anotação registrada para este estudo.</td></tr>
+      <tr><td colspan="7" class="empty">Nenhuma anotação registrada para este estudo.</td></tr>
     {{ end }}
   </tbody>
 </table>
