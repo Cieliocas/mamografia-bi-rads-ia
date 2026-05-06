@@ -12,7 +12,8 @@ type SeriesID string
 // Study aggregates a patient exam session, possibly containing multiple views.
 type Study struct {
 	ID             StudyID
-	PatientID      string
+	PatientID      string // legacy DICOM string, kept for back-compat
+	PatientUUID    string // FK to patients.id; "" until associated
 	StudyDate      time.Time
 	FilePath       string // absolute path to source DICOM, used for preview rendering
 	BiradsGlobal   string // overall BI-RADS for the whole study (e.g. "4B")

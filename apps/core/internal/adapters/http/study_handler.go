@@ -88,11 +88,21 @@ func (h *StudyHandler) createStudy(c *gin.Context) {
 		return
 	}
 	resp := gin.H{
-		"id":         string(out.Study.ID),
-		"patient_id": out.Study.PatientID,
-		"study_date": out.Study.StudyDate,
-		"width":      out.Width,
-		"height":     out.Height,
+		"id":           string(out.Study.ID),
+		"patient_id":   out.Study.PatientID,
+		"patient_uuid": out.Study.PatientUUID,
+		"study_date":   out.Study.StudyDate,
+		"width":        out.Width,
+		"height":       out.Height,
+	}
+	if p := out.Patient; p != nil {
+		resp["patient"] = gin.H{
+			"id":          string(p.ID),
+			"external_id": p.ExternalID,
+			"name":        p.Name,
+			"birth_date":  p.BirthDate,
+			"sex":         p.Sex,
+		}
 	}
 	if m := out.Metadata; m != nil {
 		resp["modality"] = m.Modality
@@ -130,6 +140,7 @@ func (h *StudyHandler) getStudy(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"id":             string(s.ID),
 		"patient_id":     s.PatientID,
+		"patient_uuid":   s.PatientUUID,
 		"study_date":     s.StudyDate,
 		"birads_global":  s.BiradsGlobal,
 		"conclusion":     s.Conclusion,

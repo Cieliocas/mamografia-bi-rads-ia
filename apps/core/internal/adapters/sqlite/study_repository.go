@@ -75,12 +75,13 @@ func NewStudyRepository(db *sql.DB) *StudyRepository {
 
 func (r *StudyRepository) Save(ctx context.Context, s *entity.Study) error {
 	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO studies (id, patient_id, study_date, modality, description, file_path,
+		INSERT INTO studies (id, patient_id, patient_uuid, study_date, modality, description, file_path,
 		                    birads_global, conclusion, recommendation, signed_by, signed_at,
 		                    created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			patient_id     = excluded.patient_id,
+			patient_uuid   = excluded.patient_uuid,
 			study_date     = excluded.study_date,
 			description    = excluded.description,
 			birads_global  = excluded.birads_global,
@@ -90,6 +91,7 @@ func (r *StudyRepository) Save(ctx context.Context, s *entity.Study) error {
 			signed_at      = excluded.signed_at`,
 		string(s.ID),
 		s.PatientID,
+		s.PatientUUID,
 		s.StudyDate.Format(time.RFC3339),
 		"MG", // mammography modality constant for now
 		"",
@@ -100,7 +102,7 @@ func (r *StudyRepository) Save(ctx context.Context, s *entity.Study) error {
 	return err
 }
 
-const studyCols = `id, patient_id, study_date, file_path,
+const studyCols = `id, patient_id, patient_uuid, study_date, file_path,
 	birads_global, conclusion, recommendation, signed_by, signed_at, created_at`
 
 func (r *StudyRepository) FindByID(ctx context.Context, id string) (*entity.Study, error) {
@@ -128,6 +130,25 @@ func (r *StudyRepository) List(ctx context.Context) ([]*entity.Study, error) {
 	return studies, rows.Err()
 }
 
+func (r *StudyRepository) ListByPatient(ctx context.Context, patientUUID string) ([]*entity.Study, error) {
+	rows, err := r.db.QueryContext(ctx,
+		`SELECT `+studyCols+` FROM studies WHERE patient_uuid = ? ORDER BY created_at DESC`,
+		patientUUID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []*entity.Study
+	for rows.Next() {
+		s, err := scanStudy(rows)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, s)
+	}
+	return out, rows.Err()
+}
+
 func (r *StudyRepository) Delete(ctx context.Context, id string) error {
 	_, err := r.db.ExecContext(ctx, `DELETE FROM studies WHERE id = ?`, id)
 	return err
@@ -140,13 +161,14 @@ type scanner interface {
 
 func scanStudy(s scanner) (*entity.Study, error) {
 	var study entity.Study
-	var id, patientID, studyDate, filePath, biradsGlobal, conclusion, recommendation, signedBy, signedAt, createdAt string
-	if err := s.Scan(&id, &patientID, &studyDate, &filePath,
+	var id, patientID, patientUUID, studyDate, filePath, biradsGlobal, conclusion, recommendation, signedBy, signedAt, createdAt string
+	if err := s.Scan(&id, &patientID, &patientUUID, &studyDate, &filePath,
 		&biradsGlobal, &conclusion, &recommendation, &signedBy, &signedAt, &createdAt); err != nil {
 		return nil, err
 	}
 	study.ID = entity.StudyID(id)
 	study.PatientID = patientID
+	study.PatientUUID = patientUUID
 	study.FilePath = filePath
 	study.BiradsGlobal = biradsGlobal
 	study.Conclusion = conclusion

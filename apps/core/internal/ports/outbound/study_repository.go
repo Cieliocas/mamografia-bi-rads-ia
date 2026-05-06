@@ -11,5 +11,6 @@ type StudyRepository interface {
 	Save(ctx context.Context, study *entity.Study) error
 	FindByID(ctx context.Context, id string) (*entity.Study, error)
 	List(ctx context.Context) ([]*entity.Study, error)
+	ListByPatient(ctx context.Context, patientUUID string) ([]*entity.Study, error)
 	Delete(ctx context.Context, id string) error
 }
