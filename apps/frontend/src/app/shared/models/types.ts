@@ -8,6 +8,10 @@ export interface ROI {
   shape: 'ellipse'|'rect';
   birads: BiRads; label: string; notes: string;
   isSelected: boolean;
+  /** UUID assigned by the backend; present after the first save/load. */
+  annotationId?: string;
+  /** Duration of attached voice note in milliseconds. */
+  audioDurationMs?: number;
 }
 
 export interface RulerLine {

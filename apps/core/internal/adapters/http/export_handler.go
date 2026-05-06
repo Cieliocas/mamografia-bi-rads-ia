@@ -82,31 +82,54 @@ func (h *ExportHandler) reportHTML(c *gin.Context) {
 	}
 
 	type annRow struct {
-		ID   string
-		Kind string
-		X, Y, W, H float64
+		Index           int
+		ID              string
+		Kind            string
+		X, Y, W, H      float64
+		AudioDurationMs int
+		AudioTranscript string
 	}
 	rows := make([]annRow, 0, len(anns))
-	for _, a := range anns {
-		r := annRow{ID: string(a.ID), Kind: string(a.Kind)}
+	for i, a := range anns {
+		r := annRow{
+			Index:           i + 1,
+			ID:              string(a.ID),
+			Kind:            string(a.Kind),
+			AudioDurationMs: a.AudioDurationMs,
+			AudioTranscript: a.AudioTranscript,
+		}
 		if a.BBox != nil {
 			r.X, r.Y, r.W, r.H = a.BBox.X, a.BBox.Y, a.BBox.Width, a.BBox.Height
 		}
 		rows = append(rows, r)
 	}
 
+	imageURL := "/api/studies/" + studyID + "/preview/annotated"
+
 	data := struct {
-		StudyID   string
-		PatientID string
-		StudyDate string
-		Generated string
-		Rows      []annRow
+		StudyID        string
+		PatientID      string
+		StudyDate      string
+		Generated      string
+		ImageURL       string
+		BiradsGlobal   string
+		Conclusion     string
+		Recommendation string
+		SignedBy       string
+		SignedAt       string
+		Rows           []annRow
 	}{
-		StudyID:   studyID,
-		PatientID: study.PatientID,
-		StudyDate: study.StudyDate.Format("02/01/2006"),
-		Generated: time.Now().Format("02/01/2006 15:04"),
-		Rows:      rows,
+		StudyID:        studyID,
+		PatientID:      study.PatientID,
+		StudyDate:      study.StudyDate.Format("02/01/2006"),
+		Generated:      time.Now().Format("02/01/2006 15:04"),
+		ImageURL:       imageURL,
+		BiradsGlobal:   study.BiradsGlobal,
+		Conclusion:     study.Conclusion,
+		Recommendation: study.Recommendation,
+		SignedBy:       study.SignedBy,
+		SignedAt:       study.SignedAt,
+		Rows:           rows,
 	}
 
 	var buf bytes.Buffer
@@ -122,6 +145,13 @@ func (h *ExportHandler) reportHTML(c *gin.Context) {
 // reportTpl is the printable HTML report template.
 var reportTpl = template.Must(template.New("report").Funcs(template.FuncMap{
 	"add": func(a, b int) int { return a + b },
+	"fmtAudio": func(ms int) string {
+		if ms <= 0 {
+			return ""
+		}
+		s := ms / 1000
+		return fmt.Sprintf("%d:%02d", s/60, s%60)
+	},
 }).Parse(`<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -140,11 +170,25 @@ var reportTpl = template.Must(template.New("report").Funcs(template.FuncMap{
   .info-card { background: #f5f3ff; border-left: 3px solid #7c3aed; border-radius: 4px; padding: 10px 14px; }
   .info-card .label { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: #6b7280; margin-bottom: 4px; }
   .info-card .value { font-weight: 600; color: #1a1a2e; }
+  .image-wrap { display: flex; justify-content: center; margin: 8px 0 24px; }
+  .image-wrap img { max-width: 100%; max-height: 480px; border: 1px solid #d1d5db; border-radius: 4px; background: #000; }
+  .clinical { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 24px; }
+  .clinical .field { background: #fafafa; border-left: 3px solid #06b6d4; border-radius: 4px; padding: 10px 14px; min-height: 70px; }
+  .clinical .field h3 { font-size: 10px; text-transform: uppercase; color: #6b7280; letter-spacing: .05em; margin-bottom: 6px; }
+  .clinical .field p { white-space: pre-wrap; font-size: 12px; color: #1a1a2e; }
+  .birads-pill { display: inline-block; padding: 3px 10px; border-radius: 12px; font-weight: 700; font-size: 12px; color: #fff; background: #6b7280; }
+  .birads-pill.b1, .birads-pill.b2 { background: #16a34a; }
+  .birads-pill.b3 { background: #ca8a04; }
+  .birads-pill.b4A { background: #ea580c; }
+  .birads-pill.b4B, .birads-pill.b4C { background: #dc2626; }
+  .birads-pill.b5, .birads-pill.b6 { background: #991b1b; }
   table { width: 100%; border-collapse: collapse; margin-bottom: 28px; }
   thead tr { background: #7c3aed; color: #fff; }
   thead th { padding: 9px 12px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
   tbody tr:nth-child(even) { background: #f9fafb; }
   tbody td { padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 12px; }
+  .audio-badge { display: inline-block; background: #f3e8ff; color: #7c3aed; border-radius: 10px; padding: 1px 7px; font-size: 10px; font-weight: 600; }
+  .transcript { font-style: italic; color: #374151; margin-top: 3px; font-size: 11px; }
   .empty { text-align: center; color: #9ca3af; padding: 24px; font-style: italic; }
   footer { border-top: 1px solid #e5e7eb; padding-top: 12px; font-size: 10px; color: #9ca3af; display: flex; justify-content: space-between; }
   @media print {
@@ -178,30 +222,62 @@ var reportTpl = template.Must(template.New("report").Funcs(template.FuncMap{
   </div>
 </div>
 
+<h2>Imagem analisada</h2>
+<div class="image-wrap">
+  <img src="{{ .ImageURL }}" alt="Mamografia anotada"/>
+</div>
+
+<h2>Avaliação clínica</h2>
+<div class="clinical">
+  <div class="field">
+    <h3>BI-RADS global</h3>
+    <p>
+      {{ if .BiradsGlobal }}<span class="birads-pill b{{ .BiradsGlobal }}">BI-RADS {{ .BiradsGlobal }}</span>{{ else }}—{{ end }}
+    </p>
+  </div>
+  <div class="field">
+    <h3>Assinado por</h3>
+    <p>{{ if .SignedBy }}{{ .SignedBy }}{{ else }}—{{ end }}{{ if .SignedAt }} <span style="color:#6b7280;font-size:11px">· {{ .SignedAt }}</span>{{ end }}</p>
+  </div>
+  <div class="field" style="grid-column: span 2">
+    <h3>Conclusão</h3>
+    <p>{{ if .Conclusion }}{{ .Conclusion }}{{ else }}—{{ end }}</p>
+  </div>
+  <div class="field" style="grid-column: span 2">
+    <h3>Recomendação</h3>
+    <p>{{ if .Recommendation }}{{ .Recommendation }}{{ else }}—{{ end }}</p>
+  </div>
+</div>
+
 <h2>Anotações / ROIs</h2>
 <table>
   <thead>
     <tr>
       <th>#</th>
-      <th>Annotation ID</th>
       <th>Tipo</th>
       <th>X</th>
       <th>Y</th>
       <th>Largura</th>
       <th>Altura</th>
+      <th>Nota de voz</th>
     </tr>
   </thead>
   <tbody>
     {{ if .Rows }}
-      {{ range $i, $r := .Rows }}
+      {{ range .Rows }}
       <tr>
-        <td>{{ add $i 1 }}</td>
-        <td style="font-size:10px">{{ $r.ID }}</td>
-        <td>{{ $r.Kind }}</td>
-        <td>{{ printf "%.1f" $r.X }}</td>
-        <td>{{ printf "%.1f" $r.Y }}</td>
-        <td>{{ printf "%.1f" $r.W }}</td>
-        <td>{{ printf "%.1f" $r.H }}</td>
+        <td>{{ .Index }}</td>
+        <td>{{ .Kind }}</td>
+        <td>{{ printf "%.1f" .X }}</td>
+        <td>{{ printf "%.1f" .Y }}</td>
+        <td>{{ printf "%.1f" .W }}</td>
+        <td>{{ printf "%.1f" .H }}</td>
+        <td>
+          {{ $dur := fmtAudio .AudioDurationMs }}
+          {{ if $dur }}<span class="audio-badge">&#127908; {{ $dur }}</span>{{ end }}
+          {{ if .AudioTranscript }}<div class="transcript">"{{ .AudioTranscript }}"</div>{{ end }}
+          {{ if not $dur }}—{{ end }}
+        </td>
       </tr>
       {{ end }}
     {{ else }}

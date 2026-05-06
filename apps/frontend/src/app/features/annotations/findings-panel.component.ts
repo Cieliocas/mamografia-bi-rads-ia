@@ -1,10 +1,11 @@
-import { Component, Output, EventEmitter, inject } from '@angular/core';
+import { Component, Output, EventEmitter, effect, inject, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   LucideAngularModule,
   Trash2, Copy, Clipboard, Undo2, Redo2,
-  Circle, Square, Columns, RotateCw, Download, FileText, FileJson
+  Circle, Square, Columns, RotateCw, Download, FileText, FileJson,
+  Mic, MicOff, Play, Pause, X as XIcon
 } from 'lucide-angular';
 
 import { ViewerStateService } from '../../core/services/viewer-state.service';
@@ -19,13 +20,119 @@ import type { BiRads } from '../../shared/models/types';
   imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './findings-panel.component.html',
 })
-export class FindingsPanelComponent {
+export class FindingsPanelComponent implements OnDestroy {
 
   readonly state = inject(ViewerStateService);
   readonly study = inject(StudyService);
   readonly api   = inject(ApiService);
 
-  readonly icons = { Trash2, Copy, Clipboard, Undo2, Redo2, Circle, Square, Columns, RotateCw, Download, FileText, FileJson };
+  readonly icons = { Trash2, Copy, Clipboard, Undo2, Redo2, Circle, Square, Columns, RotateCw, Download, FileText, FileJson, Mic, MicOff, Play, Pause, XIcon };
+
+  // ── Audio recording ────────────────────────────────────────────────────────
+  audioRecording = false;
+  audioRecordingSec = 0;
+  audioUploading = false;
+  audioError = '';
+
+  private mediaRecorder: MediaRecorder | null = null;
+  private audioChunks: Blob[] = [];
+  private recordingStart = 0;
+  private recordingTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** Audio element for playback (one shared instance per panel). */
+  audioPlayer: HTMLAudioElement | null = null;
+  audioPlaying = false;
+  audioPlayingId = '';
+
+  ngOnDestroy() {
+    this.stopRecording(false);
+    this.audioPlayer?.pause();
+  }
+
+  audioPlayerSrc(annotationId: string): string {
+    return this.api.annotationAudioURL(annotationId);
+  }
+
+  togglePlayback(annotationId: string) {
+    if (this.audioPlaying && this.audioPlayingId === annotationId) {
+      this.audioPlayer?.pause();
+      this.audioPlaying = false;
+      return;
+    }
+    if (!this.audioPlayer) {
+      this.audioPlayer = new Audio();
+      this.audioPlayer.onended = () => { this.audioPlaying = false; };
+      this.audioPlayer.onpause = () => { this.audioPlaying = false; };
+    }
+    this.audioPlayer.src = this.audioPlayerSrc(annotationId);
+    this.audioPlayingId = annotationId;
+    this.audioPlayer.play().then(() => { this.audioPlaying = true; }).catch(() => {});
+  }
+
+  async startRecording() {
+    this.audioError = '';
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const opts: MediaRecorderOptions = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+        ? { mimeType: 'audio/webm;codecs=opus' }
+        : {};
+      this.mediaRecorder = new MediaRecorder(stream, opts);
+      this.audioChunks = [];
+      this.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) this.audioChunks.push(e.data); };
+      this.mediaRecorder.start(250);
+      this.recordingStart = Date.now();
+      this.audioRecordingSec = 0;
+      this.audioRecording = true;
+      this.recordingTimer = setInterval(() => {
+        this.audioRecordingSec = Math.floor((Date.now() - this.recordingStart) / 1000);
+      }, 500);
+    } catch {
+      this.audioError = 'Microfone não disponível';
+    }
+  }
+
+  stopRecording(upload = true) {
+    if (this.recordingTimer) { clearInterval(this.recordingTimer); this.recordingTimer = null; }
+    if (!this.mediaRecorder) return;
+    const mr = this.mediaRecorder;
+    this.mediaRecorder = null;
+    this.audioRecording = false;
+
+    mr.stream.getTracks().forEach(t => t.stop());
+
+    if (!upload) { this.audioChunks = []; return; }
+
+    mr.onstop = () => {
+      const durationMs = Date.now() - this.recordingStart;
+      const blob = new Blob(this.audioChunks, { type: mr.mimeType || 'audio/webm' });
+      this.audioChunks = [];
+      const roi = this.state.selectedROI;
+      if (!roi?.annotationId) { this.audioError = 'Salve as anotações antes de gravar áudio'; return; }
+      this.audioUploading = true;
+      this.api.uploadAnnotationAudio(roi.annotationId, blob, durationMs).subscribe(res => {
+        this.audioUploading = false;
+        if (res) {
+          roi.audioDurationMs = res.audio_duration_ms;
+        } else {
+          this.audioError = 'Falha ao enviar áudio';
+        }
+      });
+    };
+    mr.stop();
+  }
+
+  deleteAudio() {
+    const roi = this.state.selectedROI;
+    if (!roi?.annotationId) return;
+    this.api.deleteAnnotationAudio(roi.annotationId).subscribe(ok => {
+      if (ok) roi.audioDurationMs = 0;
+    });
+  }
+
+  formatAudioDuration(ms: number): string {
+    const s = Math.floor(ms / 1000);
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  }
 
   // ── Export modal ───────────────────────────────────────────────────────────
   showExportModal = false;
@@ -44,6 +151,70 @@ export class FindingsPanelComponent {
     this.showExportModal = false;
   }
   exportBackup() { this.api.downloadBackup(); this.showExportModal = false; }
+  exportMarkedImage() {
+    const sid = this.study.currentStudyId();
+    if (sid) this.api.downloadAnnotatedPNG(sid);
+    this.showExportModal = false;
+  }
+
+  // ── Clinical fields ────────────────────────────────────────────────────────
+  clinical = {
+    birads_global: '',
+    conclusion: '',
+    recommendation: '',
+    signed_by: '',
+  };
+  clinicalSaving = false;
+  clinicalSavedAt = '';
+
+  // ── Patient editor ─────────────────────────────────────────────────────────
+  patient = { name: '', birth_date: '', sex: '' };
+  patientSaving = false;
+
+  constructor() {
+    // Hydrate the form when a study (re)loads or the backend pushes clinical data.
+    effect(() => {
+      const c = this.study.currentClinical();
+      if (!c) return;
+      this.clinical = {
+        birads_global:  c.birads_global  ?? '',
+        conclusion:     c.conclusion     ?? '',
+        recommendation: c.recommendation ?? '',
+        signed_by:      c.signed_by      ?? '',
+      };
+      this.clinicalSavedAt = c.signed_at ?? '';
+    });
+    // Hydrate patient form whenever the active patient changes.
+    effect(() => {
+      const p = this.study.currentPatient();
+      if (!p) return;
+      this.patient = {
+        name:       p.name       ?? '',
+        birth_date: p.birth_date ?? '',
+        sex:        p.sex        ?? '',
+      };
+    });
+  }
+
+  savePatient() {
+    this.patientSaving = true;
+    this.study.savePatient(this.patient);
+    setTimeout(() => this.patientSaving = false, 500);
+  }
+
+  saveClinical() {
+    const sid = this.study.currentStudyId();
+    if (!sid) return;
+    this.clinicalSaving = true;
+    const payload = {
+      ...this.clinical,
+      signed_at: new Date().toLocaleString('pt-BR'),
+    };
+    this.api.patchClinical(sid, payload).subscribe(ok => {
+      this.clinicalSaving = false;
+      if (ok) this.clinicalSavedAt = payload.signed_at;
+    });
+  }
 
   // ── Backend integration ─────────────────────────────────────────────────────
   runInference() { this.study.runInference(); }

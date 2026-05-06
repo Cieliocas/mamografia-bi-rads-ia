@@ -37,8 +37,43 @@ func (h *StudyHandler) RegisterRoutes(api *gin.RouterGroup) {
 	api.POST("/studies", h.createStudy)
 	api.GET("/studies", h.listStudies)
 	api.GET("/studies/:id", h.getStudy)
+	api.PATCH("/studies/:id/clinical", h.patchClinical)
 	api.POST("/studies/:id/annotations", h.saveAnnotations)
 	api.GET("/studies/:id/annotations", h.getAnnotations)
+}
+
+// patchClinical updates the radiologist's report fields on a study.
+type clinicalReq struct {
+	BiradsGlobal   *string `json:"birads_global,omitempty"`
+	Conclusion     *string `json:"conclusion,omitempty"`
+	Recommendation *string `json:"recommendation,omitempty"`
+	SignedBy       *string `json:"signed_by,omitempty"`
+	SignedAt       *string `json:"signed_at,omitempty"`
+}
+
+func (h *StudyHandler) patchClinical(c *gin.Context) {
+	id := c.Param("id")
+	study, err := h.studyRepo.FindByID(context.Background(), id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "study not found"})
+		return
+	}
+	var req clinicalReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if req.BiradsGlobal != nil   { study.BiradsGlobal = *req.BiradsGlobal }
+	if req.Conclusion != nil     { study.Conclusion = *req.Conclusion }
+	if req.Recommendation != nil { study.Recommendation = *req.Recommendation }
+	if req.SignedBy != nil       { study.SignedBy = *req.SignedBy }
+	if req.SignedAt != nil       { study.SignedAt = *req.SignedAt }
+
+	if err := h.studyRepo.Save(context.Background(), study); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"status": "saved"})
 }
 
 func (h *StudyHandler) createStudy(c *gin.Context) {
@@ -53,11 +88,21 @@ func (h *StudyHandler) createStudy(c *gin.Context) {
 		return
 	}
 	resp := gin.H{
-		"id":         string(out.Study.ID),
-		"patient_id": out.Study.PatientID,
-		"study_date": out.Study.StudyDate,
-		"width":      out.Width,
-		"height":     out.Height,
+		"id":           string(out.Study.ID),
+		"patient_id":   out.Study.PatientID,
+		"patient_uuid": out.Study.PatientUUID,
+		"study_date":   out.Study.StudyDate,
+		"width":        out.Width,
+		"height":       out.Height,
+	}
+	if p := out.Patient; p != nil {
+		resp["patient"] = gin.H{
+			"id":          string(p.ID),
+			"external_id": p.ExternalID,
+			"name":        p.Name,
+			"birth_date":  p.BirthDate,
+			"sex":         p.Sex,
+		}
 	}
 	if m := out.Metadata; m != nil {
 		resp["modality"] = m.Modality
@@ -93,9 +138,15 @@ func (h *StudyHandler) getStudy(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{
-		"id":         string(s.ID),
-		"patient_id": s.PatientID,
-		"study_date": s.StudyDate,
+		"id":             string(s.ID),
+		"patient_id":     s.PatientID,
+		"patient_uuid":   s.PatientUUID,
+		"study_date":     s.StudyDate,
+		"birads_global":  s.BiradsGlobal,
+		"conclusion":     s.Conclusion,
+		"recommendation": s.Recommendation,
+		"signed_by":      s.SignedBy,
+		"signed_at":      s.SignedAt,
 	})
 }
 

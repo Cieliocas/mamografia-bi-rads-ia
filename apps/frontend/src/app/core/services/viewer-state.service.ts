@@ -7,7 +7,7 @@ import {
 
 export type ActiveTool = 'pan'|'roi'|'ruler';
 export type ActiveShape = 'ellipse'|'rect';
-export type ActivePanel = 'images'|'history'|'analysis'|'tools';
+export type ActivePanel = 'images'|'history'|'patients'|'analysis'|'tools';
 
 @Injectable({ providedIn: 'root' })
 export class ViewerStateService {

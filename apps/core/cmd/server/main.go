@@ -58,13 +58,17 @@ func main() {
 
 	studyRepo := sqlite.NewStudyRepository(db)
 	annotRepo := sqlite.NewAnnotationRepository(db)
+	patientRepo := sqlite.NewPatientRepository(db)
 	aiClient  := aiclient.New(cfg.AISidecarURL, cfg.AISharedToken)
 	dicomReader := filesystem.NewDICOMReader()
+
+	ensurePatient := usecase.NewEnsurePatient(patientRepo)
+	updatePatient := usecase.NewUpdatePatient(patientRepo)
 
 	router := httpadapter.NewRouter(
 		httpadapter.NewPDIHandler(usecase.NewApplyWindowing()),
 		httpadapter.NewStudyHandler(
-			usecase.NewOpenStudy(studyRepo, dicomReader),
+			usecase.NewOpenStudy(studyRepo, dicomReader, ensurePatient),
 			usecase.NewSaveAnnotations(annotRepo),
 			usecase.NewLoadAnnotations(annotRepo),
 			studyRepo,
@@ -75,8 +79,10 @@ func main() {
 			studyRepo,
 			annotRepo,
 		),
-		httpadapter.NewPreviewHandler(studyRepo, dicomReader),
-		httpadapter.NewBackupHandler(db, cfg.SQLitePath),
+		httpadapter.NewPreviewHandler(studyRepo, annotRepo, dicomReader),
+		httpadapter.NewBackupHandler(db, cfg.SQLitePath, cfg.LocalDataRoot),
+		httpadapter.NewPatientHandler(patientRepo, studyRepo, updatePatient),
+		httpadapter.NewAudioHandler(annotRepo, cfg.LocalDataRoot),
 	)
 	httpadapter.NewHealthHandler(supervisor).RegisterRoutes(router)
 

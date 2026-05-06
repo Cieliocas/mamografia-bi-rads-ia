@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { VP, ROI } from '../../shared/models/types';
-import { ApiService, FindingDTO, OpenStudyResponse, StudyListItem } from './api.service';
+import { ApiService, ClinicalFields, FindingDTO, OpenStudyResponse, PatientDTO, StudyListItem } from './api.service';
 
 export interface StudyMetadata {
   modality?: string;
@@ -42,6 +42,10 @@ export class StudyService {
   backendStudies = signal<StudyListItem[]>([]);
   /** DICOM metadata for the active study (WW/WC, modality, dims). */
   currentMetadata = signal<StudyMetadata | null>(null);
+  /** Clinical report fields for the active study. */
+  currentClinical = signal<ClinicalFields | null>(null);
+  /** Patient associated with the active study. */
+  currentPatient = signal<PatientDTO | null>(null);
 
   constructor() {
     this.refreshHealth();
@@ -60,6 +64,34 @@ export class StudyService {
       const ai = s.ai_engine ?? 'unknown';
       this.aiEngineState.set(ai === 'ready' || ai === 'down' || ai === 'disabled' ? ai : 'unknown');
       this.aiEngineReason.set(s.ai_engine_reason ?? '');
+    });
+  }
+
+  /** Fetches the persisted clinical report fields for the given study. */
+  loadClinical(studyId: string) {
+    this.api.getStudy(studyId).subscribe(s => {
+      if (!s) return;
+      this.currentClinical.set({
+        birads_global:  s.birads_global  ?? '',
+        conclusion:     s.conclusion     ?? '',
+        recommendation: s.recommendation ?? '',
+        signed_by:      s.signed_by      ?? '',
+        signed_at:      s.signed_at      ?? '',
+      });
+      if (s.patient_uuid && (!this.currentPatient() || this.currentPatient()!.id !== s.patient_uuid)) {
+        this.api.getPatient(s.patient_uuid).subscribe(p => {
+          if (p) this.currentPatient.set(p);
+        });
+      }
+    });
+  }
+
+  /** Saves edits to the current patient and refreshes the local signal. */
+  savePatient(updates: Partial<PatientDTO>): void {
+    const p = this.currentPatient();
+    if (!p) return;
+    this.api.patchPatient(p.id, updates).subscribe(updated => {
+      if (updated) this.currentPatient.set(updated);
     });
   }
 
@@ -139,7 +171,9 @@ export class StudyService {
       if (!resp?.id) return;
       this.currentStudyId.set(resp.id);
       this.applyOpenStudyMetadata(resp);
+      this.currentPatient.set(resp.patient ?? null);
       this.refreshBackendStudies();
+      this.loadClinical(resp.id);
 
       const previewURL = this.api.previewURL(resp.id);
       const img = new Image();
@@ -186,18 +220,27 @@ export class StudyService {
       // Step 4 — restore annotations from backend.
       if (entry.studyId && onAnnotations) {
         this.api.getAnnotations(entry.studyId).subscribe(res => {
-          const rois: Partial<ROI>[] = (res.annotations ?? []).map((a, i) => ({
-            id: i + 1,
-            x: (a.x ?? 0) + (a.w ?? 0) / 2,
-            y: (a.y ?? 0) + (a.h ?? 0) / 2,
-            rx: (a.w ?? 0) / 2,
-            ry: (a.h ?? 0) / 2,
-            shape: a.kind === 'rect' ? 'rect' : 'ellipse',
-            birads: null,
-            label: '',
-            notes: '',
-            isSelected: false,
-          }));
+          const rois: Partial<ROI>[] = (res.annotations ?? []).map((a, i) => {
+            // Backend returns entity.Annotation with bbox nested as {x,y,w,h}.
+            const bx = a.bbox?.x ?? a.x ?? 0;
+            const by = a.bbox?.y ?? a.y ?? 0;
+            const bw = a.bbox?.w ?? a.w ?? 0;
+            const bh = a.bbox?.h ?? a.h ?? 0;
+            return {
+              id: i + 1,
+              annotationId: a.id,
+              x: bx + bw / 2,
+              y: by + bh / 2,
+              rx: bw / 2,
+              ry: bh / 2,
+              shape: (a.kind === 'rect' || a.kind === 'bbox') ? 'rect' : 'ellipse',
+              birads: null,
+              label: '',
+              notes: '',
+              isSelected: false,
+              audioDurationMs: a.audio_duration_ms ?? 0,
+            };
+          });
           onAnnotations(rois);
         });
       }

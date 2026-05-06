@@ -10,9 +10,37 @@ export interface OpenStudyRequest {
   file_path: string;
 }
 
+export interface ClinicalFields {
+  birads_global?: string;
+  conclusion?: string;
+  recommendation?: string;
+  signed_by?: string;
+  signed_at?: string;
+}
+
+export interface PatientDTO {
+  id: string;
+  external_id: string;
+  name: string;
+  birth_date?: string;
+  sex?: string;
+  notes?: string;
+  created_at?: string;
+}
+
+export interface PatientStudyDTO {
+  id: string;
+  study_date: string;
+  birads_global?: string;
+  created_at?: string;
+  file_path?: string;
+}
+
 export interface OpenStudyResponse {
   id: string;
   patient_id: string;
+  patient_uuid?: string;
+  patient?: PatientDTO;
   study_date: string;
   /** Image dimensions parsed from the DICOM PixelData. */
   width?: number;
@@ -32,11 +60,14 @@ export interface StudyListItem {
 }
 
 export interface AnnotationDTO {
+  id?: string;
   kind: string;
   x?: number;
   y?: number;
   w?: number;
   h?: number;
+  bbox?: { x: number; y: number; w: number; h: number };
+  audio_duration_ms?: number;
 }
 
 export interface SaveAnnotationsRequest {
@@ -126,8 +157,8 @@ export class ApiService {
       file_path: filePath
     } as OpenStudyRequest).pipe(catchError(() => of(null)));
   }
-  getStudy(id: string): Observable<OpenStudyResponse | null> {
-    return this.http.get<OpenStudyResponse>(`${this.base}/api/studies/${id}`).pipe(
+  getStudy(id: string): Observable<(OpenStudyResponse & ClinicalFields) | null> {
+    return this.http.get<OpenStudyResponse & ClinicalFields>(`${this.base}/api/studies/${id}`).pipe(
       catchError(() => of(null))
     );
   }
@@ -135,6 +166,7 @@ export class ApiService {
   // ── annotations ───────────────────────────────────────────────────────────
   saveAnnotations(studyId: string, rois: ROI[]): Observable<boolean> {
     const annotations: AnnotationDTO[] = rois.map(r => ({
+      ...(r.annotationId ? { id: r.annotationId } : {}),
       kind: r.shape === 'rect' ? 'rect' : 'ellipse',
       x: r.x - r.rx,
       y: r.y - r.ry,
@@ -176,12 +208,73 @@ export class ApiService {
     window.open(`${this.base}/api/export/report/${studyId}`, 'mammo-report');
   }
 
+  /** Updates the clinical report fields on a study (BI-RADS, conclusion, …). */
+  patchClinical(studyId: string, fields: {
+    birads_global?: string;
+    conclusion?: string;
+    recommendation?: string;
+    signed_by?: string;
+    signed_at?: string;
+  }): Observable<boolean> {
+    return this.http.patch(`${this.base}/api/studies/${studyId}/clinical`, fields).pipe(
+      map(() => true),
+      catchError(() => of(false))
+    );
+  }
+
+  /** Direct URL of the annotated DICOM preview (PNG with ROIs overlaid). */
+  annotatedPreviewURL(studyId: string): string {
+    return `${this.base}/api/studies/${studyId}/preview/annotated`;
+  }
+
+  /** Triggers a download of the annotated PNG as a standalone file. */
+  downloadAnnotatedPNG(studyId: string) {
+    const a = document.createElement('a');
+    a.href = this.annotatedPreviewURL(studyId);
+    a.download = `aidentify-marked-${studyId.slice(0, 8)}.png`;
+    a.click();
+  }
+
   /** Triggers a download of the SQLite database snapshot. */
   downloadBackup() {
     const a = document.createElement('a');
     a.href = `${this.base}/api/backup`;
     a.download = '';
     a.click();
+  }
+
+  // ── patients ──────────────────────────────────────────────────────────────
+  listPatients(query?: string, limit = 50): Observable<PatientDTO[]> {
+    const q = query ? `?q=${encodeURIComponent(query)}&limit=${limit}` : `?limit=${limit}`;
+    return this.http.get<PatientDTO[]>(`${this.base}/api/patients${q}`).pipe(
+      catchError(() => of([] as PatientDTO[]))
+    );
+  }
+  getPatient(id: string): Observable<PatientDTO | null> {
+    return this.http.get<PatientDTO>(`${this.base}/api/patients/${id}`).pipe(
+      catchError(() => of(null))
+    );
+  }
+  createPatient(p: Partial<PatientDTO>): Observable<PatientDTO | null> {
+    return this.http.post<PatientDTO>(`${this.base}/api/patients`, p).pipe(
+      catchError(() => of(null))
+    );
+  }
+  patchPatient(id: string, p: Partial<PatientDTO>): Observable<PatientDTO | null> {
+    return this.http.patch<PatientDTO>(`${this.base}/api/patients/${id}`, p).pipe(
+      catchError(() => of(null))
+    );
+  }
+  listPatientStudies(id: string): Observable<PatientStudyDTO[]> {
+    return this.http.get<PatientStudyDTO[]>(`${this.base}/api/patients/${id}/studies`).pipe(
+      catchError(() => of([] as PatientStudyDTO[]))
+    );
+  }
+  assignStudyToPatient(studyId: string, patientUUID: string): Observable<boolean> {
+    return this.http.patch(`${this.base}/api/studies/${studyId}/patient`, { patient_uuid: patientUUID }).pipe(
+      map(() => true),
+      catchError(() => of(false))
+    );
   }
 
   /** URL of the rendered DICOM preview (PNG with WW/WC applied server-side). */
@@ -191,6 +284,27 @@ export class ApiService {
     if (wc) q.push(`wc=${wc}`);
     const qs = q.length ? `?${q.join('&')}` : '';
     return `${this.base}/api/studies/${studyId}/preview${qs}`;
+  }
+
+  // ── audio annotations ─────────────────────────────────────────────────────
+  /** Upload raw WebM audio blob for an annotation. Returns duration_ms on success. */
+  uploadAnnotationAudio(annotId: string, blob: Blob, durationMs: number): Observable<{ audio_duration_ms: number } | null> {
+    return this.http.post<{ audio_duration_ms: number }>(
+      `${this.base}/api/annotations/${annotId}/audio?duration_ms=${durationMs}`,
+      blob,
+      { headers: { 'Content-Type': 'audio/webm' } }
+    ).pipe(catchError(() => of(null)));
+  }
+
+  annotationAudioURL(annotId: string): string {
+    return `${this.base}/api/annotations/${annotId}/audio`;
+  }
+
+  deleteAnnotationAudio(annotId: string): Observable<boolean> {
+    return this.http.delete(`${this.base}/api/annotations/${annotId}/audio`).pipe(
+      map(() => true),
+      catchError(() => of(false))
+    );
   }
 
   // ── windowing ─────────────────────────────────────────────────────────────

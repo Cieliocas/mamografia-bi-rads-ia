@@ -4,11 +4,13 @@ import {
 import { Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import {
   LucideAngularModule,
-  FolderOpen, History, BarChart3, Wrench,
+  FolderOpen, History, Users, BarChart3, Wrench,
   ChevronRight, ChevronLeft
 } from 'lucide-angular';
+import { ApiService, PatientDTO, PatientStudyDTO } from './core/services/api.service';
 
 import { ViewerStateService } from './core/services/viewer-state.service';
 import { StudyService }       from './core/services/study.service';
@@ -21,7 +23,7 @@ import { ConfirmModalComponent } from './shared/components/confirm-modal/confirm
   selector: 'app-root',
   standalone: true,
   imports: [
-    CommonModule, LucideAngularModule,
+    CommonModule, FormsModule, LucideAngularModule,
     ViewerComponent, FindingsPanelComponent,
     SplashComponent, ConfirmModalComponent,
   ],
@@ -32,6 +34,21 @@ export class App implements OnInit, OnDestroy {
 
   readonly state = inject(ViewerStateService);
   readonly study = inject(StudyService);
+  readonly api   = inject(ApiService);
+
+  // ── Patients tab state ────────────────────────────────────────────────────
+  patientQuery = '';
+  patients: PatientDTO[] = [];
+  selectedPatient: PatientDTO | null = null;
+  patientStudies: PatientStudyDTO[] = [];
+
+  loadPatients() {
+    this.api.listPatients(this.patientQuery).subscribe(list => this.patients = list);
+  }
+  selectPatient(p: PatientDTO) {
+    this.selectedPatient = p;
+    this.api.listPatientStudies(p.id).subscribe(list => this.patientStudies = list);
+  }
 
   // ── Splash ────────────────────────────────────────────────────────────────
   showSplash = true;
@@ -40,7 +57,7 @@ export class App implements OnInit, OnDestroy {
   private splashFailSafe: ReturnType<typeof setTimeout>  | null = null;
   private autoSaveSub:    Subscription | null = null;
 
-  readonly icons = { FolderOpen, History, BarChart3, Wrench, ChevronRight, ChevronLeft };
+  readonly icons = { FolderOpen, History, Users, BarChart3, Wrench, ChevronRight, ChevronLeft };
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   ngOnInit() {
