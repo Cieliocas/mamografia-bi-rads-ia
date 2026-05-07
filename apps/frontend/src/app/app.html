@@ -30,6 +30,18 @@
       </div>
     </header>
 
+    <!-- ── DB corruption banner (shown when backend reports corrupted DB) ── -->
+    @if (study.dbCorrupted()) {
+      <div class="flex shrink-0 items-center gap-3 bg-red-900/80 px-4 py-2 text-xs text-red-100 border-b border-red-700">
+        <span class="text-red-300 text-sm">⚠</span>
+        <span class="flex-1">
+          <strong>Banco de dados corrompido.</strong>
+          {{ study.dbCorrupted() }}
+          Use <strong>Exportar → Restaurar backup</strong> no painel direito para recuperar seus dados.
+        </span>
+      </div>
+    }
+
     <!-- ── Main layout ──────────────────────────────────────────────────── -->
     <div class="flex flex-1 overflow-hidden">
 

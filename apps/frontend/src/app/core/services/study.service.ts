@@ -50,6 +50,11 @@ export class StudyService {
   currentFrameCount = signal<number>(1);
   /** 0-indexed frame currently displayed. */
   currentFrame = signal<number>(0);
+  /**
+   * Non-empty when the backend reports a corrupted database.
+   * Contains the human-readable Portuguese error message to display to the user.
+   */
+  dbCorrupted = signal<string>('');
 
   constructor() {
     this.refreshHealth();
@@ -62,6 +67,15 @@ export class StudyService {
     this.api.health().subscribe(s => {
       const online = s.status === 'go-core-up';
       this.backendOnline.set(online);
+      // Surface DB corruption to the UI.
+      if (s.db_status === 'corrupted') {
+        this.dbCorrupted.set(
+          s.db_error ??
+          'Banco de dados corrompido — use Exportar › Restaurar backup para recuperar os dados.'
+        );
+      } else {
+        this.dbCorrupted.set('');
+      }
       if (online && this.backendStudies().length === 0) this.refreshBackendStudies();
     });
     this.api.ready().subscribe(s => {

@@ -118,6 +118,10 @@ export interface HealthStatus {
   ai_engine?: 'ready' | 'down' | 'disabled';
   /** Human-readable reason when ai_engine === "disabled". */
   ai_engine_reason?: string;
+  /** Set by /healthz: "ok" | "corrupted". */
+  db_status?: 'ok' | 'corrupted';
+  /** Human-readable detail when db_status === "corrupted". */
+  db_error?: string;
 }
 
 // ─── Service ──────────────────────────────────────────────────────────────────

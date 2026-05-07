@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -43,9 +44,22 @@ func main() {
 
 	db, err := sqlite.Open(cfg.SQLitePath)
 	if err != nil {
-		log.Fatalf("sqlite: %v", err)
+		var corrupted *sqlite.ErrCorrupted
+		if errors.As(err, &corrupted) {
+			log.Printf("CRITICAL: %v", corrupted)
+			log.Printf("CRITICAL: Use Exportar → Restaurar backup no AIdentify para recuperar os dados.")
+			log.Printf("CRITICAL: Se não houver backup, renomeie %s para desbloqueio de emergência.", cfg.SQLitePath)
+			// Don't fatal — start the server anyway so the Angular frontend
+			// can display a meaningful error via GET /healthz instead of
+			// a blank "backend offline" screen.
+			db = nil
+		} else {
+			log.Fatalf("sqlite: %v", err)
+		}
 	}
-	defer db.Close()
+	if db != nil {
+		defer db.Close()
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -64,6 +78,25 @@ func main() {
 			log.Printf("sidecar start: %v", err)
 		}
 		go supervisor.Watch(ctx, 2*time.Second)
+	}
+
+	// Build health handler with DB status so /healthz can report corruption.
+	dbErrMsg := ""
+	if db == nil {
+		dbErrMsg = "banco de dados corrompido — use Exportar › Restaurar backup para recuperar os dados"
+	}
+	healthHandler := httpadapter.NewHealthHandler(supervisor, dbErrMsg)
+
+	// If the DB is corrupted, start a degraded server: only /healthz responds.
+	// The frontend reads db_status from /healthz and shows a recovery banner.
+	if db == nil {
+		router := httpadapter.NewDegradedRouter(healthHandler)
+		addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
+		log.Printf("go-core in DEGRADED MODE (db corrupted) on %s", addr)
+		if err := router.Run(addr); err != nil {
+			log.Fatalf("server: %v", err)
+		}
+		return
 	}
 
 	taskQ := queue.New(4, 128)
@@ -96,8 +129,8 @@ func main() {
 		httpadapter.NewBackupHandler(db, cfg.SQLitePath, cfg.LocalDataRoot),
 		httpadapter.NewPatientHandler(patientRepo, studyRepo, updatePatient),
 		httpadapter.NewAudioHandler(annotRepo, cfg.LocalDataRoot),
+		healthHandler,
 	)
-	httpadapter.NewHealthHandler(supervisor).RegisterRoutes(router)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
 	log.Printf("go-core listening on %s", addr)
