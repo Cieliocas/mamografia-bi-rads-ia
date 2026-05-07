@@ -259,9 +259,9 @@ export class StudyService {
   }
 
   /** Persists current ROIs as annotations on the active study. */
-  saveAnnotations(rois: VP['rois']) {
+  saveAnnotations(rois: VP['rois'], onDone?: (ok: boolean) => void) {
     const studyId = this.currentStudyId();
-    if (!studyId) return;
-    this.api.saveAnnotations(studyId, rois).subscribe();
+    if (!studyId) { onDone?.(false); return; }
+    this.api.saveAnnotations(studyId, rois).subscribe(ok => onDone?.(ok));
   }
 }

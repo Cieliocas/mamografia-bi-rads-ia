@@ -14,10 +14,12 @@ import { ApiService, PatientDTO, PatientStudyDTO } from './core/services/api.ser
 
 import { ViewerStateService } from './core/services/viewer-state.service';
 import { StudyService }       from './core/services/study.service';
+import { ToastService }       from './core/services/toast.service';
 import { ViewerComponent }    from './features/viewer/viewer.component';
 import { FindingsPanelComponent } from './features/annotations/findings-panel.component';
 import { SplashComponent }    from './shared/components/splash/splash.component';
 import { ConfirmModalComponent } from './shared/components/confirm-modal/confirm-modal.component';
+import { ToastComponent }     from './shared/components/toast/toast.component';
 
 @Component({
   selector: 'app-root',
@@ -25,7 +27,7 @@ import { ConfirmModalComponent } from './shared/components/confirm-modal/confirm
   imports: [
     CommonModule, FormsModule, LucideAngularModule,
     ViewerComponent, FindingsPanelComponent,
-    SplashComponent, ConfirmModalComponent,
+    SplashComponent, ConfirmModalComponent, ToastComponent,
   ],
   templateUrl: './app.html',
   styleUrls: ['./app.css'],
@@ -35,6 +37,7 @@ export class App implements OnInit, OnDestroy {
   readonly state = inject(ViewerStateService);
   readonly study = inject(StudyService);
   readonly api   = inject(ApiService);
+  readonly toast = inject(ToastService);
 
   // ── Patients tab state ────────────────────────────────────────────────────
   patientQuery = '';
@@ -74,7 +77,9 @@ export class App implements OnInit, OnDestroy {
       .pipe(debounceTime(1500))
       .subscribe(vpIdx => {
         if (this.study.currentStudyId()) {
-          this.study.saveAnnotations(this.state.vp[vpIdx].rois);
+          this.study.saveAnnotations(this.state.vp[vpIdx].rois, ok => {
+            if (!ok) this.toast.error('Falha ao salvar anotações');
+          });
         }
       });
   }
@@ -153,7 +158,10 @@ export class App implements OnInit, OnDestroy {
     // Save current annotations explicitly
     else if (ctrl && e.key === 's') {
       e.preventDefault();
-      this.study.saveAnnotations(this.state.activeVPData.rois);
+      this.study.saveAnnotations(this.state.activeVPData.rois, ok => {
+        if (ok) this.toast.success('Anotações salvas');
+        else    this.toast.error('Falha ao salvar anotações');
+      });
     }
   }
 
