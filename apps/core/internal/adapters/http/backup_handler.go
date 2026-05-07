@@ -2,12 +2,14 @@ package http
 
 import (
 	"archive/zip"
+	"bytes"
 	"database/sql"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -37,6 +39,100 @@ func NewBackupHandler(db *sql.DB, sqlitePath, localRoot string) *BackupHandler {
 
 func (h *BackupHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/backup", h.download)
+	rg.POST("/restore", h.restore)
+}
+
+// restore accepts a ZIP backup (same format produced by GET /backup) and stages
+// it for the next server restart.
+//
+// Because SQLite cannot be hot-swapped while open, we write the incoming DB to
+// <sqlitePath>.restore.  On the next process start, main() detects the file and
+// applies the rename before opening the live database.
+//
+// Audio files embedded in the ZIP are written immediately (they are not open
+// exclusively, so an atomic replace is safe).
+func (h *BackupHandler) restore(c *gin.Context) {
+	uploadedFile, fileHdr, err := c.Request.FormFile("backup")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "backup file required (field: backup): " + err.Error()})
+		return
+	}
+	defer uploadedFile.Close()
+
+	// Read the entire upload into memory so we can open it as a ZIP.
+	// Backups are typically < 100 MB; for larger ones a temp file would be better.
+	if fileHdr.Size > 200<<20 { // 200 MB guard
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"error": "backup file exceeds 200 MB limit"})
+		return
+	}
+
+	data := make([]byte, fileHdr.Size)
+	if _, err := io.ReadFull(uploadedFile, data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "read upload: " + err.Error()})
+		return
+	}
+
+	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "not a valid ZIP backup: " + err.Error()})
+		return
+	}
+
+	dbRestored := false
+	audioCount := 0
+
+	for _, zf := range zr.File {
+		switch {
+		case zf.Name == "aidentify.db":
+			if err := extractZipEntryToFile(zf, h.sqlitePath+".restore"); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "extract db: " + err.Error()})
+				return
+			}
+			dbRestored = true
+
+		case strings.HasPrefix(zf.Name, "audio/") && !zf.FileInfo().IsDir():
+			dest := filepath.Join(h.localRoot, filepath.FromSlash(zf.Name))
+			if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+				continue
+			}
+			if err := extractZipEntryToFile(zf, dest); err == nil {
+				audioCount++
+			}
+		}
+	}
+
+	if !dbRestored {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "ZIP does not contain aidentify.db"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":      "pending_restart",
+		"audio_files": audioCount,
+		"message":     fmt.Sprintf("Backup recebido (%d arquivos de áudio restaurados). Feche e reabra o AIdentify para aplicar o banco de dados.", audioCount),
+	})
+}
+
+func extractZipEntryToFile(zf *zip.File, dest string) error {
+	rc, err := zf.Open()
+	if err != nil {
+		return err
+	}
+	defer rc.Close()
+
+	out, err := os.CreateTemp(filepath.Dir(dest), ".restore-*")
+	if err != nil {
+		return err
+	}
+	tmpName := out.Name()
+	defer func() { _ = os.Remove(tmpName) }()
+
+	if _, err := io.Copy(out, rc); err != nil {
+		out.Close()
+		return err
+	}
+	out.Close()
+	return os.Rename(tmpName, dest)
 }
 
 func (h *BackupHandler) download(c *gin.Context) {

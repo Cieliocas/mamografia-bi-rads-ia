@@ -245,6 +245,19 @@ export class ApiService {
     a.click();
   }
 
+  /**
+   * Uploads a backup ZIP for restore.
+   * The server stages the DB and responds with { status: 'pending_restart', message }.
+   * The app must be restarted for the DB swap to take effect.
+   */
+  restoreBackup(file: File): Observable<{ status: string; message: string } | null> {
+    const fd = new FormData();
+    fd.append('backup', file);
+    return this.http.post<{ status: string; message: string }>(
+      `${this.base}/api/restore`, fd
+    ).pipe(catchError(() => of(null)));
+  }
+
   // ── patients ──────────────────────────────────────────────────────────────
   listPatients(query?: string, limit = 50): Observable<PatientDTO[]> {
     const q = query ? `?q=${encodeURIComponent(query)}&limit=${limit}` : `?limit=${limit}`;

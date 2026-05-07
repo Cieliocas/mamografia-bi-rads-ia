@@ -76,11 +76,14 @@ func (r *DICOMReader) ReadDICOM(path string) (*outbound.Pixels16, *outbound.DICO
 	samplesPerPx, _ := firstInt(ds, tag.SamplesPerPixel)
 	rows, _ := firstInt(ds, tag.Rows)
 	cols, _ := firstInt(ds, tag.Columns)
+	// PixelRepresentation (0028,0103): 0 = unsigned, 1 = signed.
+	pixelRepr, _ := firstInt(ds, tag.PixelRepresentation)
 
 	pixels, err := readFrameInt16(ds, path, ts, 0, bitsAlloc, samplesPerPx, rows, cols)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dicom_reader: pixels in %q (TS=%s): %w", path, ts, err)
 	}
+	pixels.Signed = pixelRepr == 1
 	return pixels, meta, nil
 }
 
@@ -95,7 +98,13 @@ func (r *DICOMReader) ReadDICOMFrame(path string, frameIdx int) (*outbound.Pixel
 	samplesPerPx, _ := firstInt(ds, tag.SamplesPerPixel)
 	rows, _ := firstInt(ds, tag.Rows)
 	cols, _ := firstInt(ds, tag.Columns)
-	return readFrameInt16(ds, path, ts, frameIdx, bitsAlloc, samplesPerPx, rows, cols)
+	pixelRepr, _ := firstInt(ds, tag.PixelRepresentation)
+	pixels, err := readFrameInt16(ds, path, ts, frameIdx, bitsAlloc, samplesPerPx, rows, cols)
+	if err != nil {
+		return nil, err
+	}
+	pixels.Signed = pixelRepr == 1
+	return pixels, nil
 }
 
 func countFrames(ds dicom.Dataset) int {

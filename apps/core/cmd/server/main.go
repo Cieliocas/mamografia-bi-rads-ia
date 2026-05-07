@@ -28,6 +28,19 @@ func main() {
 		}
 	}
 
+	// Apply a pending DB restore if one was staged by POST /api/restore.
+	// The restore endpoint cannot hot-swap the live SQLite file, so it writes
+	// the incoming DB to <sqlitePath>.restore and we apply it here before opening.
+	pendingRestore := cfg.SQLitePath + ".restore"
+	if _, err := os.Stat(pendingRestore); err == nil {
+		log.Printf("applying pending DB restore: %s → %s", pendingRestore, cfg.SQLitePath)
+		if err := os.Rename(pendingRestore, cfg.SQLitePath); err != nil {
+			log.Printf("WARNING: failed to apply DB restore: %v (continuing with existing DB)", err)
+		} else {
+			log.Printf("DB restore applied successfully")
+		}
+	}
+
 	db, err := sqlite.Open(cfg.SQLitePath)
 	if err != nil {
 		log.Fatalf("sqlite: %v", err)

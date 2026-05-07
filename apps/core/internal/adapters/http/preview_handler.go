@@ -203,15 +203,27 @@ func drawVLine(img *image.RGBA, x, y0, y1 int, c color.Color) {
 	}
 }
 
-// renderGrayscale maps int16 pixel values through a linear WW/WC LUT into an
+// renderGrayscale maps pixel values through a linear WW/WC LUT into an
 // 8-bit grayscale image. Values outside the window are clipped to 0 / 255.
+//
+// p.Signed controls how the int16 storage is interpreted:
+//   - Signed == true  → two's-complement signed range (-32768…32767)
+//   - Signed == false → unsigned bits reinterpreted as uint16 (0…65535);
+//     this is the correct handling for PixelRepresentation=0 DICOMs where
+//     pixel values > 32767 would otherwise appear as negative (black).
 func renderGrayscale(p *outbound.Pixels16, wc, ww float64) *image.Gray {
 	img := image.NewGray(image.Rect(0, 0, p.Width, p.Height))
 	half := ww / 2
 	low := wc - half
 	for y := 0; y < p.Height; y++ {
 		for x := 0; x < p.Width; x++ {
-			v := float64(p.Data[y*p.Width+x])
+			raw := p.Data[y*p.Width+x]
+			var v float64
+			if p.Signed {
+				v = float64(raw)
+			} else {
+				v = float64(uint16(raw)) // reinterpret bits as unsigned
+			}
 			var g uint8
 			switch {
 			case v <= low:

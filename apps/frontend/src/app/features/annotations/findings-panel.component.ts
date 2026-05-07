@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import {
   LucideAngularModule,
   Trash2, Copy, Clipboard, Undo2, Redo2,
-  Circle, Square, Columns, RotateCw, Download, FileText, FileJson,
+  Circle, Square, Columns, RotateCw, Download, Upload, FileText, FileJson,
   Mic, MicOff, Play, Pause, X as XIcon
 } from 'lucide-angular';
 
@@ -28,7 +28,7 @@ export class FindingsPanelComponent implements OnDestroy {
   readonly api   = inject(ApiService);
   readonly toast = inject(ToastService);
 
-  readonly icons = { Trash2, Copy, Clipboard, Undo2, Redo2, Circle, Square, Columns, RotateCw, Download, FileText, FileJson, Mic, MicOff, Play, Pause, XIcon };
+  readonly icons = { Trash2, Copy, Clipboard, Undo2, Redo2, Circle, Square, Columns, RotateCw, Download, Upload, FileText, FileJson, Mic, MicOff, Play, Pause, XIcon };
 
   // ── Audio recording ────────────────────────────────────────────────────────
   audioRecording = false;
@@ -171,6 +171,29 @@ export class FindingsPanelComponent implements OnDestroy {
     this.api.downloadBackup();
     this.showExportModal = false;
     this.toast.info('Download backup iniciado');
+  }
+
+  importBackupFile: File | null = null;
+  importingBackup = false;
+
+  onImportBackupSelected(e: Event) {
+    const f = (e.target as HTMLInputElement).files?.[0];
+    if (f) this.importBackupFile = f;
+  }
+
+  importBackup() {
+    if (!this.importBackupFile) return;
+    this.importingBackup = true;
+    this.api.restoreBackup(this.importBackupFile).subscribe(res => {
+      this.importingBackup = false;
+      this.importBackupFile = null;
+      this.showExportModal = false;
+      if (res?.status === 'pending_restart') {
+        this.toast.success('Backup recebido! Feche e reabra o AIdentify para restaurar.');
+      } else {
+        this.toast.error('Falha ao importar backup');
+      }
+    });
   }
   exportMarkedImage() {
     const sid = this.study.currentStudyId();
