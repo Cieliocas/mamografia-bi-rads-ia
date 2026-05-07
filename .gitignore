@@ -62,3 +62,12 @@ apps/desktop/dist/*
 mammografia_code.zip
 Mammo BI-RADS Desktop Dev.app/
 aidentify.app/
+
+# --- Claude Code internals ---
+.claude/
+
+# --- Desktop packaging directory (local build artifacts) ---
+desktop/
+
+# --- Compiled Go binaries ---
+apps/core/go-core
