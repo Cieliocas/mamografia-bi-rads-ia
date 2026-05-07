@@ -17,10 +17,13 @@ func NewRouter(
 	backup    *BackupHandler,
 	patient   *PatientHandler,
 	audio     *AudioHandler,
+	health    *HealthHandler,
 ) *gin.Engine {
 	r := gin.Default()
 
 	r.Use(corsMiddleware())
+
+	health.RegisterRoutes(r)
 
 	api := r.Group("/api")
 	pdi.RegisterRoutes(api)
@@ -32,6 +35,23 @@ func NewRouter(
 	patient.RegisterRoutes(api)
 	audio.RegisterRoutes(api)
 
+	return r
+}
+
+// NewDegradedRouter starts a minimal server used when the database is
+// unavailable (e.g. corrupted). Only /healthz is served so the Angular
+// frontend can read db_status and display a recovery prompt.
+// All /api/* routes return 503.
+func NewDegradedRouter(health *HealthHandler) *gin.Engine {
+	r := gin.Default()
+	r.Use(corsMiddleware())
+	health.RegisterRoutes(r)
+	r.NoRoute(func(c *gin.Context) {
+		c.JSON(http.StatusServiceUnavailable, gin.H{
+			"error":     "banco de dados indisponível",
+			"db_status": "corrupted",
+		})
+	})
 	return r
 }
 

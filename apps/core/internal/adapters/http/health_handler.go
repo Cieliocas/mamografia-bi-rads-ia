@@ -11,10 +11,13 @@ import (
 // HealthHandler exposes /healthz, /readyz and /startup/status.
 type HealthHandler struct {
 	supervisor *guardian.Supervisor
+	// dbError is non-empty when the database could not be opened (e.g. corrupted).
+	// Exposed in /healthz so the frontend can display a recovery prompt.
+	dbError string
 }
 
-func NewHealthHandler(g *guardian.Supervisor) *HealthHandler {
-	return &HealthHandler{supervisor: g}
+func NewHealthHandler(g *guardian.Supervisor, dbError string) *HealthHandler {
+	return &HealthHandler{supervisor: g, dbError: dbError}
 }
 
 // RegisterRoutes wires health endpoints directly on the root engine.
@@ -25,7 +28,14 @@ func (h *HealthHandler) RegisterRoutes(r *gin.Engine) {
 }
 
 func (h *HealthHandler) liveness(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"status": "go-core-up"})
+	body := gin.H{"status": "go-core-up"}
+	if h.dbError != "" {
+		body["db_status"] = "corrupted"
+		body["db_error"] = h.dbError
+	} else {
+		body["db_status"] = "ok"
+	}
+	c.JSON(http.StatusOK, body)
 }
 
 // readiness reports the state of both the Go core (always up if this handler

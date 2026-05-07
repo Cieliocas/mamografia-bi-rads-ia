@@ -15,17 +15,52 @@ import (
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-// DB opens (or creates) the SQLite database at path and runs migrations.
+// Open opens (or creates) the SQLite database at path and runs migrations.
+// It performs PRAGMA integrity_check before running migrations; if the check
+// fails it returns an ErrCorrupted sentinel so callers can prompt the user
+// to restore from backup rather than silently overwriting data.
 func Open(path string) (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", path+"?_foreign_keys=on&_journal_mode=WAL")
 	if err != nil {
 		return nil, fmt.Errorf("sqlite open: %w", err)
 	}
+
+	// Integrity check (fast for typical < 500 MB databases).
+	if err := checkIntegrity(db); err != nil {
+		_ = db.Close()
+		return nil, err
+	}
+
 	if err := migrate(db); err != nil {
 		_ = db.Close()
 		return nil, fmt.Errorf("sqlite migrate: %w", err)
 	}
 	return db, nil
+}
+
+// ErrCorrupted is returned by Open when PRAGMA integrity_check reports problems.
+// Callers should ask the user to restore from backup before continuing.
+type ErrCorrupted struct{ Detail string }
+
+func (e *ErrCorrupted) Error() string {
+	return "banco de dados corrompido (" + e.Detail + "): restaure a partir de um backup"
+}
+
+func checkIntegrity(db *sql.DB) error {
+	rows, err := db.Query(`PRAGMA integrity_check(1)`)
+	if err != nil {
+		// brand-new empty file: not an error
+		return nil
+	}
+	defer rows.Close()
+	var result string
+	if rows.Next() {
+		_ = rows.Scan(&result)
+	}
+	if result != "ok" && result != "" {
+		return &ErrCorrupted{Detail: result}
+	}
+	return nil
 }
 
 func migrate(db *sql.DB) error {
