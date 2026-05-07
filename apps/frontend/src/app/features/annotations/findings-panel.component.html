@@ -557,6 +557,32 @@
             <p class="text-[10px] text-neutral-500">ZIP com banco SQLite + arquivos de áudio</p>
           </div>
         </button>
+
+        <!-- Restaurar backup -->
+        <div class="rounded border border-white/8 bg-neutral-900/50 px-3 py-2.5">
+          <div class="flex items-center gap-3">
+            <lucide-icon [img]="icons.Upload" [size]="16" class="text-sky-400 shrink-0" />
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-semibold text-on-surface">Restaurar backup</p>
+              <p class="text-[10px] text-neutral-500">Selecione um ZIP de backup para restaurar</p>
+            </div>
+          </div>
+          <div class="mt-2 flex items-center gap-2">
+            <label class="flex-1 min-w-0 cursor-pointer rounded border border-white/10 bg-neutral-950/60 px-2 py-1 text-[11px] text-on-surface-variant hover:border-sky-500/40 transition">
+              <span class="truncate">{{ importBackupFile ? importBackupFile.name : 'Escolher arquivo…' }}</span>
+              <input type="file" accept=".zip" class="hidden" (change)="onImportBackupSelected($event)" />
+            </label>
+            <button
+              class="rounded border border-sky-500/30 bg-sky-900/20 px-3 py-1 text-[11px] text-sky-200 hover:bg-sky-900/40 transition disabled:opacity-40 disabled:cursor-not-allowed"
+              [disabled]="!importBackupFile || importingBackup"
+              (click)="importBackup()">
+              {{ importingBackup ? '…' : 'Restaurar' }}
+            </button>
+          </div>
+          @if (importBackupFile) {
+            <p class="mt-1 text-[9px] text-amber-400/80">⚠ O app será reiniciado para aplicar o restauro.</p>
+          }
+        </div>
       </div>
     </div>
   </div>

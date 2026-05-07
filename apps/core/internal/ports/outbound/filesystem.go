@@ -1,10 +1,17 @@
 package outbound
 
-// Pixels16 holds raw 16-bit pixel data from a single DICOM frame.
+// Pixels16 holds raw pixel data from a single DICOM frame, normalised to
+// int16 storage. Callers that need the true numeric range must consult Signed:
+//   - Signed == true  → values are two's-complement int16 (-32768 … 32767)
+//   - Signed == false → values are unsigned uint16 bits stored in int16;
+//     recover the original value with uint16(v).
 type Pixels16 struct {
 	Data   []int16
 	Width  int
 	Height int
+	// Signed reflects DICOM tag PixelRepresentation (0028,0103):
+	// 0 = unsigned (default), 1 = signed two's-complement.
+	Signed bool
 }
 
 // DICOMMetadata captures the essential DICOM header fields.
