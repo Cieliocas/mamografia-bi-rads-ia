@@ -76,19 +76,20 @@ máquina.
 | Sintoma | Solução |
 |---------|---------|
 | `.app` não abre, mensagem de Gatekeeper | Clique direito → **Abrir** (só primeira vez) |
-| Imagem não aparece após selecionar `.dcm` | Confirmar que o `.dcm` é PixelData não-comprimido. Compressão JPEG-Lossless / JPEG-LS não é suportada nesta versão |
+| Imagem não aparece após selecionar `.dcm` JPEG-Lossless | Instalar DCMTK: `brew install dcmtk`. Com DCMTK presente, JPEG-Lossless, JPEG-LS e JPEG-2000 são suportados |
 | Anotações não persistem | Verificar indicador **Go Core**: tem de estar `● online` |
 | App não arranca, "porto 8088 ocupado" | Outro processo do AIdentify activo. Forçar fecho via Activity Monitor e relançar |
 
 ---
 
-## Limitações conhecidas (versão sem IA)
+## Limitações conhecidas (versão 0.2 sem IA)
 
 - Modelo de IA ainda em treino → botão "Rodar IA" desabilitado.
-- DICOM com pixel data comprimido (JPEG-Lossless, JPEG-LS, JPEG-2000)
-  ainda não é suportado. Mamografias clínicas geralmente vêm
-  descomprimidas, mas alguns PACS comprimem em trânsito.
-- Apenas a primeira frame de DICOMs multi-frame é exibida.
+- DICOM JPEG-Lossless / JPEG-LS requer `dcmtk` instalado (`brew install dcmtk`).
+  Sem dcmtk o app exibe um toast de erro com as instruções.
+- JPEG-2000 requer `gdcm` instalado (`brew install gdcm`).
+- DICOMs multi-frame: navegação frame-a-frame disponível com os botões
+  `‹` / `›` que aparecem na barra inferior do viewer.
 - LUT VOI não-linear (`VOILUTSequence`) ainda não aplicada — usa-se WW/WC
   linear do header.
 

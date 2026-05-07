@@ -127,4 +127,6 @@ fi
 
 log "iniciando app desktop..."
 cd "$UI_DIR"
-AI_ENGINE_PYTHON="$AI_PY" "$WAILS_BIN" dev -s
+# GO_CORE_EXTERNAL=1 tells the Wails app.go NOT to auto-launch a second
+# instance of go-core — we already manage it here in this dev script.
+GO_CORE_EXTERNAL=1 AI_ENGINE_PYTHON="$AI_PY" "$WAILS_BIN" dev -s

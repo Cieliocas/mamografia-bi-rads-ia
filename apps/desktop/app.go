@@ -2,24 +2,112 @@ package main
 
 import (
 	"context"
+	"log"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
-// App struct
+// App is the Wails application struct.
 type App struct {
-	ctx context.Context
+	ctx     context.Context
+	coreCmd *exec.Cmd
 }
 
-// NewApp creates a new App application struct
+// NewApp creates a new App application struct.
 func NewApp() *App {
 	return &App{}
 }
 
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
+// startup is called by Wails after the window is ready.
+// It saves the context and, in bundled mode, launches the Go Core sidecar.
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.launchGoCore()
+}
+
+// shutdown is called by Wails when the window closes.
+// It terminates the Go Core sidecar if we own it.
+func (a *App) shutdown(_ context.Context) {
+	if a.coreCmd == nil || a.coreCmd.Process == nil {
+		return
+	}
+	log.Println("[desktop] shutting down go-core…")
+	_ = a.coreCmd.Process.Kill()
+	// Give it up to 2 s to exit cleanly before we abandon the wait.
+	done := make(chan error, 1)
+	go func() { done <- a.coreCmd.Wait() }()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+	}
+}
+
+// launchGoCore starts the Go Core binary as a managed subprocess.
+//
+// It is skipped when:
+//   - GO_CORE_EXTERNAL=1  — set by run_desktop_dev.sh so the dev-loop keeps
+//     ownership of the core process, avoiding a double-launch.
+//   - The go-core binary cannot be found (degraded mode: no storage, no AI,
+//     but the viewer canvas still works for file-opened images).
+func (a *App) launchGoCore() {
+	if os.Getenv("GO_CORE_EXTERNAL") == "1" {
+		log.Println("[desktop] GO_CORE_EXTERNAL=1 — skipping go-core auto-launch")
+		return
+	}
+
+	bin, err := goCoreExecutable()
+	if err != nil {
+		log.Printf("[desktop] go-core not found (%v) — running in viewer-only mode", err)
+		return
+	}
+
+	cmd := exec.Command(bin)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Start(); err != nil {
+		log.Printf("[desktop] failed to start go-core: %v", err)
+		return
+	}
+	a.coreCmd = cmd
+	log.Printf("[desktop] go-core started (pid %d)", cmd.Process.Pid)
+}
+
+// goCoreExecutable returns the absolute path to the go-core binary.
+//
+// Search order:
+//  1. Same directory as the running executable (bundled .app case:
+//     Contents/MacOS/go-core sits next to Contents/MacOS/AIdentify).
+//  2. $PATH lookup — useful when the developer builds the core manually
+//     and adds it to PATH.
+//  3. Relative path ../../core/go-core — convenient during `wails dev`
+//     when both are built with `go build`.
+func goCoreExecutable() (string, error) {
+	// 1. Sibling of running executable.
+	if exe, err := os.Executable(); err == nil {
+		candidate := filepath.Join(filepath.Dir(exe), "go-core")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
+	}
+
+	// 2. $PATH.
+	if path, err := exec.LookPath("go-core"); err == nil {
+		return path, nil
+	}
+
+	// 3. Relative path from the wails dev working directory.
+	rel := filepath.Join("..", "core", "go-core")
+	if abs, err := filepath.Abs(rel); err == nil {
+		if _, err := os.Stat(abs); err == nil {
+			return abs, nil
+		}
+	}
+
+	return "", os.ErrNotExist
 }
 
 // OpenFileDialog opens a native OS file picker and returns the chosen path.

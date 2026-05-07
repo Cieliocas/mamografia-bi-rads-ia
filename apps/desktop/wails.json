@@ -8,6 +8,13 @@
   "frontend:dev:watcher": "/usr/local/bin/npm start",
   "frontend:dev:serverUrl": "http://localhost:4200",
   "wailsjsdir": "../frontend/src/app",
+  "info": {
+    "companyName": "ICIT / UFPI",
+    "productName": "AIdentify",
+    "productVersion": "0.2.0",
+    "copyright": "© 2026 ICIT/UFPI. Todos os direitos reservados.",
+    "comments": "Ferramenta de auxílio ao diagnóstico mamográfico. Uso exclusivo por profissionais habilitados."
+  },
   "author": {
     "name": "cieliocas",
     "email": "francielioevangelista@hotmail.com"
