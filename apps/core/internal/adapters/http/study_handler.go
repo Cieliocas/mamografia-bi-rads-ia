@@ -110,6 +110,7 @@ func (h *StudyHandler) createStudy(c *gin.Context) {
 		resp["window_center"] = m.WindowCenter
 		resp["window_width"] = m.WindowWidth
 		resp["bits_stored"] = m.BitsStored
+		resp["frame_count"] = m.FrameCount
 	}
 	c.JSON(http.StatusCreated, resp)
 }

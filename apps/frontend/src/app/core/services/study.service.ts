@@ -46,6 +46,10 @@ export class StudyService {
   currentClinical = signal<ClinicalFields | null>(null);
   /** Patient associated with the active study. */
   currentPatient = signal<PatientDTO | null>(null);
+  /** Total frames in the active DICOM (1 for single-frame). */
+  currentFrameCount = signal<number>(1);
+  /** 0-indexed frame currently displayed. */
+  currentFrame = signal<number>(0);
 
   constructor() {
     this.refreshHealth();
@@ -106,6 +110,29 @@ export class StudyService {
       width:        resp.width,
       height:       resp.height,
     });
+    this.currentFrameCount.set(resp.frame_count && resp.frame_count > 1 ? resp.frame_count : 1);
+    this.currentFrame.set(0);
+  }
+
+  /**
+   * Switches the viewport to a specific frame of the current multi-frame DICOM.
+   * Fetches the rendered preview PNG for the requested frame from the backend.
+   */
+  navigateFrame(frameIdx: number, vpIdx: number, vp: VP, onLoaded: (vpIdx: number) => void) {
+    const studyId = this.currentStudyId();
+    if (!studyId) return;
+    const total = this.currentFrameCount();
+    const frame = Math.max(0, Math.min(frameIdx, total - 1));
+    this.currentFrame.set(frame);
+
+    const previewURL = this.api.previewURL(studyId, undefined, undefined, frame);
+    const img = new Image();
+    img.onload = () => {
+      vp.loadedImage = img;
+      vp.imageDataUrl = previewURL;
+      onLoaded(vpIdx);
+    };
+    img.src = previewURL;
   }
 
   /** Reloads the study list from the Go Core. */
@@ -131,6 +158,8 @@ export class StudyService {
         const fakePath = `/uploads/${file.name}`;
         this.currentFilePath.set(fakePath);
         this.latestFindings.set([]);
+        this.currentFrameCount.set(1);
+        this.currentFrame.set(0);
 
         const entry: HistoryEntry = {
           name: file.name,
@@ -259,9 +288,9 @@ export class StudyService {
   }
 
   /** Persists current ROIs as annotations on the active study. */
-  saveAnnotations(rois: VP['rois']) {
+  saveAnnotations(rois: VP['rois'], onDone?: (ok: boolean) => void) {
     const studyId = this.currentStudyId();
-    if (!studyId) return;
-    this.api.saveAnnotations(studyId, rois).subscribe();
+    if (!studyId) { onDone?.(false); return; }
+    this.api.saveAnnotations(studyId, rois).subscribe(ok => onDone?.(ok));
   }
 }

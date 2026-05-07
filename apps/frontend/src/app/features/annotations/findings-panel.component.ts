@@ -11,6 +11,7 @@ import {
 import { ViewerStateService } from '../../core/services/viewer-state.service';
 import { StudyService } from '../../core/services/study.service';
 import { ApiService } from '../../core/services/api.service';
+import { ToastService } from '../../core/services/toast.service';
 import { biradsColor } from '../../shared/models/types';
 import type { BiRads } from '../../shared/models/types';
 
@@ -25,6 +26,7 @@ export class FindingsPanelComponent implements OnDestroy {
   readonly state = inject(ViewerStateService);
   readonly study = inject(StudyService);
   readonly api   = inject(ApiService);
+  readonly toast = inject(ToastService);
 
   readonly icons = { Trash2, Copy, Clipboard, Undo2, Redo2, Circle, Square, Columns, RotateCw, Download, FileText, FileJson, Mic, MicOff, Play, Pause, XIcon };
 
@@ -113,8 +115,10 @@ export class FindingsPanelComponent implements OnDestroy {
         this.audioUploading = false;
         if (res) {
           roi.audioDurationMs = res.audio_duration_ms;
+          this.toast.success('Nota de voz salva');
         } else {
           this.audioError = 'Falha ao enviar áudio';
+          this.toast.error('Falha ao enviar nota de voz');
         }
       });
     };
@@ -125,7 +129,12 @@ export class FindingsPanelComponent implements OnDestroy {
     const roi = this.state.selectedROI;
     if (!roi?.annotationId) return;
     this.api.deleteAnnotationAudio(roi.annotationId).subscribe(ok => {
-      if (ok) roi.audioDurationMs = 0;
+      if (ok) {
+        roi.audioDurationMs = 0;
+        this.toast.info('Nota de voz removida');
+      } else {
+        this.toast.error('Falha ao remover nota de voz');
+      }
     });
   }
 
@@ -143,18 +152,31 @@ export class FindingsPanelComponent implements OnDestroy {
     this.exportStudyIds = sid ? [sid] : [];
     this.showExportModal = true;
   }
-  exportJSON()   { this.api.downloadExport('json', this.exportStudyIds); this.showExportModal = false; }
-  exportCSV()    { this.api.downloadExport('csv',  this.exportStudyIds); this.showExportModal = false; }
+  exportJSON()   {
+    this.api.downloadExport('json', this.exportStudyIds);
+    this.showExportModal = false;
+    this.toast.info('Download JSON iniciado');
+  }
+  exportCSV()    {
+    this.api.downloadExport('csv',  this.exportStudyIds);
+    this.showExportModal = false;
+    this.toast.info('Download CSV iniciado');
+  }
   exportReport() {
     const sid = this.study.currentStudyId();
     if (sid) this.api.openReport(sid);
     this.showExportModal = false;
   }
-  exportBackup() { this.api.downloadBackup(); this.showExportModal = false; }
+  exportBackup() {
+    this.api.downloadBackup();
+    this.showExportModal = false;
+    this.toast.info('Download backup iniciado');
+  }
   exportMarkedImage() {
     const sid = this.study.currentStudyId();
     if (sid) this.api.downloadAnnotatedPNG(sid);
     this.showExportModal = false;
+    this.toast.info('Download imagem marcada iniciado');
   }
 
   // ── Clinical fields ────────────────────────────────────────────────────────
@@ -199,7 +221,10 @@ export class FindingsPanelComponent implements OnDestroy {
   savePatient() {
     this.patientSaving = true;
     this.study.savePatient(this.patient);
-    setTimeout(() => this.patientSaving = false, 500);
+    setTimeout(() => {
+      this.patientSaving = false;
+      this.toast.success('Paciente salvo');
+    }, 500);
   }
 
   saveClinical() {
@@ -212,13 +237,23 @@ export class FindingsPanelComponent implements OnDestroy {
     };
     this.api.patchClinical(sid, payload).subscribe(ok => {
       this.clinicalSaving = false;
-      if (ok) this.clinicalSavedAt = payload.signed_at;
+      if (ok) {
+        this.clinicalSavedAt = payload.signed_at;
+        this.toast.success('Laudo salvo');
+      } else {
+        this.toast.error('Falha ao salvar laudo');
+      }
     });
   }
 
   // ── Backend integration ─────────────────────────────────────────────────────
   runInference() { this.study.runInference(); }
-  persist()      { this.study.saveAnnotations(this.state.rois); }
+  persist() {
+    this.study.saveAnnotations(this.state.rois, ok => {
+      if (ok) this.toast.success('Anotações salvas');
+      else    this.toast.error('Falha ao salvar anotações');
+    });
+  }
 
   /** Emitted when the consumer should redraw a viewport. */
   @Output() drawRequest = new EventEmitter<number>();

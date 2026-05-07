@@ -2,7 +2,7 @@ import {
   Component, ElementRef, ViewChild, HostListener, inject, AfterViewInit
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { LucideAngularModule, Hand, Target, Ruler, ZoomOut, ZoomIn, Maximize2 } from 'lucide-angular';
+import { LucideAngularModule, Hand, Target, Ruler, ZoomOut, ZoomIn, Maximize2, ChevronLeft, ChevronRight } from 'lucide-angular';
 
 import { ViewerStateService } from '../../core/services/viewer-state.service';
 import { StudyService } from '../../core/services/study.service';
@@ -22,7 +22,7 @@ export class ViewerComponent implements AfterViewInit {
   readonly state = inject(ViewerStateService);
   readonly study = inject(StudyService);
 
-  readonly icons = { Hand, Target, Ruler, ZoomOut, ZoomIn, Maximize2 };
+  readonly icons = { Hand, Target, Ruler, ZoomOut, ZoomIn, Maximize2, ChevronLeft, ChevronRight };
 
   @ViewChild('fileInput') fileInput!: ElementRef<HTMLInputElement>;
   @ViewChild('c0', { static: false }) c0?: ElementRef<HTMLCanvasElement>;
@@ -434,6 +434,17 @@ export class ViewerComponent implements AfterViewInit {
     this.state.vp[vpIdx].zoom = Math.min(Math.max(this.state.vp[vpIdx].zoom * delta, 0.03), 12);
     this.draw(vpIdx);
   }
+
+  // ── Multi-frame navigation ─────────────────────────────────────────────────
+  get frameCount(): number { return this.study.currentFrameCount(); }
+  get currentFrame(): number { return this.study.currentFrame(); }
+
+  private _navigateFrame(idx: number) {
+    const vpIdx = this.state.activeVp;
+    this.study.navigateFrame(idx, vpIdx, this.state.vp[vpIdx], (i) => this.draw(i));
+  }
+  prevFrame() { this._navigateFrame(this.currentFrame - 1); }
+  nextFrame() { this._navigateFrame(this.currentFrame + 1); }
 
   // ── Computed ───────────────────────────────────────────────────────────────
   get cursorClass(): string {

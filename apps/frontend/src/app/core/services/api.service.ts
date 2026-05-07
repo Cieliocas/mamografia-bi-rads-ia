@@ -52,6 +52,8 @@ export interface OpenStudyResponse {
   window_center?: number;
   window_width?: number;
   bits_stored?: number;
+  /** Total number of frames; 1 for single-frame DICOMs. */
+  frame_count?: number;
 }
 
 export interface StudyListItem {
@@ -278,10 +280,11 @@ export class ApiService {
   }
 
   /** URL of the rendered DICOM preview (PNG with WW/WC applied server-side). */
-  previewURL(studyId: string, ww?: number, wc?: number): string {
+  previewURL(studyId: string, ww?: number, wc?: number, frame?: number): string {
     const q: string[] = [];
     if (ww) q.push(`ww=${ww}`);
     if (wc) q.push(`wc=${wc}`);
+    if (frame && frame > 0) q.push(`frame=${frame}`);
     const qs = q.length ? `?${q.join('&')}` : '';
     return `${this.base}/api/studies/${studyId}/preview${qs}`;
   }

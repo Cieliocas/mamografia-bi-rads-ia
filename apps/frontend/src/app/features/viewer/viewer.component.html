@@ -166,4 +166,28 @@
     <lucide-icon [img]="icons.Maximize2" [size]="15" />
   </button>
 
+  <!-- Frame navigation (multi-frame DICOM only) -->
+  @if (frameCount > 1) {
+    <span class="mx-1.5 h-4 w-px bg-neutral-700"></span>
+    <button
+      title="Frame anterior"
+      class="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+      [disabled]="currentFrame === 0"
+      (click)="prevFrame()"
+    >
+      <lucide-icon [img]="icons.ChevronLeft" [size]="15" />
+    </button>
+    <span class="min-w-[4rem] text-center text-[11px] tabular-nums text-neutral-400 select-none">
+      {{ currentFrame + 1 }} / {{ frameCount }}
+    </span>
+    <button
+      title="Próximo frame"
+      class="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+      [disabled]="currentFrame === frameCount - 1"
+      (click)="nextFrame()"
+    >
+      <lucide-icon [img]="icons.ChevronRight" [size]="15" />
+    </button>
+  }
+
 </div>
