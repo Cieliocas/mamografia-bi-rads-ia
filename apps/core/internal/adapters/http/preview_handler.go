@@ -47,7 +47,22 @@ func (h *PreviewHandler) preview(c *gin.Context) {
 		return
 	}
 
-	pixels, meta, err := h.reader.ReadDICOM(study.FilePath)
+	// ?frame=N (0-indexed) selects a specific frame for multi-frame DICOMs.
+	// When absent (or 0) the first frame is returned via ReadDICOM so metadata
+	// is still available for windowing defaults.
+	var pixels *outbound.Pixels16
+	var meta *outbound.DICOMMetadata
+
+	frameIdx := 0
+	if v, err2 := strconv.Atoi(c.Query("frame")); err2 == nil && v > 0 {
+		frameIdx = v
+	}
+
+	if frameIdx == 0 {
+		pixels, meta, err = h.reader.ReadDICOM(study.FilePath)
+	} else {
+		pixels, err = h.reader.ReadDICOMFrame(study.FilePath, frameIdx)
+	}
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})
 		return

@@ -2,6 +2,7 @@ package filesystem
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"image"
 	"image/color"
@@ -60,16 +61,56 @@ func (r *DICOMReader) ReadDICOM(path string) (*outbound.Pixels16, *outbound.DICO
 	meta.WindowWidth, _ = firstFloat(ds, tag.WindowWidth)
 	meta.BitsStored, _ = firstInt(ds, tag.BitsStored)
 
+	// FrameCount: prefer explicit (0028,0008); fall back to counting parsed frames.
+	if n, ok := firstInt(ds, tag.NumberOfFrames); ok && n > 0 {
+		meta.FrameCount = n
+	} else if n := countFrames(ds); n > 0 {
+		meta.FrameCount = n
+	} else {
+		meta.FrameCount = 1
+	}
+
 	ts := strings.TrimSpace(firstString(ds, tag.TransferSyntaxUID, ""))
 
-	pixels, err := readFirstFrameInt16(ds, path, ts)
+	bitsAlloc, _ := firstInt(ds, tag.BitsAllocated)
+	samplesPerPx, _ := firstInt(ds, tag.SamplesPerPixel)
+	rows, _ := firstInt(ds, tag.Rows)
+	cols, _ := firstInt(ds, tag.Columns)
+
+	pixels, err := readFrameInt16(ds, path, ts, 0, bitsAlloc, samplesPerPx, rows, cols)
 	if err != nil {
 		return nil, nil, fmt.Errorf("dicom_reader: pixels in %q (TS=%s): %w", path, ts, err)
 	}
 	return pixels, meta, nil
 }
 
-func readFirstFrameInt16(ds dicom.Dataset, path, ts string) (*outbound.Pixels16, error) {
+// ReadDICOMFrame reads a specific frame (0-indexed) from a DICOM file.
+func (r *DICOMReader) ReadDICOMFrame(path string, frameIdx int) (*outbound.Pixels16, error) {
+	ds, err := dicom.ParseFile(path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("dicom_reader: parse %q: %w", path, err)
+	}
+	ts := strings.TrimSpace(firstString(ds, tag.TransferSyntaxUID, ""))
+	bitsAlloc, _ := firstInt(ds, tag.BitsAllocated)
+	samplesPerPx, _ := firstInt(ds, tag.SamplesPerPixel)
+	rows, _ := firstInt(ds, tag.Rows)
+	cols, _ := firstInt(ds, tag.Columns)
+	return readFrameInt16(ds, path, ts, frameIdx, bitsAlloc, samplesPerPx, rows, cols)
+}
+
+func countFrames(ds dicom.Dataset) int {
+	el, err := ds.FindElementByTag(tag.PixelData)
+	if err != nil {
+		return 0
+	}
+	info, ok := el.Value.GetValue().(dicom.PixelDataInfo)
+	if !ok {
+		return 0
+	}
+	return len(info.Frames)
+}
+
+func readFrameInt16(ds dicom.Dataset, path, ts string, frameIdx, bitsAlloc, samplesPerPx, rows, cols int) (*outbound.Pixels16, error) {
 	el, err := ds.FindElementByTag(tag.PixelData)
 	if err != nil {
 		return nil, fmt.Errorf("missing PixelData: %w", err)
@@ -81,7 +122,10 @@ func readFirstFrameInt16(ds dicom.Dataset, path, ts string) (*outbound.Pixels16,
 	if len(info.Frames) == 0 {
 		return nil, fmt.Errorf("PixelData has no frames")
 	}
-	f := info.Frames[0]
+	if frameIdx < 0 || frameIdx >= len(info.Frames) {
+		return nil, fmt.Errorf("frame index %d out of range [0, %d)", frameIdx, len(info.Frames))
+	}
+	f := info.Frames[frameIdx]
 
 	// ── Native (uncompressed) path ────────────────────────────────────────────
 	if !f.Encapsulated && f.NativeData != nil {
@@ -96,52 +140,147 @@ func readFirstFrameInt16(ds dicom.Dataset, path, ts string) (*outbound.Pixels16,
 
 	switch ts {
 	case tsJPEGBaseline, tsJPEGExtended, "":
-		// Standard JPEG: the library's GetImage() uses image/jpeg directly.
 		return encapsulatedJPEGToPixels16(ef)
 
 	case tsJPEGLosslessDef, tsJPEGLossless:
 		// JPEG Lossless (Process 14): most common in digital mammography.
-		// Try dcmdjpeg (DCMTK) as the best available pure decompressor.
-		if pix, err := decompressViaDCMTK(path); err == nil {
-			return pix, nil
+		if frameIdx == 0 {
+			if pix, err := decompressViaDCMTK(path); err == nil {
+				return pix, nil
+			}
 		}
-		// Fallback: see if the library can still decode it as standard JPEG.
 		if pix, err := encapsulatedJPEGToPixels16(ef); err == nil {
 			return pix, nil
 		}
 		return nil, fmt.Errorf(
-			"JPEG Lossless (TS %s) not supported natively; install DCMTK ('brew install dcmtk') to enable decoding",
-			ts,
-		)
+			"JPEG Lossless (TS %s) requires DCMTK ('brew install dcmtk')", ts)
 
 	case tsJPEGLSLossless, tsJPEGLSNear:
-		if pix, err := decompressViaDCMTK(path); err == nil {
-			return pix, nil
+		if frameIdx == 0 {
+			if pix, err := decompressViaDCMTK(path); err == nil {
+				return pix, nil
+			}
 		}
 		return nil, fmt.Errorf(
-			"JPEG-LS (TS %s) not supported natively; install DCMTK ('brew install dcmtk') to enable decoding",
-			ts,
-		)
+			"JPEG-LS (TS %s) requires DCMTK ('brew install dcmtk')", ts)
 
 	case tsRLELossless:
-		return nil, fmt.Errorf("RLE Lossless (TS %s) is not yet supported", ts)
+		if rows > 0 && cols > 0 {
+			if pix, err := decodeRLEFrame(ef.Data, rows, cols, bitsAlloc, samplesPerPx); err == nil {
+				return pix, nil
+			}
+		}
+		return nil, fmt.Errorf("RLE Lossless decode failed (rows=%d cols=%d bits=%d)", rows, cols, bitsAlloc)
 
 	case tsJPEG2000Loss, tsJPEG2000Lossy:
-		if pix, err := decompressViaGDCM(path); err == nil {
-			return pix, nil
+		if frameIdx == 0 {
+			if pix, err := decompressViaGDCM(path); err == nil {
+				return pix, nil
+			}
 		}
 		return nil, fmt.Errorf(
-			"JPEG 2000 (TS %s) not supported natively; install GDCM ('brew install gdcm') to enable decoding",
-			ts,
-		)
+			"JPEG 2000 (TS %s) requires GDCM ('brew install gdcm')", ts)
 
 	default:
-		// Unknown or future TS — try standard JPEG decode as a last resort.
 		if pix, err := encapsulatedJPEGToPixels16(ef); err == nil {
 			return pix, nil
 		}
 		return nil, fmt.Errorf("unsupported transfer syntax %q", ts)
 	}
+}
+
+// decodeRLEFrame decodes a DICOM RLE Lossless fragment (DICOM PS 3.5, Annex G).
+// Each fragment begins with a 64-byte header: number of segments (uint32 LE)
+// followed by up to 15 segment offsets (uint32 LE each).
+// For 16-bit grayscale: segment 0 = high bytes, segment 1 = low bytes.
+func decodeRLEFrame(data []byte, rows, cols, bitsAlloc, samplesPerPx int) (*outbound.Pixels16, error) {
+	if len(data) < 64 {
+		return nil, fmt.Errorf("RLE fragment too short (%d bytes)", len(data))
+	}
+
+	nSegments := int(binary.LittleEndian.Uint32(data[0:4]))
+	if nSegments == 0 || nSegments > 15 {
+		return nil, fmt.Errorf("RLE: invalid segment count %d", nSegments)
+	}
+
+	offsets := make([]int, nSegments)
+	for i := 0; i < nSegments; i++ {
+		offsets[i] = int(binary.LittleEndian.Uint32(data[4+i*4:]))
+	}
+
+	decodeSegment := func(segIdx int) ([]byte, error) {
+		start := offsets[segIdx]
+		end := len(data)
+		if segIdx+1 < nSegments {
+			end = offsets[segIdx+1]
+		}
+		if start < 0 || start > len(data) || end < start {
+			return nil, fmt.Errorf("RLE segment %d out of bounds", segIdx)
+		}
+		return rlePackBitsDecode(data[start:end], rows*cols)
+	}
+
+	nPixels := rows * cols
+	out := make([]int16, nPixels)
+
+	switch {
+	case bitsAlloc == 16 && nSegments >= 2:
+		hi, err := decodeSegment(0)
+		if err != nil {
+			return nil, err
+		}
+		lo, err := decodeSegment(1)
+		if err != nil {
+			return nil, err
+		}
+		for i := 0; i < nPixels && i < len(hi) && i < len(lo); i++ {
+			out[i] = int16(uint16(hi[i])<<8 | uint16(lo[i]))
+		}
+	case bitsAlloc == 8 || nSegments == 1:
+		seg, err := decodeSegment(0)
+		if err != nil {
+			return nil, err
+		}
+		for i := 0; i < nPixels && i < len(seg); i++ {
+			out[i] = int16(seg[i]) << 8 // scale 8→16-bit
+		}
+	default:
+		return nil, fmt.Errorf("RLE: unsupported config bits=%d segments=%d", bitsAlloc, nSegments)
+	}
+
+	return &outbound.Pixels16{Data: out, Width: cols, Height: rows}, nil
+}
+
+// rlePackBitsDecode decodes a single PackBits-encoded byte slice into
+// at most maxBytes output bytes (DICOM RLE uses Macintosh PackBits).
+func rlePackBitsDecode(src []byte, maxBytes int) ([]byte, error) {
+	dst := make([]byte, 0, maxBytes)
+	i := 0
+	for i < len(src) && len(dst) < maxBytes {
+		n := int(int8(src[i]))
+		i++
+		switch {
+		case n >= 0 && n <= 127: // literal run: copy next n+1 bytes
+			count := n + 1
+			if i+count > len(src) {
+				count = len(src) - i
+			}
+			dst = append(dst, src[i:i+count]...)
+			i += count
+		case n == -128: // no-op
+		default: // n from -127 to -1: replicate next byte 1-n times
+			if i >= len(src) {
+				break
+			}
+			b := src[i]
+			i++
+			rep := 1 - n
+			for j := 0; j < rep && len(dst) < maxBytes; j++ {
+				dst = append(dst, b)
+			}
+		}
+	}
+	return dst, nil
 }
 
 // nativeToPixels16 converts an uncompressed NativeFrame to Pixels16.
