@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,6 +13,8 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+const goCoreAddr = "127.0.0.1:8088"
 
 // App is the Wails application struct.
 type App struct {
@@ -59,6 +64,21 @@ func (a *App) launchGoCore() {
 		return
 	}
 
+	// Detect port collision before spawning. A stale dev binary squatting on
+	// 8088 would silently take requests from the frontend and serve outdated
+	// routes (e.g. preview 404s), making "Abrir" appear broken.
+	if conn, err := net.DialTimeout("tcp", goCoreAddr, 200*time.Millisecond); err == nil {
+		_ = conn.Close()
+		a.fatalDialog(
+			"Porta 8088 em uso",
+			"Outro processo já está escutando em "+goCoreAddr+
+				" (provavelmente um go-core de desenvolvimento).\n\n"+
+				"Encerre-o e reabra o AIdentify:\n"+
+				"  lsof -ti :8088 | xargs kill",
+		)
+		return
+	}
+
 	bin, err := goCoreExecutable()
 	if err != nil {
 		log.Printf("[desktop] go-core not found (%v) — running in viewer-only mode", err)
@@ -69,11 +89,47 @@ func (a *App) launchGoCore() {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
-		log.Printf("[desktop] failed to start go-core: %v", err)
+		a.fatalDialog("Falha ao iniciar go-core", fmt.Sprintf("%v", err))
 		return
 	}
 	a.coreCmd = cmd
 	log.Printf("[desktop] go-core started (pid %d)", cmd.Process.Pid)
+
+	// Wait up to 5 s for /healthz to respond. If the subprocess dies (or never
+	// binds), surface a real error instead of letting the frontend hit a
+	// silent connection-refused.
+	if err := waitForHealthz(5 * time.Second); err != nil {
+		a.fatalDialog("go-core não respondeu",
+			"O processo iniciou mas /healthz não respondeu em 5s.\n\nDetalhes: "+err.Error())
+	}
+}
+
+func waitForHealthz(timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	client := &http.Client{Timeout: 300 * time.Millisecond}
+	for time.Now().Before(deadline) {
+		resp, err := client.Get("http://" + goCoreAddr + "/healthz")
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode < 500 {
+				return nil
+			}
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+	return fmt.Errorf("timeout aguardando /healthz")
+}
+
+func (a *App) fatalDialog(title, msg string) {
+	log.Printf("[desktop] %s: %s", title, msg)
+	if a.ctx == nil {
+		return
+	}
+	_, _ = runtime.MessageDialog(a.ctx, runtime.MessageDialogOptions{
+		Type:    runtime.ErrorDialog,
+		Title:   title,
+		Message: msg,
+	})
 }
 
 // goCoreExecutable returns the absolute path to the go-core binary.
