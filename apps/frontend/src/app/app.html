@@ -11,27 +11,19 @@
          --wails-draggable:drag torna a barra arrastável como barra de título.
          Os elementos interativos têm --wails-draggable:no-drag.
     ──────────────────────────────────────────────────────────────────── -->
-    <header class="flex h-10 items-center justify-between border-b border-white/5 pl-[84px] pr-3 shrink-0"
+    <!-- Traffic lights ocupam ~78 px à esquerda. A header é só drag region
+         + os dois botões de ação no canto direito. -->
+    <header class="flex h-10 items-center justify-end border-b border-white/5 pl-[78px] pr-3 shrink-0"
             style="--wails-draggable:drag">
-      <!-- Nav decorativa — discreta, não-funcional -->
-      <nav class="flex items-center gap-5 select-none" style="--wails-draggable:no-drag">
-        <span class="cursor-default text-[10px] font-medium tracking-wide text-white/30 hover:text-white/50 transition-colors">File</span>
-        <span class="cursor-default text-[10px] font-medium tracking-wide text-white/20">Edit</span>
-        <span class="cursor-default text-[10px] font-medium tracking-wide text-white/20">View</span>
-        <span class="cursor-default text-[10px] font-medium tracking-wide text-white/20">AI</span>
-        <span class="cursor-default text-[10px] font-medium tracking-wide text-white/20">Help</span>
-      </nav>
-
-      <!-- Ações principais -->
       <div class="flex items-center gap-2" style="--wails-draggable:no-drag">
-        <!-- Abrir imagem: ícone + texto mínimo -->
+        <!-- Abrir imagem -->
         <button
           (click)="viewer.openFileDialog()"
           class="flex items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-medium text-white/50 transition hover:text-white/80 hover:bg-white/5">
           <lucide-icon [img]="icons.FolderOpen" class="h-3.5 w-3.5"></lucide-icon>
           Abrir
         </button>
-        <!-- Activate AI: pílula com gradiente rosa -->
+        <!-- IA: pílula gradiente rosa -->
         <button class="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-primary-dim to-primary px-3 py-1 text-[11px] font-semibold text-white/90 shadow-sm transition hover:brightness-110">
           <lucide-icon [img]="icons.Sparkles" class="h-3 w-3"></lucide-icon>
           IA
