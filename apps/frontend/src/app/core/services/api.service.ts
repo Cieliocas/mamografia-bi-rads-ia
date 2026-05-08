@@ -1,8 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { ROI } from '../../shared/models/types';
+import { ToastService } from './toast.service';
 
 // ─── DTOs (mirror Go DTOs in apps/core/internal/application/usecase) ──────────
 
@@ -133,7 +134,20 @@ export interface HealthStatus {
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
+  private toast = inject(ToastService);
   private base = 'http://127.0.0.1:8088';
+
+  private extractError(err: unknown, fallback: string): string {
+    if (err instanceof HttpErrorResponse) {
+      const body = err.error;
+      if (body && typeof body === 'object' && typeof (body as { error?: string }).error === 'string') {
+        return (body as { error: string }).error;
+      }
+      if (typeof body === 'string' && body.length) return body;
+      return `HTTP ${err.status}`;
+    }
+    return fallback;
+  }
 
   // ── health ────────────────────────────────────────────────────────────────
   health(): Observable<HealthStatus> {
@@ -161,7 +175,14 @@ export class ApiService {
   openStudy(filePath: string): Observable<OpenStudyResponse | null> {
     return this.http.post<OpenStudyResponse>(`${this.base}/api/studies`, {
       file_path: filePath
-    } as OpenStudyRequest).pipe(catchError(() => of(null)));
+    } as OpenStudyRequest).pipe(
+      catchError(err => {
+        const msg = this.extractError(err, 'Falha ao abrir imagem');
+        console.error('[openStudy]', filePath, err);
+        this.toast.show(`Não foi possível abrir: ${msg}`, 'error');
+        return of(null);
+      })
+    );
   }
   getStudy(id: string): Observable<(OpenStudyResponse & ClinicalFields) | null> {
     return this.http.get<OpenStudyResponse & ClinicalFields>(`${this.base}/api/studies/${id}`).pipe(
