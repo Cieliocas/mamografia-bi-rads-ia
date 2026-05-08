@@ -81,7 +81,18 @@ func main() {
 			app,
 		},
 		Mac: &mac.Options{
-			TitleBar:             mac.TitleBarHiddenInset(),
+			// TitlebarAppearsTransparent + HideTitle + FullSizeContent dá o
+			// visual "sem barra" com traffic lights visíveis. UseToolbar:false
+			// mantém o corner radius padrão do macOS (~9 px) — igual Finder,
+			// Safari, Xcode — sem o raio exagerado que o toolbar introduz.
+			TitleBar: &mac.TitleBar{
+				TitlebarAppearsTransparent: true,
+				HideTitle:                  true,
+				HideTitleBar:               false,
+				FullSizeContent:            true,
+				UseToolbar:                 false,
+				HideToolbarSeparator:       true,
+			},
 			WebviewIsTransparent: false,
 			WindowIsTranslucent:  false,
 			About: &mac.AboutInfo{
