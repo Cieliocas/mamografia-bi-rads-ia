@@ -21,8 +21,9 @@ import { FindingsPanelComponent } from './features/annotations/findings-panel.co
 import { SplashComponent }    from './shared/components/splash/splash.component';
 import { ConfirmModalComponent } from './shared/components/confirm-modal/confirm-modal.component';
 import { ToastComponent }     from './shared/components/toast/toast.component';
-import { HomePanelComponent } from './features/home/home-panel.component';
-import { FilesPanelComponent } from './features/files/files-panel.component';
+import { HomePanelComponent }  from './features/home/home-panel.component';
+import { FilesPanelComponent }  from './features/files/files-panel.component';
+import { ToolsPanelComponent }  from './features/tools/tools-panel.component';
 
 @Component({
   selector: 'app-root',
@@ -31,7 +32,7 @@ import { FilesPanelComponent } from './features/files/files-panel.component';
     CommonModule, FormsModule, LucideAngularModule,
     ViewerComponent, FindingsPanelComponent,
     SplashComponent, ConfirmModalComponent, ToastComponent,
-    HomePanelComponent, FilesPanelComponent,
+    HomePanelComponent, FilesPanelComponent, ToolsPanelComponent,
   ],
   templateUrl: './app.html',
   styleUrls: ['./app.css'],
@@ -148,6 +149,21 @@ export class App implements OnInit, OnDestroy {
     else if (e.key === 'p' || e.key === 'P') this.state.setTool('pan');
     else if (e.key === 'r' || e.key === 'R') this.state.setTool('roi');
     else if (e.key === 'l' || e.key === 'L') this.state.setTool('ruler');
+    else if (e.key === 'a' || e.key === 'A') this.state.setTool('arrow');
+    else if (e.key === 'b' || e.key === 'B') this.state.setTool('brush');
+    else if (e.key === 'e' && !e.shiftKey)   this.state.setTool('erase-roi');
+    else if (e.key === 'E' && e.shiftKey)    this.state.setTool('erase-ruler');
+    else if (e.key === 'i' || e.key === 'I') this.state.toggleInvert((i) => this.viewerRef!.draw(i));
+    // Grid layout shortcuts: 1=1x1, 2=1x2, 4=2x2
+    else if (!inField && e.key === '1' && !this.state.selectedROI) {
+      e.preventDefault(); this.state.setGrid('1x1', (i) => this.viewerRef!.draw(i));
+    }
+    else if (!inField && e.key === '2' && !this.state.selectedROI) {
+      e.preventDefault(); this.state.setGrid('1x2', (i) => this.viewerRef!.draw(i));
+    }
+    else if (!inField && e.key === '4' && !this.state.selectedROI) {
+      e.preventDefault(); this.state.setGrid('2x2', (i) => this.viewerRef!.draw(i));
+    }
     // Zoom
     else if (!inField && (e.key === '+' || e.key === '=')) {
       e.preventDefault();

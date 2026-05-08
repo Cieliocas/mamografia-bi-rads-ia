@@ -1,0 +1,275 @@
+<div class="flex flex-col h-full overflow-y-auto">
+
+  <!-- Header -->
+  <div class="shrink-0 border-b border-white/5 px-4 py-3">
+    <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Ferramentas</p>
+  </div>
+
+  <div class="flex flex-col gap-4 p-3 pb-6">
+
+    <!-- ── Marcação ──────────────────────────────────────────────────────── -->
+    <section>
+      <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Marcação</p>
+      <div class="grid grid-cols-3 gap-1.5">
+
+        <!-- Pan -->
+        <button (click)="state.setTool('pan')"
+          class="flex flex-col items-center gap-1 rounded-lg border py-2.5 text-[10px] font-semibold transition"
+          [class.border-pink-500\/50]="isTool('pan')"
+          [class.bg-pink-900\/25]="isTool('pan')"
+          [class.text-pink-200]="isTool('pan')"
+          [class.border-white\/8]="!isTool('pan')"
+          [class.text-on-surface-variant]="!isTool('pan')"
+          [class.hover:bg-white\/5]="!isTool('pan')"
+          title="Pan (P)">
+          <lucide-icon [img]="icons.Hand" class="h-4 w-4"></lucide-icon>
+          Pan
+          <span class="text-[8px] opacity-50">P</span>
+        </button>
+
+        <!-- ROI -->
+        <button (click)="state.setTool('roi')"
+          class="flex flex-col items-center gap-1 rounded-lg border py-2.5 text-[10px] font-semibold transition"
+          [class.border-pink-500\/50]="isTool('roi')"
+          [class.bg-pink-900\/25]="isTool('roi')"
+          [class.text-pink-200]="isTool('roi')"
+          [class.border-white\/8]="!isTool('roi')"
+          [class.text-on-surface-variant]="!isTool('roi')"
+          [class.hover:bg-white\/5]="!isTool('roi')"
+          title="Anotar ROI (R)">
+          <lucide-icon [img]="icons.Target" class="h-4 w-4"></lucide-icon>
+          ROI
+          <span class="text-[8px] opacity-50">R</span>
+        </button>
+
+        <!-- Régua -->
+        <button (click)="state.setTool('ruler')"
+          class="flex flex-col items-center gap-1 rounded-lg border py-2.5 text-[10px] font-semibold transition"
+          [class.border-pink-500\/50]="isTool('ruler')"
+          [class.bg-pink-900\/25]="isTool('ruler')"
+          [class.text-pink-200]="isTool('ruler')"
+          [class.border-white\/8]="!isTool('ruler')"
+          [class.text-on-surface-variant]="!isTool('ruler')"
+          [class.hover:bg-white\/5]="!isTool('ruler')"
+          title="Régua (L)">
+          <lucide-icon [img]="icons.Ruler" class="h-4 w-4"></lucide-icon>
+          Régua
+          <span class="text-[8px] opacity-50">L</span>
+        </button>
+
+        <!-- Seta -->
+        <button (click)="state.setTool('arrow')"
+          class="flex flex-col items-center gap-1 rounded-lg border py-2.5 text-[10px] font-semibold transition"
+          [class.border-pink-500\/50]="isTool('arrow')"
+          [class.bg-pink-900\/25]="isTool('arrow')"
+          [class.text-pink-200]="isTool('arrow')"
+          [class.border-white\/8]="!isTool('arrow')"
+          [class.text-on-surface-variant]="!isTool('arrow')"
+          [class.hover:bg-white\/5]="!isTool('arrow')"
+          title="Seta (A)">
+          <lucide-icon [img]="icons.ArrowUpRight" class="h-4 w-4"></lucide-icon>
+          Seta
+          <span class="text-[8px] opacity-50">A</span>
+        </button>
+
+        <!-- Pincel -->
+        <button (click)="state.setTool('brush')"
+          class="flex flex-col items-center gap-1 rounded-lg border py-2.5 text-[10px] font-semibold transition"
+          [class.border-pink-500\/50]="isTool('brush')"
+          [class.bg-pink-900\/25]="isTool('brush')"
+          [class.text-pink-200]="isTool('brush')"
+          [class.border-white\/8]="!isTool('brush')"
+          [class.text-on-surface-variant]="!isTool('brush')"
+          [class.hover:bg-white\/5]="!isTool('brush')"
+          title="Pincel livre (B)">
+          <lucide-icon [img]="icons.Paintbrush" class="h-4 w-4"></lucide-icon>
+          Pincel
+          <span class="text-[8px] opacity-50">B</span>
+        </button>
+
+      </div>
+
+      <!-- Shape sub-toggle (only when ROI is active) -->
+      @if (isTool('roi')) {
+        <div class="mt-2 flex items-center gap-2">
+          <span class="text-[10px] text-on-surface-variant">Forma:</span>
+          <button (click)="toggleShape()"
+            class="flex-1 rounded border border-white/10 bg-white/5 py-1 text-[10px] font-semibold text-on-surface transition hover:bg-white/10">
+            {{ shapeLabel }}
+          </button>
+        </div>
+      }
+    </section>
+
+    <div class="h-px bg-white/5"></div>
+
+    <!-- ── Borrachas ─────────────────────────────────────────────────────── -->
+    <section>
+      <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Borrachas</p>
+      <div class="space-y-1.5">
+
+        <!-- Apagar ROI (click) -->
+        <button (click)="state.setTool('erase-roi')"
+          class="flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-semibold transition"
+          [class.border-red-500\/50]="isTool('erase-roi')"
+          [class.bg-red-900\/20]="isTool('erase-roi')"
+          [class.text-red-200]="isTool('erase-roi')"
+          [class.border-white\/8]="!isTool('erase-roi')"
+          [class.text-on-surface-variant]="!isTool('erase-roi')"
+          [class.hover:bg-white\/5]="!isTool('erase-roi')"
+          title="Clique numa ROI para apagá-la (E)">
+          <lucide-icon [img]="icons.Eraser" class="h-3.5 w-3.5 shrink-0"></lucide-icon>
+          <span class="flex-1 text-left">Apagar ROI</span>
+          <span class="text-[9px] opacity-40">E</span>
+        </button>
+
+        <!-- Apagar Régua / Seta (click) -->
+        <button (click)="state.setTool('erase-ruler')"
+          class="flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-semibold transition"
+          [class.border-red-500\/50]="isTool('erase-ruler')"
+          [class.bg-red-900\/20]="isTool('erase-ruler')"
+          [class.text-red-200]="isTool('erase-ruler')"
+          [class.border-white\/8]="!isTool('erase-ruler')"
+          [class.text-on-surface-variant]="!isTool('erase-ruler')"
+          [class.hover:bg-white\/5]="!isTool('erase-ruler')"
+          title="Clique numa régua ou seta para apagá-la (⇧E)">
+          <lucide-icon [img]="icons.Eraser" class="h-3.5 w-3.5 shrink-0"></lucide-icon>
+          <span class="flex-1 text-left">Apagar Régua/Seta</span>
+          <span class="text-[9px] opacity-40">⇧E</span>
+        </button>
+
+        <!-- Limpar Pincel -->
+        <button (click)="clearBrush()"
+          class="flex w-full items-center gap-2 rounded-lg border border-white/8 px-3 py-2 text-[11px] text-on-surface-variant transition hover:bg-white/5"
+          title="Apagar todos os traços de pincel">
+          <lucide-icon [img]="icons.Eraser" class="h-3.5 w-3.5 shrink-0"></lucide-icon>
+          <span class="flex-1 text-left">Limpar Pincel</span>
+        </button>
+
+        <!-- Limpar Tudo -->
+        <button (click)="state.askReset()"
+          class="flex w-full items-center gap-2 rounded-lg border border-red-900/40 bg-red-950/20 px-3 py-2 text-[11px] font-semibold text-red-300/80 transition hover:bg-red-900/30"
+          title="Apagar todas as anotações do viewport ativo">
+          <lucide-icon [img]="icons.Trash2" class="h-3.5 w-3.5 shrink-0"></lucide-icon>
+          Limpar Tudo
+        </button>
+
+      </div>
+    </section>
+
+    <div class="h-px bg-white/5"></div>
+
+    <!-- ── Visualização ───────────────────────────────────────────────────── -->
+    <section>
+      <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Visualização</p>
+      <div class="space-y-3">
+
+        <!-- Inverter cores -->
+        <button (click)="toggleInvert()"
+          class="flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-[11px] font-semibold transition"
+          [class.border-violet-500\/50]="invertActive"
+          [class.bg-violet-900\/20]="invertActive"
+          [class.text-violet-200]="invertActive"
+          [class.border-white\/8]="!invertActive"
+          [class.text-on-surface-variant]="!invertActive"
+          [class.hover:bg-white\/5]="!invertActive"
+          title="Inverter cores (I)">
+          <lucide-icon [img]="icons.FlipHorizontal2" class="h-3.5 w-3.5 shrink-0"></lucide-icon>
+          <span class="flex-1 text-left">Inverter cores</span>
+          <span class="text-[9px] opacity-40">I</span>
+        </button>
+
+        <!-- Brilho -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] text-on-surface-variant flex items-center gap-1.5">
+              <lucide-icon [img]="icons.Sun" class="h-3 w-3"></lucide-icon>Brilho
+            </span>
+            <span class="text-[10px] tabular-nums text-on-surface-variant">{{ brightness }}%</span>
+          </div>
+          <input type="range" min="20" max="300" step="5"
+            [ngModel]="brightness" (ngModelChange)="brightness = $event"
+            class="w-full accent-pink-500 h-1 appearance-none rounded"/>
+        </div>
+
+        <!-- Contraste -->
+        <div class="space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] text-on-surface-variant flex items-center gap-1.5">
+              <lucide-icon [img]="icons.Contrast" class="h-3 w-3"></lucide-icon>Contraste
+            </span>
+            <span class="text-[10px] tabular-nums text-on-surface-variant">{{ contrast }}%</span>
+          </div>
+          <input type="range" min="20" max="300" step="5"
+            [ngModel]="contrast" (ngModelChange)="contrast = $event"
+            class="w-full accent-pink-500 h-1 appearance-none rounded"/>
+        </div>
+
+        <!-- Reset visualização -->
+        <button (click)="resetVisualization()"
+          class="flex w-full items-center gap-2 rounded-lg border border-white/8 px-3 py-2 text-[11px] text-on-surface-variant transition hover:bg-white/5"
+          title="Restaurar brilho, contraste e inversão">
+          <lucide-icon [img]="icons.RotateCcw" class="h-3.5 w-3.5 shrink-0"></lucide-icon>
+          Reset visualização
+        </button>
+
+      </div>
+    </section>
+
+    <div class="h-px bg-white/5"></div>
+
+    <!-- ── Layout ─────────────────────────────────────────────────────────── -->
+    <section>
+      <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Layout de grade</p>
+      <div class="grid grid-cols-3 gap-1.5">
+
+        <!-- 1×1 -->
+        <button (click)="setGrid('1x1')"
+          class="flex flex-col items-center gap-1 rounded-lg border py-2.5 text-[10px] font-semibold transition"
+          [class.border-pink-500\/50]="isGrid('1x1')"
+          [class.bg-pink-900\/25]="isGrid('1x1')"
+          [class.text-pink-200]="isGrid('1x1')"
+          [class.border-white\/8]="!isGrid('1x1')"
+          [class.text-on-surface-variant]="!isGrid('1x1')"
+          [class.hover:bg-white\/5]="!isGrid('1x1')"
+          title="Vista única (1)">
+          <lucide-icon [img]="icons.LayoutTemplate" class="h-4 w-4"></lucide-icon>
+          1×1
+          <span class="text-[8px] opacity-50">1</span>
+        </button>
+
+        <!-- 1×2 -->
+        <button (click)="setGrid('1x2')"
+          class="flex flex-col items-center gap-1 rounded-lg border py-2.5 text-[10px] font-semibold transition"
+          [class.border-pink-500\/50]="isGrid('1x2')"
+          [class.bg-pink-900\/25]="isGrid('1x2')"
+          [class.text-pink-200]="isGrid('1x2')"
+          [class.border-white\/8]="!isGrid('1x2')"
+          [class.text-on-surface-variant]="!isGrid('1x2')"
+          [class.hover:bg-white\/5]="!isGrid('1x2')"
+          title="Lado a lado (2)">
+          <lucide-icon [img]="icons.Columns2" class="h-4 w-4"></lucide-icon>
+          1×2
+          <span class="text-[8px] opacity-50">2</span>
+        </button>
+
+        <!-- 2×2 -->
+        <button (click)="setGrid('2x2')"
+          class="flex flex-col items-center gap-1 rounded-lg border py-2.5 text-[10px] font-semibold transition"
+          [class.border-pink-500\/50]="isGrid('2x2')"
+          [class.bg-pink-900\/25]="isGrid('2x2')"
+          [class.text-pink-200]="isGrid('2x2')"
+          [class.border-white\/8]="!isGrid('2x2')"
+          [class.text-on-surface-variant]="!isGrid('2x2')"
+          [class.hover:bg-white\/5]="!isGrid('2x2')"
+          title="Grade 2×2 (4)">
+          <lucide-icon [img]="icons.Grid2x2" class="h-4 w-4"></lucide-icon>
+          2×2
+          <span class="text-[8px] opacity-50">4</span>
+        </button>
+
+      </div>
+    </section>
+
+  </div><!-- /gap-4 -->
+</div>

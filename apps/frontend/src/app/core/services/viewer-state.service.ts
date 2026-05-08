@@ -1,21 +1,26 @@
 import { Injectable } from '@angular/core';
 import { Subject } from 'rxjs';
 import {
-  BiRads, ROI, RulerLine, VP, Ix,
+  BiRads, ROI, RulerLine, BrushStroke, VP, Ix,
   mkVP, clone, BIRADS_CHIPS, BIRADS_INFO
 } from '../../shared/models/types';
 
-export type ActiveTool = 'pan'|'roi'|'ruler';
+export type ActiveTool = 'pan'|'roi'|'ruler'|'arrow'|'brush'|'erase-roi'|'erase-ruler';
 export type ActiveShape = 'ellipse'|'rect';
 export type ActivePanel = 'home'|'files'|'history'|'patients'|'analysis'|'tools';
+export type GridLayout  = '1x1'|'1x2'|'2x2';
 
 @Injectable({ providedIn: 'root' })
 export class ViewerStateService {
 
   // ── Viewports ─────────────────────────────────────────────────────────────
-  vp: VP[] = [mkVP(), mkVP()];
+  vp: VP[] = [mkVP(), mkVP(), mkVP(), mkVP()];
   activeVp = 0;
-  splitMode = false;
+  gridLayout: GridLayout = '1x1';
+  /** Backward-compat: true when any multi-vp layout is active. */
+  get splitMode(): boolean { return this.gridLayout !== '1x1'; }
+  /** Number of visible viewports for the current layout. */
+  get vpCount(): number { return this.gridLayout === '2x2' ? 4 : this.gridLayout === '1x2' ? 2 : 1; }
   pendingVp = 0;
 
   // ── Tools ─────────────────────────────────────────────────────────────────
@@ -58,10 +63,21 @@ export class ViewerStateService {
       : null;
   }
 
+  setGrid(g: GridLayout, drawFn: (i: number) => void) {
+    this.gridLayout = g;
+    if (this.activeVp >= this.vpCount) this.activeVp = 0;
+    setTimeout(() => { for (let i = 0; i < this.vpCount; i++) drawFn(i); }, 150);
+  }
+
   toggleSplit(drawFn: (i: number) => void) {
-    this.splitMode = !this.splitMode;
-    if (!this.splitMode) this.activeVp = 0;
-    setTimeout(() => { drawFn(0); if (this.splitMode) drawFn(1); }, 150);
+    this.setGrid(this.gridLayout === '1x1' ? '1x2' : '1x1', drawFn);
+  }
+
+  /** Toggle invert-colours for the active viewport. */
+  toggleInvert(drawFn: (i: number) => void) {
+    const vp = this.vp[this.activeVp];
+    vp.invertColors = !vp.invertColors;
+    drawFn(this.activeVp);
   }
 
   // Emits the active vpIdx every time annotations change. Subscribers
@@ -71,7 +87,7 @@ export class ViewerStateService {
   // ── Undo / Redo ───────────────────────────────────────────────────────────
   snap(vpIdx: number) {
     const vp = this.vp[vpIdx];
-    vp.undoStack.push({ rois: clone(vp.rois), rulers: clone(vp.rulers) });
+    vp.undoStack.push({ rois: clone(vp.rois), rulers: clone(vp.rulers), brushStrokes: clone(vp.brushStrokes) });
     if (vp.undoStack.length > 50) vp.undoStack.shift();
     vp.redoStack = [];
     this.annotationsChanged$.next(vpIdx);
@@ -80,9 +96,9 @@ export class ViewerStateService {
   undo(vpIdx: number, drawFn: (i: number) => void) {
     const vp = this.vp[vpIdx];
     if (!vp.undoStack.length) return;
-    vp.redoStack.push({ rois: clone(vp.rois), rulers: clone(vp.rulers) });
+    vp.redoStack.push({ rois: clone(vp.rois), rulers: clone(vp.rulers), brushStrokes: clone(vp.brushStrokes) });
     const s = vp.undoStack.pop()!;
-    vp.rois = s.rois; vp.rulers = s.rulers;
+    vp.rois = s.rois; vp.rulers = s.rulers; vp.brushStrokes = s.brushStrokes;
     this.annotationsChanged$.next(vpIdx);
     vp.selectedROIId = null; this.selectedROI = null;
     drawFn(vpIdx);
@@ -91,9 +107,9 @@ export class ViewerStateService {
   redo(vpIdx: number, drawFn: (i: number) => void) {
     const vp = this.vp[vpIdx];
     if (!vp.redoStack.length) return;
-    vp.undoStack.push({ rois: clone(vp.rois), rulers: clone(vp.rulers) });
+    vp.undoStack.push({ rois: clone(vp.rois), rulers: clone(vp.rulers), brushStrokes: clone(vp.brushStrokes) });
     const s = vp.redoStack.pop()!;
-    vp.rois = s.rois; vp.rulers = s.rulers;
+    vp.rois = s.rois; vp.rulers = s.rulers; vp.brushStrokes = s.brushStrokes;
     this.annotationsChanged$.next(vpIdx);
     vp.selectedROIId = null; this.selectedROI = null;
     drawFn(vpIdx);
@@ -154,7 +170,7 @@ export class ViewerStateService {
   clearAll(vpIdx: number, saveUndo: boolean, drawFn: (i: number) => void) {
     if (saveUndo) this.snap(vpIdx);
     const vp = this.vp[vpIdx];
-    vp.rois = []; vp.rulers = []; vp.selectedROIId = null;
+    vp.rois = []; vp.rulers = []; vp.brushStrokes = []; vp.selectedROIId = null;
     if (vpIdx === this.activeVp) this.selectedROI = null;
     this.ix = null;
     drawFn(vpIdx);

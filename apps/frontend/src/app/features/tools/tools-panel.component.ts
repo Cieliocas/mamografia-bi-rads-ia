@@ -1,0 +1,85 @@
+import { Component, Output, EventEmitter, inject } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import {
+  LucideAngularModule,
+  Hand, Target, Ruler, ArrowUpRight, Paintbrush,
+  Eraser, Trash2, FlipHorizontal2,
+  LayoutTemplate, Columns2, Grid2x2,
+  RotateCcw, Sun, Contrast
+} from 'lucide-angular';
+
+import { ViewerStateService, GridLayout } from '../../core/services/viewer-state.service';
+
+@Component({
+  selector: 'app-tools-panel',
+  standalone: true,
+  imports: [CommonModule, FormsModule, LucideAngularModule],
+  templateUrl: './tools-panel.component.html',
+})
+export class ToolsPanelComponent {
+
+  readonly state = inject(ViewerStateService);
+
+  readonly icons = {
+    Hand, Target, Ruler, ArrowUpRight, Paintbrush,
+    Eraser, Trash2, FlipHorizontal2,
+    LayoutTemplate, Columns2, Grid2x2,
+    RotateCcw, Sun, Contrast
+  };
+
+  /** Emitted when an action needs the viewer to redraw. */
+  @Output() drawRequest = new EventEmitter<number>();
+
+  draw(vpIdx = this.state.activeVp) { this.drawRequest.emit(vpIdx); }
+  drawAll() { for (let i = 0; i < this.state.vpCount; i++) this.drawRequest.emit(i); }
+
+  // ── Tool helpers ──────────────────────────────────────────────────────────
+  isTool(t: string): boolean { return this.state.activeTool === t; }
+
+  // ── Shape toggle ──────────────────────────────────────────────────────────
+  get shapeLabel(): string { return this.state.activeShape === 'ellipse' ? 'Elipse' : 'Retângulo'; }
+  toggleShape() {
+    this.state.activeShape = this.state.activeShape === 'ellipse' ? 'rect' : 'ellipse';
+  }
+
+  // ── Invert ────────────────────────────────────────────────────────────────
+  get invertActive(): boolean { return this.state.vp[this.state.activeVp].invertColors; }
+  toggleInvert() { this.state.toggleInvert((i) => this.draw(i)); }
+
+  // ── Brightness / contrast ─────────────────────────────────────────────────
+  get brightness(): number { return this.state.activeVPData.brightness; }
+  set brightness(v: number) { this.state.activeVPData.brightness = v; this.draw(); }
+
+  get contrast(): number { return this.state.activeVPData.contrast; }
+  set contrast(v: number) { this.state.activeVPData.contrast = v; this.draw(); }
+
+  resetVisualization() {
+    const vp = this.state.activeVPData;
+    vp.brightness = 100; vp.contrast = 80; vp.invertColors = false;
+    this.draw();
+  }
+
+  // ── Layout ────────────────────────────────────────────────────────────────
+  setGrid(g: GridLayout) { this.state.setGrid(g, (i) => this.drawRequest.emit(i)); }
+  isGrid(g: GridLayout): boolean { return this.state.gridLayout === g; }
+
+  // ── Erase helpers ─────────────────────────────────────────────────────────
+  clearBrush() {
+    this.state.snap(this.state.activeVp);
+    this.state.activeVPData.brushStrokes = [];
+    this.draw();
+  }
+
+  clearRulers() {
+    this.state.snap(this.state.activeVp);
+    this.state.activeVPData.rulers = this.state.activeVPData.rulers.filter(r => !r.isArrow);
+    this.draw();
+  }
+
+  clearArrows() {
+    this.state.snap(this.state.activeVp);
+    this.state.activeVPData.rulers = this.state.activeVPData.rulers.filter(r => r.isArrow);
+    this.draw();
+  }
+}

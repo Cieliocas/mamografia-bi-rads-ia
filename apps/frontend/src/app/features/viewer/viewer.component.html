@@ -1,88 +1,142 @@
 <!-- Hidden file input -->
 <input #fileInput type="file" accept="image/*,.dcm" class="hidden" (change)="onFileSelected($event)" />
 
-<!-- Viewer root: full available space, flex row -->
-<div class="flex h-full w-full gap-1 overflow-hidden">
+<!-- Viewer root — grid adapts to gridLayout -->
+<div class="h-full w-full overflow-hidden"
+     [class.grid]="true"
+     [class.grid-cols-1]="state.gridLayout === '1x1'"
+     [class.grid-cols-2]="state.gridLayout === '1x2' || state.gridLayout === '2x2'"
+     [class.grid-rows-1]="state.gridLayout !== '2x2'"
+     [class.grid-rows-2]="state.gridLayout === '2x2'"
+     style="gap:4px">
 
-  <!-- ── Left viewport (always visible) ───────────────────────────────────── -->
-  <div
-    #ct0
-    class="relative flex-1 overflow-hidden rounded-lg bg-neutral-950 select-none"
+  <!-- ── VP 0 (always visible) ──────────────────────────────────────────── -->
+  <div #ct0
+    class="relative overflow-hidden rounded-lg bg-neutral-950 select-none"
     [class]="cursorClass"
     (mousedown)="onMouseDown($event, 0)"
     (mousemove)="onMouseMove($event, 0)"
     (mouseup)="onMouseUp($event, 0)"
     (mouseleave)="onMouseUp($event, 0)"
     (mouseenter)="onMouseEnter(0)"
-    (dblclick)="openFileDialog(0)"
-  >
-    <!-- Canvas -->
+    (dblclick)="openFileDialog(0)">
     <canvas #c0 class="absolute inset-0 w-full h-full"></canvas>
 
-    <!-- Empty-state overlay -->
     @if (!state.vp[0].loadedImage) {
       <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none select-none">
         <div class="rounded-full bg-neutral-800/60 p-5">
           <lucide-icon [img]="icons.Maximize2" class="text-neutral-500" [size]="36" />
         </div>
         <p class="text-xs text-neutral-500 tracking-wide">Duplo-clique ou arraste uma imagem</p>
-        <button
-          class="pointer-events-auto mt-1 rounded-md bg-pink-600/80 hover:bg-pink-500 px-4 py-1.5 text-xs text-white transition"
-          (click)="openFileDialog(0)"
-        >Abrir imagem</button>
+        <button class="pointer-events-auto mt-1 rounded-md bg-pink-600/80 hover:bg-pink-500 px-4 py-1.5 text-xs text-white transition"
+          (click)="openFileDialog(0)">Abrir imagem</button>
       </div>
     }
 
-    <!-- VP label (top-left badge) -->
-    @if (state.splitMode) {
+    @if (state.vpCount > 1) {
       <span class="absolute left-2 top-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300 pointer-events-none">VP 1</span>
     }
-
-    <!-- Zoom label (bottom-left) -->
     @if (state.vp[0].loadedImage) {
       <span class="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 pointer-events-none tabular-nums">
         {{ state.zoomPct(0) }}
       </span>
     }
+    @if (state.vp[0].invertColors) {
+      <span class="absolute top-2 right-2 rounded bg-violet-800/60 px-1.5 py-0.5 text-[10px] text-violet-200 pointer-events-none">INV</span>
+    }
   </div>
 
-  <!-- ── Right viewport (split mode only) ─────────────────────────────────── -->
-  @if (state.splitMode) {
-    <div
-      #ct1
-      class="relative flex-1 overflow-hidden rounded-lg bg-neutral-950 select-none"
+  <!-- ── VP 1 (1x2 and 2x2) ─────────────────────────────────────────────── -->
+  @if (state.vpCount >= 2) {
+    <div #ct1
+      class="relative overflow-hidden rounded-lg bg-neutral-950 select-none"
       [class]="cursorClass"
       (mousedown)="onMouseDown($event, 1)"
       (mousemove)="onMouseMove($event, 1)"
       (mouseup)="onMouseUp($event, 1)"
       (mouseleave)="onMouseUp($event, 1)"
       (mouseenter)="onMouseEnter(1)"
-      (dblclick)="openFileDialog(1)"
-    >
-      <!-- Canvas -->
+      (dblclick)="openFileDialog(1)">
       <canvas #c1 class="absolute inset-0 w-full h-full"></canvas>
 
-      <!-- Empty-state overlay -->
       @if (!state.vp[1].loadedImage) {
         <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none select-none">
           <div class="rounded-full bg-neutral-800/60 p-5">
             <lucide-icon [img]="icons.Maximize2" class="text-neutral-500" [size]="36" />
           </div>
           <p class="text-xs text-neutral-500 tracking-wide">Duplo-clique ou arraste uma imagem</p>
-          <button
-            class="pointer-events-auto mt-1 rounded-md bg-pink-600/80 hover:bg-pink-500 px-4 py-1.5 text-xs text-white transition"
-            (click)="openFileDialog(1)"
-          >Abrir imagem</button>
+          <button class="pointer-events-auto mt-1 rounded-md bg-pink-600/80 hover:bg-pink-500 px-4 py-1.5 text-xs text-white transition"
+            (click)="openFileDialog(1)">Abrir imagem</button>
         </div>
       }
 
-      <!-- VP label -->
       <span class="absolute left-2 top-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300 pointer-events-none">VP 2</span>
-
-      <!-- Zoom label -->
       @if (state.vp[1].loadedImage) {
         <span class="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 pointer-events-none tabular-nums">
           {{ state.zoomPct(1) }}
+        </span>
+      }
+      @if (state.vp[1].invertColors) {
+        <span class="absolute top-2 right-2 rounded bg-violet-800/60 px-1.5 py-0.5 text-[10px] text-violet-200 pointer-events-none">INV</span>
+      }
+    </div>
+  }
+
+  <!-- ── VP 2 (2x2 only) ────────────────────────────────────────────────── -->
+  @if (state.vpCount >= 4) {
+    <div #ct2
+      class="relative overflow-hidden rounded-lg bg-neutral-950 select-none"
+      [class]="cursorClass"
+      (mousedown)="onMouseDown($event, 2)"
+      (mousemove)="onMouseMove($event, 2)"
+      (mouseup)="onMouseUp($event, 2)"
+      (mouseleave)="onMouseUp($event, 2)"
+      (mouseenter)="onMouseEnter(2)"
+      (dblclick)="openFileDialog(2)">
+      <canvas #c2 class="absolute inset-0 w-full h-full"></canvas>
+
+      @if (!state.vp[2].loadedImage) {
+        <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none select-none">
+          <div class="rounded-full bg-neutral-800/60 p-4">
+            <lucide-icon [img]="icons.Maximize2" class="text-neutral-500" [size]="28" />
+          </div>
+          <p class="text-[11px] text-neutral-500">Duplo-clique para abrir</p>
+        </div>
+      }
+
+      <span class="absolute left-2 top-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300 pointer-events-none">VP 3</span>
+      @if (state.vp[2].loadedImage) {
+        <span class="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 pointer-events-none tabular-nums">
+          {{ state.zoomPct(2) }}
+        </span>
+      }
+    </div>
+
+    <!-- ── VP 3 ──────────────────────────────────────────────────────────── -->
+    <div #ct3
+      class="relative overflow-hidden rounded-lg bg-neutral-950 select-none"
+      [class]="cursorClass"
+      (mousedown)="onMouseDown($event, 3)"
+      (mousemove)="onMouseMove($event, 3)"
+      (mouseup)="onMouseUp($event, 3)"
+      (mouseleave)="onMouseUp($event, 3)"
+      (mouseenter)="onMouseEnter(3)"
+      (dblclick)="openFileDialog(3)">
+      <canvas #c3 class="absolute inset-0 w-full h-full"></canvas>
+
+      @if (!state.vp[3].loadedImage) {
+        <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none select-none">
+          <div class="rounded-full bg-neutral-800/60 p-4">
+            <lucide-icon [img]="icons.Maximize2" class="text-neutral-500" [size]="28" />
+          </div>
+          <p class="text-[11px] text-neutral-500">Duplo-clique para abrir</p>
+        </div>
+      }
+
+      <span class="absolute left-2 top-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300 pointer-events-none">VP 4</span>
+      @if (state.vp[3].loadedImage) {
+        <span class="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 pointer-events-none tabular-nums">
+          {{ state.zoomPct(3) }}
         </span>
       }
     </div>
@@ -91,101 +145,102 @@
 </div>
 
 <!-- ── Floating mini-toolbar (bottom-centre) ──────────────────────────────── -->
-<div class="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-xl border border-neutral-700/60 bg-neutral-900/90 px-2 py-1.5 shadow-lg backdrop-blur-sm pointer-events-auto z-10">
+<div class="pointer-events-auto absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1 rounded-xl border border-neutral-700/60 bg-neutral-900/90 px-2 py-1.5 shadow-lg backdrop-blur-sm z-10">
 
-  <!-- Tool: Pan -->
-  <button
-    title="Pan (espaço)"
+  <!-- Pan -->
+  <button title="Pan (P)"
     class="rounded-lg p-1.5 transition"
     [class.bg-pink-600]="state.activeTool === 'pan'"
     [class.text-white]="state.activeTool === 'pan'"
     [class.text-neutral-400]="state.activeTool !== 'pan'"
     [class.hover:bg-neutral-700]="state.activeTool !== 'pan'"
-    (click)="state.setTool('pan')"
-  >
+    (click)="state.setTool('pan')">
     <lucide-icon [img]="icons.Hand" [size]="15" />
   </button>
 
-  <!-- Tool: ROI -->
-  <button
-    title="Anotar ROI (r)"
+  <!-- ROI -->
+  <button title="ROI (R)"
     class="rounded-lg p-1.5 transition"
     [class.bg-pink-600]="state.activeTool === 'roi'"
     [class.text-white]="state.activeTool === 'roi'"
     [class.text-neutral-400]="state.activeTool !== 'roi'"
     [class.hover:bg-neutral-700]="state.activeTool !== 'roi'"
-    (click)="state.setTool('roi')"
-  >
+    (click)="state.setTool('roi')">
     <lucide-icon [img]="icons.Target" [size]="15" />
   </button>
 
-  <!-- Tool: Ruler -->
-  <button
-    title="Régua (m)"
+  <!-- Ruler -->
+  <button title="Régua (L)"
     class="rounded-lg p-1.5 transition"
     [class.bg-pink-600]="state.activeTool === 'ruler'"
     [class.text-white]="state.activeTool === 'ruler'"
     [class.text-neutral-400]="state.activeTool !== 'ruler'"
     [class.hover:bg-neutral-700]="state.activeTool !== 'ruler'"
-    (click)="state.setTool('ruler')"
-  >
+    (click)="state.setTool('ruler')">
     <lucide-icon [img]="icons.Ruler" [size]="15" />
+  </button>
+
+  <!-- Arrow -->
+  <button title="Seta (A)"
+    class="rounded-lg p-1.5 transition"
+    [class.bg-pink-600]="state.activeTool === 'arrow'"
+    [class.text-white]="state.activeTool === 'arrow'"
+    [class.text-neutral-400]="state.activeTool !== 'arrow'"
+    [class.hover:bg-neutral-700]="state.activeTool !== 'arrow'"
+    (click)="state.setTool('arrow')">
+    <lucide-icon [img]="icons.ArrowUpRight" [size]="15" />
+  </button>
+
+  <!-- Brush -->
+  <button title="Pincel (B)"
+    class="rounded-lg p-1.5 transition"
+    [class.bg-pink-600]="state.activeTool === 'brush'"
+    [class.text-white]="state.activeTool === 'brush'"
+    [class.text-neutral-400]="state.activeTool !== 'brush'"
+    [class.hover:bg-neutral-700]="state.activeTool !== 'brush'"
+    (click)="state.setTool('brush')">
+    <lucide-icon [img]="icons.Paintbrush" [size]="15" />
   </button>
 
   <span class="mx-1.5 h-4 w-px bg-neutral-700"></span>
 
   <!-- Zoom out -->
-  <button
-    title="Reduzir (-)"
-    class="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-700 hover:text-white"
-    (click)="zoomOut()"
-  >
+  <button title="Reduzir (-)" class="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-700 hover:text-white"
+    (click)="zoomOut()">
     <lucide-icon [img]="icons.ZoomOut" [size]="15" />
   </button>
 
-  <!-- Zoom percentage -->
+  <!-- Zoom % -->
   <span class="min-w-[3rem] text-center text-[11px] tabular-nums text-neutral-400 select-none">
     {{ state.zoomPct(state.activeVp) }}
   </span>
 
   <!-- Zoom in -->
-  <button
-    title="Ampliar (+)"
-    class="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-700 hover:text-white"
-    (click)="zoomIn()"
-  >
+  <button title="Ampliar (+)" class="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-700 hover:text-white"
+    (click)="zoomIn()">
     <lucide-icon [img]="icons.ZoomIn" [size]="15" />
   </button>
 
   <!-- Fit screen -->
-  <button
-    title="Ajustar à tela (f)"
-    class="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-700 hover:text-white"
-    (click)="fitScreen()"
-  >
+  <button title="Ajustar (F)" class="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-700 hover:text-white"
+    (click)="fitScreen()">
     <lucide-icon [img]="icons.Maximize2" [size]="15" />
   </button>
 
   <!-- Frame navigation (multi-frame DICOM only) -->
   @if (frameCount > 1) {
     <span class="mx-1.5 h-4 w-px bg-neutral-700"></span>
-    <button
-      title="Frame anterior"
+    <button title="Frame anterior"
       class="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-      [disabled]="currentFrame === 0"
-      (click)="prevFrame()"
-    >
+      [disabled]="currentFrame === 0" (click)="prevFrame()">
       <lucide-icon [img]="icons.ChevronLeft" [size]="15" />
     </button>
     <span class="min-w-[4rem] text-center text-[11px] tabular-nums text-neutral-400 select-none">
       {{ currentFrame + 1 }} / {{ frameCount }}
     </span>
-    <button
-      title="Próximo frame"
+    <button title="Próximo frame"
       class="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
-      [disabled]="currentFrame === frameCount - 1"
-      (click)="nextFrame()"
-    >
+      [disabled]="currentFrame === frameCount - 1" (click)="nextFrame()">
       <lucide-icon [img]="icons.ChevronRight" [size]="15" />
     </button>
   }

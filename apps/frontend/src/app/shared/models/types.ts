@@ -17,26 +17,38 @@ export interface ROI {
 export interface RulerLine {
   id: number; x1: number; y1: number; x2: number; y2: number;
   isSelected: boolean;
+  /** When true, renders as an arrow instead of a plain ruler. */
+  isArrow?: boolean;
 }
 
-export interface Snapshot { rois: ROI[]; rulers: RulerLine[]; }
+/** A single freehand brush mark (sequence of image-space points). */
+export interface BrushStroke {
+  id: number;
+  points: { x: number; y: number }[];
+  color: string;
+}
 
-/** Viewport — one imaging slot (left or right in split mode). */
+export interface Snapshot { rois: ROI[]; rulers: RulerLine[]; brushStrokes: BrushStroke[]; }
+
+/** Viewport — one imaging slot (up to 4 in grid mode). */
 export interface VP {
   loadedImage: HTMLImageElement|null;
   imageDataUrl: string|null;
   imageName: string;
   zoom: number; panX: number; panY: number;
   contrast: number; brightness: number;
-  rois: ROI[]; rulers: RulerLine[];
+  invertColors: boolean;
+  rois: ROI[]; rulers: RulerLine[]; brushStrokes: BrushStroke[];
   selectedROIId: number|null;
-  roiCounter: number; rulerCounter: number;
+  roiCounter: number; rulerCounter: number; brushCounter: number;
   undoStack: Snapshot[]; redoStack: Snapshot[];
 }
 
 export type IxMode =
-  'pan'|'draw-roi'|'draw-ruler'|
-  'move-roi'|'move-ruler-full'|'move-ruler-start'|'move-ruler-end';
+  'pan'|'draw-roi'|'draw-ruler'|'draw-arrow'|'draw-brush'|
+  'move-roi'|'move-ruler-full'|'move-ruler-start'|'move-ruler-end'|
+  'move-arrow-full'|'move-arrow-start'|'move-arrow-end'|
+  'erase-roi'|'erase-ruler';
 
 /** Active mouse interaction context. */
 export interface Ix {
@@ -55,9 +67,9 @@ export interface Ix {
 export function mkVP(): VP {
   return {
     loadedImage: null, imageDataUrl: null, imageName: '',
-    zoom: 1, panX: 0, panY: 0, contrast: 80, brightness: 100,
-    rois: [], rulers: [], selectedROIId: null,
-    roiCounter: 1, rulerCounter: 1, undoStack: [], redoStack: []
+    zoom: 1, panX: 0, panY: 0, contrast: 80, brightness: 100, invertColors: false,
+    rois: [], rulers: [], brushStrokes: [], selectedROIId: null,
+    roiCounter: 1, rulerCounter: 1, brushCounter: 1, undoStack: [], redoStack: []
   };
 }
 
