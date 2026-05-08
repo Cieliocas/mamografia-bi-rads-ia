@@ -11,6 +11,7 @@ import {
   ChevronRight, ChevronLeft, Sparkles
 } from 'lucide-angular';
 import { ApiService, PatientDTO, PatientStudyDTO } from './core/services/api.service';
+import { WindowToggleMaximise } from './wailsjs/runtime/runtime';
 
 import { ViewerStateService } from './core/services/viewer-state.service';
 import { StudyService }       from './core/services/study.service';
@@ -61,6 +62,11 @@ export class App implements OnInit, OnDestroy {
   private autoSaveSub:    Subscription | null = null;
 
   readonly icons = { FolderOpen, History, Users, BarChart3, Wrench, ChevronRight, ChevronLeft, Sparkles };
+
+  /** Double-click na titlebar → zoom padrão macOS. */
+  toggleMaximise() {
+    try { WindowToggleMaximise(); } catch { /* browser/dev mode sem runtime Wails */ }
+  }
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   ngOnInit() {

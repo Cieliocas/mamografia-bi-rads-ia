@@ -14,7 +14,8 @@
     <!-- Traffic lights ocupam ~78 px à esquerda. A header é só drag region
          + os dois botões de ação no canto direito. -->
     <header class="flex h-10 items-center justify-end border-b border-white/5 pl-[78px] pr-3 shrink-0"
-            style="--wails-draggable:drag">
+            style="--wails-draggable:drag"
+            (dblclick)="toggleMaximise()">
       <div class="flex items-center gap-2" style="--wails-draggable:no-drag">
         <!-- Abrir imagem -->
         <button
