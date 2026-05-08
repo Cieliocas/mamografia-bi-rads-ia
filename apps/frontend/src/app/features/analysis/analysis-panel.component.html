@@ -1,0 +1,225 @@
+<div class="flex flex-col h-full overflow-y-auto">
+
+  <!-- Header -->
+  <div class="shrink-0 border-b border-white/5 px-4 py-3 flex items-center justify-between">
+    <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Análise</p>
+    <button (click)="refresh()" [disabled]="loadingStats"
+      class="rounded p-1 text-on-surface-variant transition hover:text-primary disabled:opacity-40"
+      title="Atualizar">
+      <lucide-icon [img]="icons.RefreshCw" class="h-3.5 w-3.5" [class.animate-spin]="loadingStats"></lucide-icon>
+    </button>
+  </div>
+
+  <div class="flex flex-col gap-5 p-3 pb-8">
+
+    <!-- ── Estudo atual ────────────────────────────────────────────────────── -->
+    @if (state.activeVPData.loadedImage) {
+      <section>
+        <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Estudo ativo</p>
+
+        <!-- Patient / modality chips -->
+        <div class="mb-2 flex flex-wrap gap-1.5">
+          @if (study.currentPatient()) {
+            <span class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-on-surface-variant">
+              👤 {{ patientName }}
+            </span>
+          }
+          @if (studyMeta?.modality) {
+            <span class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-on-surface-variant">
+              {{ studyMeta!.modality }}
+            </span>
+          }
+          @if (studyMeta?.width && studyMeta?.height) {
+            <span class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-on-surface-variant tabular-nums">
+              {{ studyMeta!.width }}×{{ studyMeta!.height }}
+            </span>
+          }
+          @if (clinicalData?.birads_global) {
+            <span class="rounded-full border border-pink-500/30 bg-pink-900/20 px-2 py-0.5 text-[10px] font-bold text-pink-200">
+              BI-RADS {{ clinicalData!.birads_global }}
+            </span>
+          }
+        </div>
+
+        <!-- Stats grid 2×2 -->
+        <div class="grid grid-cols-2 gap-1.5">
+          <div class="rounded-lg border border-white/5 bg-neutral-900/40 p-2.5 text-center">
+            <p class="text-xl font-bold tabular-nums text-on-surface">{{ activeRois.length }}</p>
+            <p class="mt-0.5 text-[10px] text-on-surface-variant">ROIs</p>
+          </div>
+          <div class="rounded-lg border border-white/5 bg-neutral-900/40 p-2.5 text-center">
+            <p class="text-xl font-bold tabular-nums text-on-surface">{{ rulerCount }}</p>
+            <p class="mt-0.5 text-[10px] text-on-surface-variant">Réguas</p>
+          </div>
+          <div class="rounded-lg border border-white/5 bg-neutral-900/40 p-2.5 text-center">
+            <p class="text-xl font-bold tabular-nums text-on-surface">{{ arrowCount }}</p>
+            <p class="mt-0.5 text-[10px] text-on-surface-variant">Setas</p>
+          </div>
+          <div class="rounded-lg border border-white/5 bg-neutral-900/40 p-2.5 text-center">
+            <p class="text-xl font-bold tabular-nums text-on-surface">{{ brushCount }}</p>
+            <p class="mt-0.5 text-[10px] text-on-surface-variant">Traços</p>
+          </div>
+        </div>
+
+        <!-- Lesion size metrics -->
+        @if (activeRois.length > 0) {
+          <div class="mt-2 space-y-1">
+            <div class="flex items-center justify-between rounded border border-white/5 bg-neutral-900/30 px-2.5 py-1.5">
+              <span class="text-[10px] text-on-surface-variant">Tamanho médio</span>
+              <span class="text-[10px] tabular-nums font-semibold text-on-surface">{{ avgLesionPx }}</span>
+            </div>
+            <div class="flex items-center justify-between rounded border border-white/5 bg-neutral-900/30 px-2.5 py-1.5">
+              <span class="text-[10px] text-on-surface-variant">Maior lesão</span>
+              <span class="text-[10px] tabular-nums font-semibold text-on-surface truncate ml-2 max-w-[130px]">{{ largestLesion }}</span>
+            </div>
+          </div>
+        }
+      </section>
+
+      <!-- ── Distribuição BI-RADS ──────────────────────────────────────────── -->
+      @if (biradsDistribution.length > 0) {
+        <section>
+          <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Distribuição BI-RADS</p>
+          <div class="space-y-1.5">
+            @for (slice of biradsDistribution; track slice.label) {
+              <div class="flex items-center gap-2">
+                <!-- Label chip -->
+                <span class="w-9 shrink-0 rounded px-1 py-0.5 text-center text-[10px] font-bold"
+                  [style.background]="slice.color + '30'"
+                  [style.color]="slice.color">
+                  {{ slice.label }}
+                </span>
+                <!-- Bar -->
+                <div class="flex-1 rounded-full bg-white/5 h-2 overflow-hidden">
+                  <div class="h-full rounded-full transition-all duration-500"
+                    [style.width]="slice.pct + '%'"
+                    [style.background]="slice.color">
+                  </div>
+                </div>
+                <!-- Count -->
+                <span class="w-8 shrink-0 text-right text-[10px] tabular-nums text-on-surface-variant">
+                  {{ slice.count }}
+                </span>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <!-- ── VP summary (multi-viewport) ──────────────────────────────────── -->
+      @if (vpStats.length > 1) {
+        <section>
+          <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Viewports</p>
+          <div class="space-y-1">
+            @for (vp of vpStats; track vp.idx) {
+              <div class="flex items-center gap-2 rounded border border-white/5 bg-neutral-900/30 px-2.5 py-1.5">
+                <span class="text-[10px] font-bold text-on-surface-variant">VP {{ vp.idx + 1 }}</span>
+                <div class="flex flex-1 flex-wrap gap-1.5">
+                  @if (vp.roiCount) {
+                    <span class="rounded bg-pink-900/30 px-1.5 py-0.5 text-[9px] text-pink-300">{{ vp.roiCount }} ROI</span>
+                  }
+                  @if (vp.rulerCount) {
+                    <span class="rounded bg-blue-900/30 px-1.5 py-0.5 text-[9px] text-blue-300">{{ vp.rulerCount }} régua</span>
+                  }
+                  @if (vp.arrowCount) {
+                    <span class="rounded bg-yellow-900/30 px-1.5 py-0.5 text-[9px] text-yellow-300">{{ vp.arrowCount }} seta</span>
+                  }
+                  @if (vp.brushCount) {
+                    <span class="rounded bg-neutral-700/40 px-1.5 py-0.5 text-[9px] text-neutral-300">{{ vp.brushCount }} traço</span>
+                  }
+                  @if (!vp.roiCount && !vp.rulerCount && !vp.arrowCount && !vp.brushCount) {
+                    <span class="text-[9px] text-on-surface-variant/40">sem anotações</span>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </section>
+      }
+
+      <div class="h-px bg-white/5"></div>
+    } @else {
+      <!-- No image loaded -->
+      <div class="flex flex-1 flex-col items-center justify-center gap-2 text-center py-10">
+        <lucide-icon [img]="icons.ImageIcon" class="h-10 w-10 text-on-surface-variant/20"></lucide-icon>
+        <p class="text-[11px] text-on-surface-variant">Nenhuma imagem carregada.</p>
+        <p class="text-[10px] text-on-surface-variant/50">As métricas de estudo aparecerão aqui.</p>
+      </div>
+    }
+
+    <!-- ── Base de dados ───────────────────────────────────────────────────── -->
+    <section>
+      <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Base de dados</p>
+
+      <!-- Online indicator -->
+      <div class="mb-2 flex items-center gap-1.5">
+        <span class="h-1.5 w-1.5 rounded-full"
+          [class.bg-emerald-400]="study.backendOnline()"
+          [class.bg-red-400]="!study.backendOnline()">
+        </span>
+        <span class="text-[10px]"
+          [class.text-emerald-400]="study.backendOnline()"
+          [class.text-red-400]="!study.backendOnline()">
+          {{ study.backendOnline() ? 'Go Core online' : 'Go Core offline' }}
+        </span>
+      </div>
+
+      <div class="grid grid-cols-2 gap-1.5">
+        <div class="rounded-lg border border-white/5 bg-neutral-900/40 p-2.5 text-center">
+          <p class="text-xl font-bold tabular-nums text-on-surface">{{ studyCount }}</p>
+          <p class="mt-0.5 text-[10px] text-on-surface-variant">Estudos</p>
+        </div>
+        <div class="rounded-lg border border-white/5 bg-neutral-900/40 p-2.5 text-center">
+          <p class="text-xl font-bold tabular-nums text-on-surface">{{ totalPatients }}</p>
+          <p class="mt-0.5 text-[10px] text-on-surface-variant">Pacientes</p>
+        </div>
+      </div>
+
+      <!-- BI-RADS global distribution across all studies -->
+      @if (studyList.length > 0) {
+        <div class="mt-2 rounded border border-white/5 bg-neutral-900/30 px-2.5 py-2">
+          <p class="mb-1.5 text-[10px] text-on-surface-variant/60">Últimos estudos persistidos</p>
+          <div class="space-y-0.5 max-h-28 overflow-y-auto">
+            @for (s of studyList; track s.id) {
+              <div class="flex items-center gap-2">
+                <span class="truncate text-[9px] text-on-surface-variant/60 flex-1">{{ s.id.slice(0, 8) }}</span>
+                <span class="shrink-0 text-[9px] text-on-surface-variant/40">{{ s.patient_id.slice(0, 6) }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      }
+    </section>
+
+    <!-- ── IA Engine status ────────────────────────────────────────────────── -->
+    <section>
+      <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Motor IA</p>
+      <div class="flex items-center gap-2 rounded-lg border border-white/5 bg-neutral-900/30 px-3 py-2.5">
+        @switch (study.aiEngineState()) {
+          @case ('ready') {
+            <span class="h-2 w-2 rounded-full bg-emerald-400 shrink-0"></span>
+            <div>
+              <p class="text-[11px] font-semibold text-emerald-300">Pronto</p>
+              <p class="text-[9px] text-on-surface-variant/60">Inferência disponível</p>
+            </div>
+          }
+          @case ('disabled') {
+            <span class="h-2 w-2 rounded-full bg-yellow-400 shrink-0"></span>
+            <div>
+              <p class="text-[11px] font-semibold text-yellow-300">Desabilitado</p>
+              <p class="text-[9px] text-on-surface-variant/60">{{ study.aiEngineReason() || 'Modelo não carregado' }}</p>
+            </div>
+          }
+          @default {
+            <span class="h-2 w-2 rounded-full bg-red-400 shrink-0"></span>
+            <div>
+              <p class="text-[11px] font-semibold text-red-300">Offline</p>
+              <p class="text-[9px] text-on-surface-variant/60">Sidecar IA não iniciado</p>
+            </div>
+          }
+        }
+      </div>
+    </section>
+
+  </div>
+</div>

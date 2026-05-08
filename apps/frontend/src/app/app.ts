@@ -21,9 +21,11 @@ import { FindingsPanelComponent } from './features/annotations/findings-panel.co
 import { SplashComponent }    from './shared/components/splash/splash.component';
 import { ConfirmModalComponent } from './shared/components/confirm-modal/confirm-modal.component';
 import { ToastComponent }     from './shared/components/toast/toast.component';
-import { HomePanelComponent }  from './features/home/home-panel.component';
-import { FilesPanelComponent }  from './features/files/files-panel.component';
-import { ToolsPanelComponent }  from './features/tools/tools-panel.component';
+import { HomePanelComponent }     from './features/home/home-panel.component';
+import { FilesPanelComponent }     from './features/files/files-panel.component';
+import { ToolsPanelComponent }     from './features/tools/tools-panel.component';
+import { AnalysisPanelComponent }  from './features/analysis/analysis-panel.component';
+import { ShortcutsModalComponent } from './shared/components/shortcuts-modal/shortcuts-modal.component';
 
 @Component({
   selector: 'app-root',
@@ -33,6 +35,7 @@ import { ToolsPanelComponent }  from './features/tools/tools-panel.component';
     ViewerComponent, FindingsPanelComponent,
     SplashComponent, ConfirmModalComponent, ToastComponent,
     HomePanelComponent, FilesPanelComponent, ToolsPanelComponent,
+    AnalysisPanelComponent, ShortcutsModalComponent,
   ],
   templateUrl: './app.html',
   styleUrls: ['./app.css'],
@@ -43,6 +46,9 @@ export class App implements OnInit, OnDestroy {
   readonly study = inject(StudyService);
   readonly api   = inject(ApiService);
   readonly toast = inject(ToastService);
+
+  // ── Shortcuts modal ───────────────────────────────────────────────────────
+  showShortcuts = false;
 
   // ── Patients tab state ────────────────────────────────────────────────────
   patientQuery = '';
@@ -131,6 +137,13 @@ export class App implements OnInit, OnDestroy {
     const ctrl = e.ctrlKey || e.metaKey;
     const active = document.activeElement as HTMLElement;
     const inField = active?.tagName === 'INPUT' || active?.tagName === 'TEXTAREA';
+
+    // Shortcuts modal: ⌘? or Escape closes it
+    if (this.showShortcuts) {
+      if (e.key === 'Escape' || (ctrl && e.key === '?')) { e.preventDefault(); this.showShortcuts = false; }
+      return;
+    }
+    if (ctrl && e.key === '?') { e.preventDefault(); this.showShortcuts = true; return; }
 
     if (ctrl && e.key === 'z' && !e.shiftKey) { e.preventDefault(); this.state.undo(this.state.activeVp, (i) => this.viewerRef!.draw(i)); }
     else if (ctrl && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); this.state.redo(this.state.activeVp, (i) => this.viewerRef!.draw(i)); }
