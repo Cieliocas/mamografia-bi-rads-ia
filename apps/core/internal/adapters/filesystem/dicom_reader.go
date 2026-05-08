@@ -52,14 +52,23 @@ func (r *DICOMReader) ReadDICOM(path string) (*outbound.Pixels16, *outbound.DICO
 	}
 
 	meta := &outbound.DICOMMetadata{
-		PatientID:   firstString(ds, tag.PatientID, "UNKNOWN"),
-		StudyDate:   firstString(ds, tag.StudyDate, ""),
-		Modality:    firstString(ds, tag.Modality, "MG"),
-		Description: dicomDescription(ds, path),
+		PatientID:    firstString(ds, tag.PatientID, "UNKNOWN"),
+		StudyDate:    firstString(ds, tag.StudyDate, ""),
+		Modality:     firstString(ds, tag.Modality, "MG"),
+		Description:  dicomDescription(ds, path),
+		Photometric:  firstString(ds, tag.PhotometricInterpretation, ""),
 	}
 	meta.WindowCenter, _ = firstFloat(ds, tag.WindowCenter)
 	meta.WindowWidth, _ = firstFloat(ds, tag.WindowWidth)
 	meta.BitsStored, _ = firstInt(ds, tag.BitsStored)
+	// PixelSpacing (0028,0030): [row_spacing, col_spacing] in mm/pixel.
+	// Use row spacing (index 0) as the canonical value.
+	if ps, ok := firstFloat(ds, tag.PixelSpacing); ok && ps > 0 {
+		meta.PixelSpacing = ps
+	} else if ips, ok := firstFloat(ds, tag.ImagerPixelSpacing); ok && ips > 0 {
+		// Fallback: ImagerPixelSpacing (0018,1164), present in some mammography DICOMs.
+		meta.PixelSpacing = ips
+	}
 
 	// FrameCount: prefer explicit (0028,0008); fall back to counting parsed frames.
 	if n, ok := firstInt(ds, tag.NumberOfFrames); ok && n > 0 {
@@ -83,7 +92,8 @@ func (r *DICOMReader) ReadDICOM(path string) (*outbound.Pixels16, *outbound.DICO
 	if err != nil {
 		return nil, nil, fmt.Errorf("dicom_reader: pixels in %q (TS=%s): %w", path, ts, err)
 	}
-	pixels.Signed = pixelRepr == 1
+	pixels.Signed       = pixelRepr == 1
+	pixels.Photometric  = meta.Photometric
 	return pixels, meta, nil
 }
 
@@ -99,11 +109,13 @@ func (r *DICOMReader) ReadDICOMFrame(path string, frameIdx int) (*outbound.Pixel
 	rows, _ := firstInt(ds, tag.Rows)
 	cols, _ := firstInt(ds, tag.Columns)
 	pixelRepr, _ := firstInt(ds, tag.PixelRepresentation)
+	photometric := firstString(ds, tag.PhotometricInterpretation, "")
 	pixels, err := readFrameInt16(ds, path, ts, frameIdx, bitsAlloc, samplesPerPx, rows, cols)
 	if err != nil {
 		return nil, err
 	}
-	pixels.Signed = pixelRepr == 1
+	pixels.Signed      = pixelRepr == 1
+	pixels.Photometric = photometric
 	return pixels, nil
 }
 

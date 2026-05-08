@@ -111,6 +111,12 @@ func (h *StudyHandler) createStudy(c *gin.Context) {
 		resp["window_width"] = m.WindowWidth
 		resp["bits_stored"] = m.BitsStored
 		resp["frame_count"] = m.FrameCount
+		if m.PixelSpacing > 0 {
+			resp["pixel_spacing"] = m.PixelSpacing
+		}
+		if m.Photometric != "" {
+			resp["photometric"] = m.Photometric
+		}
 	}
 	c.JSON(http.StatusCreated, resp)
 }

@@ -121,6 +121,15 @@ export class AnalysisPanelComponent implements OnInit {
     return p.name || `ext: ${p.external_id || p.id.slice(0, 8)}`;
   }
 
-  get studyMeta() { return this.study.currentMetadata(); }
+  get studyMeta()    { return this.study.currentMetadata(); }
   get clinicalData() { return this.study.currentClinical(); }
+
+  /** Lesion size in mm using pixel spacing (when available). */
+  get avgLesionMm(): string {
+    const rois = this.activeRois.filter(r => r.rx > 0);
+    const ps   = this.studyMeta?.pixelSpacing;
+    if (!rois.length || !ps) return '';
+    const avgPx = rois.reduce((s, r) => s + (r.rx + r.ry) / 2, 0) / rois.length;
+    return `(${(avgPx * ps).toFixed(2)} mm)`;
+  }
 }

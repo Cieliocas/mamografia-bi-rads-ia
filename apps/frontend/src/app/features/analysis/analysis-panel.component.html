@@ -34,6 +34,16 @@
               {{ studyMeta!.width }}×{{ studyMeta!.height }}
             </span>
           }
+          @if (studyMeta?.pixelSpacing) {
+            <span class="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-on-surface-variant tabular-nums">
+              {{ studyMeta!.pixelSpacing!.toFixed(4) }} mm/px
+            </span>
+          }
+          @if (studyMeta?.photometric === 'MONOCHROME1') {
+            <span class="rounded-full border border-yellow-800/40 bg-yellow-900/20 px-2 py-0.5 text-[10px] text-yellow-300">
+              MONO1 ⚠
+            </span>
+          }
           @if (clinicalData?.birads_global) {
             <span class="rounded-full border border-pink-500/30 bg-pink-900/20 px-2 py-0.5 text-[10px] font-bold text-pink-200">
               BI-RADS {{ clinicalData!.birads_global }}
@@ -66,7 +76,9 @@
           <div class="mt-2 space-y-1">
             <div class="flex items-center justify-between rounded border border-white/5 bg-neutral-900/30 px-2.5 py-1.5">
               <span class="text-[10px] text-on-surface-variant">Tamanho médio</span>
-              <span class="text-[10px] tabular-nums font-semibold text-on-surface">{{ avgLesionPx }}</span>
+              <span class="text-[10px] tabular-nums font-semibold text-on-surface">
+                {{ avgLesionPx }} <span class="text-on-surface-variant/60">{{ avgLesionMm }}</span>
+              </span>
             </div>
             <div class="flex items-center justify-between rounded border border-white/5 bg-neutral-900/30 px-2.5 py-1.5">
               <span class="text-[10px] text-on-surface-variant">Maior lesão</span>

@@ -55,6 +55,10 @@ export interface OpenStudyResponse {
   bits_stored?: number;
   /** Total number of frames; 1 for single-frame DICOMs. */
   frame_count?: number;
+  /** Real-world pixel size in mm (0028,0030 PixelSpacing row). 0 / absent = unknown. */
+  pixel_spacing?: number;
+  /** PhotometricInterpretation (0028,0004): "MONOCHROME1" | "MONOCHROME2" | … */
+  photometric?: string;
 }
 
 export interface StudyListItem {

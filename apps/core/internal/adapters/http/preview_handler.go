@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"image"
 	"image/color"
 	"image/draw"
@@ -13,12 +14,46 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 
 	"github.com/gin-gonic/gin"
 
 	"mammo/apps/core/internal/domain/entity"
 	"mammo/apps/core/internal/ports/outbound"
 )
+
+// previewCache is an in-memory cache for rendered PNGs keyed by
+// "studyID:frame:wc:ww". It is capped at maxCacheEntries entries; when full
+// the entire cache is cleared (simple strategy, good enough for single-user).
+const maxCacheEntries = 60
+
+var (
+	previewCacheMu   sync.Mutex
+	previewCacheMap  = make(map[string][]byte, maxCacheEntries)
+	previewCacheSize atomic.Int64
+)
+
+func cacheGet(key string) ([]byte, bool) {
+	previewCacheMu.Lock()
+	v, ok := previewCacheMap[key]
+	previewCacheMu.Unlock()
+	return v, ok
+}
+
+func cacheSet(key string, data []byte) {
+	previewCacheMu.Lock()
+	if len(previewCacheMap) >= maxCacheEntries {
+		previewCacheMap = make(map[string][]byte, maxCacheEntries) // flush
+	}
+	previewCacheMap[key] = data
+	previewCacheMu.Unlock()
+	previewCacheSize.Store(int64(len(data)))
+}
+
+func previewCacheKey(id string, frame int, wc, ww float64) string {
+	return fmt.Sprintf("%s:%d:%.0f:%.0f", id, frame, wc, ww)
+}
 
 // PreviewHandler renders a DICOM study's first frame as a PNG with WW/WC
 // applied, so the browser canvas can display real .dcm files. The browser
@@ -101,13 +136,21 @@ func (h *PreviewHandler) preview(c *gin.Context) {
 
 	// Resolve windowing: explicit query params override DICOM header defaults.
 	wc, ww := pickWindowing(c, meta)
-	img := renderGrayscale(pixels, wc, ww)
 
+	// Check cache before re-rendering.
+	cacheKey := previewCacheKey(id, frameIdx, wc, ww)
+	if cached, ok := cacheGet(cacheKey); ok {
+		c.Data(http.StatusOK, "image/png", cached)
+		return
+	}
+
+	img := renderGrayscale(pixels, wc, ww)
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, img); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "encode png: " + err.Error()})
 		return
 	}
+	cacheSet(cacheKey, buf.Bytes())
 	c.Data(http.StatusOK, "image/png", buf.Bytes())
 }
 
@@ -242,10 +285,16 @@ func drawVLine(img *image.RGBA, x, y0, y1 int, c color.Color) {
 //   - Signed == false → unsigned bits reinterpreted as uint16 (0…65535);
 //     this is the correct handling for PixelRepresentation=0 DICOMs where
 //     pixel values > 32767 would otherwise appear as negative (black).
+//
+// p.Photometric == "MONOCHROME1" causes the output to be inverted (0=white).
+// This is required by DICOM standard for some modalities (CR, XA, MG scans
+// stored with inverted polarity — bright areas represent bone/tissue density).
 func renderGrayscale(p *outbound.Pixels16, wc, ww float64) *image.Gray {
-	img := image.NewGray(image.Rect(0, 0, p.Width, p.Height))
-	half := ww / 2
-	low := wc - half
+	img    := image.NewGray(image.Rect(0, 0, p.Width, p.Height))
+	half   := ww / 2
+	low    := wc - half
+	invert := strings.EqualFold(p.Photometric, "MONOCHROME1")
+
 	for y := 0; y < p.Height; y++ {
 		for x := 0; x < p.Width; x++ {
 			raw := p.Data[y*p.Width+x]
@@ -263,6 +312,9 @@ func renderGrayscale(p *outbound.Pixels16, wc, ww float64) *image.Gray {
 				g = 255
 			default:
 				g = uint8(((v - low) / ww) * 255)
+			}
+			if invert {
+				g = 255 - g
 			}
 			img.SetGray(x, y, color.Gray{Y: g})
 		}

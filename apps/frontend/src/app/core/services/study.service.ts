@@ -10,6 +10,10 @@ export interface StudyMetadata {
   bitsStored?: number;
   width?: number;
   height?: number;
+  /** Real-world pixel size in mm from DICOM (0028,0030). 0 = unknown. */
+  pixelSpacing?: number;
+  /** PhotometricInterpretation: "MONOCHROME1" | "MONOCHROME2" | undefined. */
+  photometric?: string;
 }
 
 export interface HistoryEntry {
@@ -118,11 +122,13 @@ export class StudyService {
     this.currentMetadata.set({
       modality:     resp.modality,
       description:  resp.description,
-      windowCenter: resp.window_center || undefined,
-      windowWidth:  resp.window_width  || undefined,
-      bitsStored:   resp.bits_stored   || undefined,
+      windowCenter: resp.window_center  || undefined,
+      windowWidth:  resp.window_width   || undefined,
+      bitsStored:   resp.bits_stored    || undefined,
       width:        resp.width,
       height:       resp.height,
+      pixelSpacing: resp.pixel_spacing  || undefined,
+      photometric:  resp.photometric    || undefined,
     });
     this.currentFrameCount.set(resp.frame_count && resp.frame_count > 1 ? resp.frame_count : 1);
     this.currentFrame.set(0);

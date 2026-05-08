@@ -12,6 +12,10 @@ type Pixels16 struct {
 	// Signed reflects DICOM tag PixelRepresentation (0028,0103):
 	// 0 = unsigned (default), 1 = signed two's-complement.
 	Signed bool
+	// Photometric is the DICOM PhotometricInterpretation (0028,0004).
+	// "MONOCHROME1" means pixel value 0 = white (inverted scale).
+	// Empty string → treat as MONOCHROME2 (pixel 0 = black, default).
+	Photometric string
 }
 
 // DICOMMetadata captures the essential DICOM header fields.
@@ -24,6 +28,11 @@ type DICOMMetadata struct {
 	WindowWidth  float64 // 0 if absent
 	BitsStored   int     // 0 if absent
 	FrameCount   int     // total number of frames; 1 for single-frame DICOMs
+	// PixelSpacing is the real-world size of one pixel in mm (row spacing).
+	// Read from (0028,0030) PixelSpacing. 0 means the tag was absent.
+	PixelSpacing float64
+	// Photometric is the DICOM PhotometricInterpretation (0028,0004).
+	Photometric string
 }
 
 // FilesystemReader provides raw access to DICOM files on disk.

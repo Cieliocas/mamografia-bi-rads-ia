@@ -247,10 +247,14 @@ export class ViewerComponent implements AfterViewInit {
           ctx.beginPath(); ctx.arc(pt.x, pt.y, ru.isSelected ? 5 : 3, 0, Math.PI * 2);
           ctx.fillStyle = col; ctx.fill();
         });
-        const dist = Math.sqrt((ru.x2 - ru.x1) ** 2 + (ru.y2 - ru.y1) ** 2).toFixed(1);
+        const pxDist = Math.sqrt((ru.x2 - ru.x1) ** 2 + (ru.y2 - ru.y1) ** 2);
+        const ps     = this.study.currentMetadata()?.pixelSpacing;
+        const distLabel = ps && ps > 0
+          ? `${(pxDist * ps).toFixed(2)} mm`
+          : `${pxDist.toFixed(1)} px`;
         ctx.fillStyle = col;
         ctx.font = 'bold 11px Inter,sans-serif'; ctx.textAlign = 'center';
-        ctx.fillText(`${dist}px`, (a.x + b.x) / 2, (a.y + b.y) / 2 - 9);
+        ctx.fillText(distLabel, (a.x + b.x) / 2, (a.y + b.y) / 2 - 9);
       }
     });
     ctx.restore();
