@@ -1,0 +1,98 @@
+<div class="flex flex-col h-full overflow-y-auto">
+
+  <!-- Greeting -->
+  <div class="p-5 border-b border-white/5">
+    <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">AIdentify</p>
+    <h2 class="mt-1 text-xl font-bold text-on-surface">{{ greeting }} 👋</h2>
+    <p class="mt-0.5 text-[11px] text-on-surface-variant capitalize">{{ dateStr }}</p>
+
+    <!-- Status chips -->
+    <div class="mt-4 flex flex-wrap gap-2">
+      <span class="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold"
+        [class.bg-emerald-900\/40]="study.backendOnline()"
+        [class.text-emerald-300]="study.backendOnline()"
+        [class.bg-red-900\/40]="!study.backendOnline()"
+        [class.text-red-300]="!study.backendOnline()">
+        <lucide-icon [img]="study.backendOnline() ? icons.CheckCircle : icons.XCircle" class="h-3 w-3"></lucide-icon>
+        Go Core {{ study.backendOnline() ? 'online' : 'offline' }}
+      </span>
+      <span class="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-semibold"
+        [class.bg-pink-900\/40]="aiReady"
+        [class.text-pink-300]="aiReady"
+        [class.bg-neutral-800]="!aiReady"
+        [class.text-neutral-400]="!aiReady">
+        <lucide-icon [img]="icons.Sparkles" class="h-3 w-3"></lucide-icon>
+        IA {{ aiReady ? 'disponível' : 'indisponível' }}
+      </span>
+    </div>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="p-4 border-b border-white/5">
+    <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Ações rápidas</p>
+    <div class="grid grid-cols-1 gap-2">
+      <button (click)="openFile.emit()"
+        class="flex items-center gap-3 rounded-lg border border-white/8 bg-white/3 px-3 py-2.5 text-left transition hover:border-primary/40 hover:bg-primary/8">
+        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/15">
+          <lucide-icon [img]="icons.FolderOpen" class="h-4 w-4 text-primary"></lucide-icon>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-on-surface">Abrir imagem</p>
+          <p class="text-[10px] text-on-surface-variant">DICOM, PNG ou JPEG</p>
+        </div>
+      </button>
+
+      <button (click)="openFolder.emit()"
+        class="flex items-center gap-3 rounded-lg border border-white/8 bg-white/3 px-3 py-2.5 text-left transition hover:border-primary/40 hover:bg-primary/8">
+        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/15">
+          <lucide-icon [img]="icons.FolderInput" class="h-4 w-4 text-primary"></lucide-icon>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-on-surface">Abrir pasta</p>
+          <p class="text-[10px] text-on-surface-variant">Navegar arquivos do paciente</p>
+        </div>
+      </button>
+
+      <button (click)="goToPatients.emit()"
+        class="flex items-center gap-3 rounded-lg border border-white/8 bg-white/3 px-3 py-2.5 text-left transition hover:border-primary/40 hover:bg-primary/8">
+        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-primary/15">
+          <lucide-icon [img]="icons.Users" class="h-4 w-4 text-primary"></lucide-icon>
+        </div>
+        <div>
+          <p class="text-xs font-semibold text-on-surface">Buscar paciente</p>
+          <p class="text-[10px] text-on-surface-variant">Histórico e estudos anteriores</p>
+        </div>
+      </button>
+    </div>
+  </div>
+
+  <!-- Recent files -->
+  <div class="flex-1 overflow-y-auto p-4">
+    <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+      Recentes ({{ recentFiles.length }})
+    </p>
+
+    @if (recentFiles.length === 0) {
+      <div class="flex flex-col items-center justify-center py-10 text-center">
+        <lucide-icon [img]="icons.Clock" class="h-8 w-8 text-on-surface-variant/30 mb-2"></lucide-icon>
+        <p class="text-[11px] text-on-surface-variant">Nenhuma imagem aberta nesta sessão.</p>
+        <p class="text-[10px] text-on-surface-variant/60 mt-0.5">Use "Abrir imagem" para começar.</p>
+      </div>
+    }
+
+    <div class="space-y-1.5">
+      @for (item of recentFiles; track item.dataUrl) {
+        <div class="flex items-center gap-2.5 rounded-lg border border-white/5 bg-white/2 px-3 py-2 transition hover:bg-white/4 hover:border-white/10">
+          <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded bg-neutral-800">
+            <lucide-icon [img]="icons.FolderOpen" class="h-3.5 w-3.5 text-neutral-400"></lucide-icon>
+          </div>
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-[11px] font-semibold text-on-surface">{{ item.name }}</p>
+            <p class="text-[10px] text-on-surface-variant">{{ item.date }}</p>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+</div>

@@ -47,144 +47,157 @@
     <!-- ── Main layout ──────────────────────────────────────────────────── -->
     <div class="flex flex-1 overflow-hidden">
 
-      <!-- Icon sidebar -->
+      <!-- Icon sidebar — Home · Files · Patients · Analysis · Tools -->
       <aside class="w-20 shrink-0 border-r border-white/5 bg-[#121212] py-4">
-        <button (click)="state.setPanel('images')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
-          [class.text-secondary]="state.activePanel==='images'"
-          [class.text-on-surface-variant]="state.activePanel!=='images'">
-          <lucide-icon [img]="icons.FolderOpen" class="h-5 w-5"></lucide-icon> Images
+        <button (click)="state.setPanel('home')"
+          class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold transition"
+          [class.text-secondary]="state.activePanel==='home'"
+          [class.text-on-surface-variant]="state.activePanel!=='home'">
+          <lucide-icon [img]="icons.House" class="h-5 w-5"></lucide-icon> Home
         </button>
-        <button (click)="state.setPanel('history')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
-          [class.text-secondary]="state.activePanel==='history'"
-          [class.text-on-surface-variant]="state.activePanel!=='history'">
-          <lucide-icon [img]="icons.History" class="h-5 w-5"></lucide-icon> History
+        <button (click)="onSetFilesPanel()"
+          class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold transition"
+          [class.text-secondary]="state.activePanel==='files'"
+          [class.text-on-surface-variant]="state.activePanel!=='files'">
+          <lucide-icon [img]="icons.FolderOpen" class="h-5 w-5"></lucide-icon> Files
         </button>
-        <button (click)="state.setPanel('patients'); loadPatients()" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
+        <button (click)="state.setPanel('patients'); loadPatients()"
+          class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold transition"
           [class.text-secondary]="state.activePanel==='patients'"
           [class.text-on-surface-variant]="state.activePanel!=='patients'">
           <lucide-icon [img]="icons.Users" class="h-5 w-5"></lucide-icon> Patients
         </button>
-        <button (click)="state.setPanel('analysis')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
+        <button (click)="state.setPanel('analysis')"
+          class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold transition"
           [class.text-secondary]="state.activePanel==='analysis'"
           [class.text-on-surface-variant]="state.activePanel!=='analysis'">
           <lucide-icon [img]="icons.BarChart3" class="h-5 w-5"></lucide-icon> Analysis
         </button>
-        <button (click)="state.setPanel('tools')" class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold"
+        <button (click)="state.setPanel('tools')"
+          class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold transition"
           [class.text-secondary]="state.activePanel==='tools'"
           [class.text-on-surface-variant]="state.activePanel!=='tools'">
           <lucide-icon [img]="icons.Wrench" class="h-5 w-5"></lucide-icon> Tools
         </button>
       </aside>
 
-      <!-- Left panel (files / history) -->
+      <!-- Left panel -->
       @if (state.leftOpen) {
-        <aside class="w-[300px] shrink-0 border-r border-white/5 bg-surface-container-low overflow-y-auto">
-          <div class="border-b border-white/5 p-4">
-            <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Diagnostics / Patient Files</p>
-            <h3 class="mt-3 text-lg font-bold">Radiology Suite</h3>
-            <p class="text-xs text-on-surface-variant">{{ study.historyFiles.length }} arquivo(s) na sessão</p>
-          </div>
-          <div class="space-y-2 p-3">
-            <button (click)="viewer.openFileDialog()" class="w-full p-3 text-left" style="background:rgba(240,154,181,.08);border-left:2px solid #F09AB5">
-              <p class="truncate text-xs font-bold">{{ state.activeVPData.imageName || 'Nenhuma imagem carregada' }}</p>
-              <p class="mt-1 text-[10px] text-on-surface-variant">Clique para abrir imagem</p>
-            </button>
+        <aside class="w-[300px] shrink-0 border-r border-white/5 bg-surface-container-low overflow-hidden flex flex-col">
 
-            @if (state.activePanel === 'images') {
-              <!-- Session history (in-memory) -->
-              @for (item of study.historyFiles.slice(0,8); track item.dataUrl) {
-                <button (click)="viewer.loadHistory(item)" class="w-full p-3 text-left transition hover:bg-surface-container-high" style="background:rgba(255,255,255,.02)">
-                  <p class="truncate text-xs font-bold">{{ item.name }}</p>
-                  <p class="text-[10px] text-on-surface-variant">{{ item.date }}</p>
-                </button>
-              }
-            }
+          <!-- HOME -->
+          @if (state.activePanel === 'home') {
+            <app-home-panel
+              (openFile)="viewer.openFileDialog()"
+              (openFolder)="onOpenFolder()"
+              (goToPatients)="onGoToPatients()"
+            />
+          }
 
-            @if (state.activePanel === 'patients') {
-              <div class="flex items-center gap-2 pb-2">
-                <input
-                  type="text"
-                  [(ngModel)]="patientQuery"
-                  (keyup.enter)="loadPatients()"
-                  placeholder="Buscar por nome ou ID DICOM…"
-                  class="flex-1 rounded border border-white/10 bg-neutral-950/60 px-2 py-1 text-[11px] text-on-surface"/>
-                <button class="rounded border border-pink-500/30 bg-pink-900/20 px-2 py-1 text-[11px] text-pink-200 hover:bg-pink-900/40"
-                  (click)="loadPatients()">↻</button>
+          <!-- FILES -->
+          @if (state.activePanel === 'files') {
+            <app-files-panel #filesPanel
+              (openFile)="onOpenFilePath($event)"
+              (pickFolder)="onPickFolder()"
+            />
+          }
+
+          <!-- PATIENTS -->
+          @if (state.activePanel === 'patients') {
+            <div class="flex flex-col h-full overflow-y-auto">
+              <div class="border-b border-white/5 p-4 shrink-0">
+                <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Pacientes</p>
               </div>
-
-              @if (patients.length === 0) {
-                <p class="text-[10px] text-neutral-600">Nenhum paciente encontrado.</p>
-              }
-
-              @for (p of patients; track p.id) {
-                <button
-                  class="w-full rounded border p-2 text-left transition"
-                  [class.border-pink-500\\/40]="selectedPatient?.id === p.id"
-                  [class.bg-pink-900\\/20]="selectedPatient?.id === p.id"
-                  [class.border-white\\/5]="selectedPatient?.id !== p.id"
-                  [class.bg-neutral-900\\/40]="selectedPatient?.id !== p.id"
-                  (click)="selectPatient(p)">
-                  <p class="truncate text-xs font-bold">{{ p.name || '— sem nome —' }}</p>
-                  <p class="truncate text-[10px] text-neutral-500">
-                    @if (p.external_id) { <span>ext: {{ p.external_id }}</span> }
-                    @if (p.birth_date) { <span class="ml-2">nasc: {{ p.birth_date }}</span> }
-                    @if (p.sex) { <span class="ml-2">{{ p.sex }}</span> }
-                  </p>
-                </button>
-              }
-
-              @if (selectedPatient && patientStudies.length > 0) {
-                <div class="mt-3 space-y-1">
-                  <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                    Estudos ({{ patientStudies.length }})
-                  </p>
-                  @for (s of patientStudies; track s.id) {
-                    <div
-                      class="rounded border border-white/5 bg-neutral-950/40 px-2 py-1.5 text-[10px] transition"
-                      [class.cursor-pointer]="!!s.file_path"
-                      [class.hover:bg-pink-900\/15]="!!s.file_path"
-                      [class.hover:border-pink-500\/30]="!!s.file_path"
-                      [title]="s.file_path ? 'Abrir imagem' : ''"
-                      (click)="s.file_path && viewer.openPath(s.file_path)">
-                      <div class="flex items-center justify-between">
-                        <span class="tabular-nums text-neutral-300">{{ s.study_date | date:'dd/MM/yyyy HH:mm' }}</span>
-                        @if (s.birads_global) {
-                          <span class="rounded bg-pink-900/40 px-1.5 py-0.5 font-bold text-pink-200">BI-RADS {{ s.birads_global }}</span>
+              <div class="space-y-2 p-3">
+                <div class="flex items-center gap-2 pb-2">
+                  <input type="text" [(ngModel)]="patientQuery" (keyup.enter)="loadPatients()"
+                    placeholder="Buscar por nome ou ID DICOM…"
+                    class="flex-1 rounded border border-white/10 bg-neutral-950/60 px-2 py-1 text-[11px] text-on-surface"/>
+                  <button class="rounded border border-pink-500/30 bg-pink-900/20 px-2 py-1 text-[11px] text-pink-200 hover:bg-pink-900/40"
+                    (click)="loadPatients()">↻</button>
+                </div>
+                @if (patients.length === 0) {
+                  <p class="text-[10px] text-neutral-600">Nenhum paciente encontrado.</p>
+                }
+                @for (p of patients; track p.id) {
+                  <button class="w-full rounded border p-2 text-left transition"
+                    [class.border-pink-500\/40]="selectedPatient?.id === p.id"
+                    [class.bg-pink-900\/20]="selectedPatient?.id === p.id"
+                    [class.border-white\/5]="selectedPatient?.id !== p.id"
+                    [class.bg-neutral-900\/40]="selectedPatient?.id !== p.id"
+                    (click)="selectPatient(p)">
+                    <p class="truncate text-xs font-bold">{{ p.name || '— sem nome —' }}</p>
+                    <p class="truncate text-[10px] text-neutral-500">
+                      @if (p.external_id) { <span>ext: {{ p.external_id }}</span> }
+                      @if (p.birth_date) { <span class="ml-2">nasc: {{ p.birth_date }}</span> }
+                      @if (p.sex) { <span class="ml-2">{{ p.sex }}</span> }
+                    </p>
+                  </button>
+                }
+                @if (selectedPatient && patientStudies.length > 0) {
+                  <div class="mt-3 space-y-1">
+                    <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+                      Estudos ({{ patientStudies.length }})
+                    </p>
+                    @for (s of patientStudies; track s.id) {
+                      <div class="rounded border border-white/5 bg-neutral-950/40 px-2 py-1.5 text-[10px] transition"
+                        [class.cursor-pointer]="!!s.file_path"
+                        [title]="s.file_path ? 'Abrir imagem' : ''"
+                        (click)="s.file_path && viewer.openPath(s.file_path)">
+                        <div class="flex items-center justify-between">
+                          <span class="tabular-nums text-neutral-300">{{ s.study_date | date:'dd/MM/yyyy HH:mm' }}</span>
+                          @if (s.birads_global) {
+                            <span class="rounded bg-pink-900/40 px-1.5 py-0.5 font-bold text-pink-200">BI-RADS {{ s.birads_global }}</span>
+                          }
+                        </div>
+                        <p class="truncate text-[9px] text-neutral-600">{{ s.id }}</p>
+                        @if (s.file_path) {
+                          <p class="truncate text-[9px] text-pink-500/60 mt-0.5">{{ s.file_path }}</p>
                         }
                       </div>
-                      <p class="truncate text-[9px] text-neutral-600">{{ s.id }}</p>
-                      @if (s.file_path) {
-                        <p class="truncate text-[9px] text-pink-500/60 mt-0.5">{{ s.file_path }}</p>
-                      }
-                    </div>
-                  }
-                </div>
-              }
-            }
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
 
-            @if (state.activePanel === 'history') {
-              <!-- Backend studies (Step 3) -->
-              <div class="flex items-center justify-between pb-1">
-                <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                  Estudos no servidor ({{ study.backendStudies().length }})
+          <!-- HISTORY -->
+          @if (state.activePanel === 'history') {
+            <div class="flex flex-col h-full overflow-y-auto">
+              <div class="border-b border-white/5 p-4 shrink-0 flex items-center justify-between">
+                <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">
+                  Estudos ({{ study.backendStudies().length }})
                 </p>
                 <button class="text-[10px] text-pink-400 hover:text-pink-300 transition"
                   (click)="study.refreshBackendStudies()">↻</button>
               </div>
-              @if (!study.backendOnline()) {
-                <p class="text-[10px] text-red-400">Backend offline</p>
-              }
-              @for (s of study.backendStudies(); track s.id) {
-                <div class="rounded border border-white/5 bg-neutral-900/40 p-2">
-                  <p class="truncate text-xs font-bold">{{ s.patient_id || s.id }}</p>
-                  <p class="text-[10px] text-neutral-500 tabular-nums">{{ s.id }}</p>
-                </div>
-              }
-              @if (study.backendStudies().length === 0 && study.backendOnline()) {
-                <p class="text-[10px] text-neutral-600">Nenhum estudo persistido.</p>
-              }
-            }
-          </div>
+              <div class="space-y-1.5 p-3">
+                @if (!study.backendOnline()) {
+                  <p class="text-[10px] text-red-400">Backend offline</p>
+                }
+                @for (s of study.backendStudies(); track s.id) {
+                  <div class="rounded border border-white/5 bg-neutral-900/40 p-2">
+                    <p class="truncate text-xs font-bold">{{ s.patient_id || s.id }}</p>
+                    <p class="text-[10px] text-neutral-500 tabular-nums">{{ s.id }}</p>
+                  </div>
+                }
+                @if (study.backendStudies().length === 0 && study.backendOnline()) {
+                  <p class="text-[10px] text-neutral-600">Nenhum estudo persistido.</p>
+                }
+              </div>
+            </div>
+          }
+
+          <!-- ANALYSIS / TOOLS placeholder -->
+          @if (state.activePanel === 'analysis' || state.activePanel === 'tools') {
+            <div class="flex flex-1 flex-col items-center justify-center gap-2 text-center p-6">
+              <p class="text-2xl">🚧</p>
+              <p class="text-xs font-semibold text-on-surface">Em breve</p>
+              <p class="text-[10px] text-on-surface-variant">Este painel está sendo desenvolvido (Sprint 2).</p>
+            </div>
+          }
+
         </aside>
       }
 

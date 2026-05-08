@@ -130,6 +130,7 @@ func main() {
 		httpadapter.NewPatientHandler(patientRepo, studyRepo, updatePatient),
 		httpadapter.NewAudioHandler(annotRepo, cfg.LocalDataRoot),
 		healthHandler,
+		httpadapter.NewFsHandler(),
 	)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)

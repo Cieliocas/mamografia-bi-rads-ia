@@ -7,7 +7,7 @@ import {
 
 export type ActiveTool = 'pan'|'roi'|'ruler';
 export type ActiveShape = 'ellipse'|'rect';
-export type ActivePanel = 'images'|'history'|'patients'|'analysis'|'tools';
+export type ActivePanel = 'home'|'files'|'history'|'patients'|'analysis'|'tools';
 
 @Injectable({ providedIn: 'root' })
 export class ViewerStateService {
@@ -28,7 +28,7 @@ export class ViewerStateService {
   clipboard: ROI|null = null;
 
   // ── UI state ──────────────────────────────────────────────────────────────
-  activePanel: ActivePanel = 'images';
+  activePanel: ActivePanel = 'home';
   leftOpen = true;
   rightOpen = true;
   showResetModal = false;

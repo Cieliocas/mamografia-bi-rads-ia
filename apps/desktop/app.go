@@ -193,6 +193,18 @@ func goCoreExecutable() (string, error) {
 	return "", os.ErrNotExist
 }
 
+// OpenDirectoryDialog opens a native OS folder picker and returns the chosen path.
+// Returns an empty string if the user cancels.
+func (a *App) OpenDirectoryDialog() string {
+	path, err := runtime.OpenDirectoryDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Abrir Pasta",
+	})
+	if err != nil {
+		return ""
+	}
+	return path
+}
+
 // OpenFileDialog opens a native OS file picker and returns the chosen path.
 // Returns an empty string if the user cancels.
 func (a *App) OpenFileDialog() string {

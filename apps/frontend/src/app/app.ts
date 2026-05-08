@@ -7,8 +7,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
   LucideAngularModule,
-  FolderOpen, History, Users, BarChart3, Wrench,
-  ChevronRight, ChevronLeft, Sparkles
+  FolderOpen, FolderInput, History, Users, BarChart3, Wrench,
+  ChevronRight, ChevronLeft, Sparkles, House
 } from 'lucide-angular';
 import { ApiService, PatientDTO, PatientStudyDTO } from './core/services/api.service';
 import { WindowToggleMaximise } from './wailsjs/runtime/runtime';
@@ -21,6 +21,8 @@ import { FindingsPanelComponent } from './features/annotations/findings-panel.co
 import { SplashComponent }    from './shared/components/splash/splash.component';
 import { ConfirmModalComponent } from './shared/components/confirm-modal/confirm-modal.component';
 import { ToastComponent }     from './shared/components/toast/toast.component';
+import { HomePanelComponent } from './features/home/home-panel.component';
+import { FilesPanelComponent } from './features/files/files-panel.component';
 
 @Component({
   selector: 'app-root',
@@ -29,6 +31,7 @@ import { ToastComponent }     from './shared/components/toast/toast.component';
     CommonModule, FormsModule, LucideAngularModule,
     ViewerComponent, FindingsPanelComponent,
     SplashComponent, ConfirmModalComponent, ToastComponent,
+    HomePanelComponent, FilesPanelComponent,
   ],
   templateUrl: './app.html',
   styleUrls: ['./app.css'],
@@ -61,7 +64,10 @@ export class App implements OnInit, OnDestroy {
   private splashFailSafe: ReturnType<typeof setTimeout>  | null = null;
   private autoSaveSub:    Subscription | null = null;
 
-  readonly icons = { FolderOpen, History, Users, BarChart3, Wrench, ChevronRight, ChevronLeft, Sparkles };
+  readonly icons = { FolderOpen, FolderInput, History, Users, BarChart3, Wrench, ChevronRight, ChevronLeft, Sparkles, House };
+
+  // ── ViewChild references ──────────────────────────────────────────────────
+  @ViewChild('filesPanel') filesPanelRef?: FilesPanelComponent;
 
   /** Double-click na titlebar → zoom padrão macOS. */
   toggleMaximise() {
@@ -161,6 +167,11 @@ export class App implements OnInit, OnDestroy {
       this.state.setBirads(quickBirads(e.key, this.state.selectedROI.birads),
         (i) => this.viewerRef!.draw(i));
     }
+    // Open folder: ⌘⇧O
+    else if (ctrl && e.shiftKey && e.key === 'O') {
+      e.preventDefault();
+      this.openDirectoryDialog();
+    }
     // Save current annotations explicitly
     else if (ctrl && e.key === 's') {
       e.preventDefault();
@@ -173,6 +184,48 @@ export class App implements OnInit, OnDestroy {
 
   // ── ViewerComponent reference (for keyboard shortcuts) ───────────────────
   @ViewChild('viewer') viewerRef?: ViewerComponent;
+
+  // ── Directory dialog (Wails) ──────────────────────────────────────────────
+  async openDirectoryDialog() {
+    try {
+      const { OpenDirectoryDialog } = await import('./wailsjs/go/main/App');
+      const path = await OpenDirectoryDialog();
+      if (path) {
+        this.state.setPanel('files');
+        // Wait one tick for the panel to render, then set root.
+        setTimeout(() => this.filesPanelRef?.setRoot(path), 50);
+      }
+    } catch {
+      // Not in Wails context (browser dev).
+    }
+  }
+
+  /** Called from Home panel "Abrir pasta" and from sidebar Files. */
+  onOpenFolder() { this.openDirectoryDialog(); }
+
+  /** Called from Files panel when user picks folder icon. */
+  onPickFolder() { this.openDirectoryDialog(); }
+
+  /** Navigate to patients panel. */
+  onGoToPatients() {
+    this.state.setPanel('patients');
+    this.loadPatients();
+  }
+
+  /** Init files panel when switching to it. */
+  onSetFilesPanel() {
+    this.state.setPanel('files');
+    setTimeout(() => {
+      if (this.filesPanelRef && !this.filesPanelRef.currentPath()) {
+        this.filesPanelRef.init();
+      }
+    }, 50);
+  }
+
+  /** Open a file path from the Files panel. */
+  onOpenFilePath(path: string) {
+    this.viewerRef?.openPath(path);
+  }
 }
 
 import type { BiRads } from './shared/models/types';

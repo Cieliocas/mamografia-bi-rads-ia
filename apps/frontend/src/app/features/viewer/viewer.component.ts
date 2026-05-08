@@ -81,7 +81,7 @@ export class ViewerComponent implements AfterViewInit {
       this.state.clearAll(idx, false, (i) => this.draw(i));
       setTimeout(() => this.draw(idx), 50);
     });
-    this.state.activePanel = 'images';
+    this.state.activePanel = 'files';
   }
 
   loadHistory(entry: import('../../core/services/study.service').HistoryEntry) {
@@ -101,7 +101,7 @@ export class ViewerComponent implements AfterViewInit {
         this.draw(vpIdx);
       }
     );
-    this.state.activePanel = 'images';
+    this.state.activePanel = 'files';
   }
 
   // ── Viewport reset ─────────────────────────────────────────────────────────

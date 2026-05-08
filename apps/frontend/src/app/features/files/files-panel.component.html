@@ -1,0 +1,111 @@
+<div class="flex flex-col h-full overflow-hidden">
+
+  <!-- Toolbar -->
+  <div class="shrink-0 border-b border-white/5 p-3 space-y-2">
+
+    <!-- Path + actions row -->
+    <div class="flex items-center gap-1.5">
+      <!-- Back -->
+      <button (click)="back()" [disabled]="!canGoBack"
+        class="flex h-7 w-7 shrink-0 items-center justify-center rounded transition"
+        [class.text-on-surface-variant]="canGoBack"
+        [class.hover:bg-white\/8]="canGoBack"
+        [class.text-white\/15]="!canGoBack"
+        [class.cursor-not-allowed]="!canGoBack"
+        title="Voltar">
+        <lucide-icon [img]="icons.ChevronRight" class="h-3.5 w-3.5 rotate-180"></lucide-icon>
+      </button>
+
+      <!-- Current path (truncated) -->
+      <span class="flex-1 truncate text-[11px] text-on-surface-variant font-mono"
+        [title]="currentPath()">{{ shortPath }}</span>
+
+      <!-- Refresh -->
+      <button (click)="refresh()" title="Recarregar"
+        class="flex h-7 w-7 shrink-0 items-center justify-center rounded text-on-surface-variant transition hover:bg-white/8 hover:text-on-surface">
+        <lucide-icon [img]="icons.RefreshCw" class="h-3.5 w-3.5" [class.animate-spin]="loading()"></lucide-icon>
+      </button>
+
+      <!-- Pick folder -->
+      <button (click)="pickFolder.emit()" title="Abrir pasta…"
+        class="flex h-7 w-7 shrink-0 items-center justify-center rounded text-on-surface-variant transition hover:bg-white/8 hover:text-primary">
+        <lucide-icon [img]="icons.FolderOpen" class="h-3.5 w-3.5"></lucide-icon>
+      </button>
+    </div>
+
+    <!-- Filter -->
+    <div class="relative">
+      <lucide-icon [img]="icons.Search" class="absolute left-2 top-1/2 h-3 w-3 -translate-y-1/2 text-on-surface-variant/50"></lucide-icon>
+      <input
+        type="text"
+        [value]="filter()"
+        (input)="filter.set($any($event.target).value)"
+        placeholder="Filtrar…"
+        class="w-full rounded border border-white/8 bg-black/20 py-1 pl-7 pr-2 text-[11px] text-on-surface placeholder:text-on-surface-variant/40 outline-none focus:border-primary/50"/>
+    </div>
+  </div>
+
+  <!-- Error -->
+  @if (error()) {
+    <div class="shrink-0 bg-red-900/30 px-3 py-2 text-[10px] text-red-300">
+      {{ error() }}
+    </div>
+  }
+
+  <!-- Empty / loading -->
+  @if (loading()) {
+    <div class="flex flex-1 items-center justify-center">
+      <lucide-icon [img]="icons.RefreshCw" class="h-6 w-6 animate-spin text-on-surface-variant/40"></lucide-icon>
+    </div>
+  } @else if (!currentPath()) {
+    <div class="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+      <lucide-icon [img]="icons.FolderOpen" class="h-10 w-10 text-on-surface-variant/20"></lucide-icon>
+      <p class="text-[11px] text-on-surface-variant">Nenhuma pasta aberta.</p>
+      <button (click)="pickFolder.emit()"
+        class="rounded border border-primary/30 bg-primary/10 px-3 py-1.5 text-[11px] text-primary transition hover:bg-primary/20">
+        Abrir pasta…
+      </button>
+    </div>
+  } @else {
+
+    <!-- File tree -->
+    <div class="flex-1 overflow-y-auto py-1">
+      @if (filtered().length === 0) {
+        <p class="px-3 py-4 text-[10px] text-on-surface-variant/50">Nenhum arquivo encontrado.</p>
+      }
+      @for (entry of filtered(); track entry.name) {
+        @if (entry.type === 'dir') {
+          <!-- Directory row -->
+          <button (click)="navigate(currentPath() + '/' + entry.name)"
+            class="flex w-full items-center gap-2 px-3 py-1.5 text-left transition hover:bg-white/4">
+            <lucide-icon [img]="icons.Folder" class="h-3.5 w-3.5 shrink-0 text-yellow-400/70"></lucide-icon>
+            <span class="flex-1 truncate text-[11px] text-on-surface">{{ entry.name }}</span>
+            <lucide-icon [img]="icons.ChevronRight" class="h-3 w-3 shrink-0 text-on-surface-variant/30"></lucide-icon>
+          </button>
+        } @else {
+          <!-- File row -->
+          <button
+            (click)="isImage(entry) && openFile.emit(currentPath() + '/' + entry.name)"
+            [class.cursor-default]="!isImage(entry)"
+            [class.hover:bg-white\/4]="isImage(entry)"
+            [class.hover:border-primary\/20]="isImage(entry)"
+            class="flex w-full items-center gap-2 px-3 py-1.5 text-left transition"
+            [title]="isImage(entry) ? 'Abrir ' + entry.name : entry.name">
+            <lucide-icon
+              [img]="isImage(entry) ? icons.FileImage : icons.File"
+              [class.text-primary]="isImage(entry)"
+              [class.text-on-surface-variant\/30]="!isImage(entry)"
+              class="h-3.5 w-3.5 shrink-0"></lucide-icon>
+            <span class="flex-1 truncate text-[11px]"
+              [class.text-on-surface]="isImage(entry)"
+              [class.text-on-surface-variant]="!isImage(entry)">{{ entry.name }}</span>
+            @if (entry.size > 0) {
+              <span class="shrink-0 text-[9px] text-on-surface-variant/40">{{ formatSize(entry.size) }}</span>
+            }
+          </button>
+        }
+      }
+    </div>
+  }
+
+</div>

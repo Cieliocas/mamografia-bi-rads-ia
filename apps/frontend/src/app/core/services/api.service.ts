@@ -317,6 +317,14 @@ export class ApiService {
     );
   }
 
+  /** Lists directory entries via GET /api/fs/list?path=<dir>. */
+  listDirectory(path: string): Observable<{ path: string; entries: { name: string; type: string; size: number; mtime: string; ext?: string }[] } | null> {
+    const q = path ? `?path=${encodeURIComponent(path)}` : '';
+    return this.http.get<{ path: string; entries: { name: string; type: string; size: number; mtime: string; ext?: string }[] }>(
+      `${this.base}/api/fs/list${q}`
+    ).pipe(catchError(() => of(null)));
+  }
+
   /** URL of the rendered DICOM preview (PNG with WW/WC applied server-side). */
   previewURL(studyId: string, ww?: number, wc?: number, frame?: number): string {
     const q: string[] = [];
