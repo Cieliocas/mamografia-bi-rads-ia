@@ -6,9 +6,13 @@ import (
 	"image"
 	"image/color"
 	"image/draw"
+	_ "image/jpeg"
 	"image/png"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -35,6 +39,11 @@ func (h *PreviewHandler) RegisterRoutes(rg *gin.RouterGroup) {
 	rg.GET("/studies/:id/preview/annotated", h.previewAnnotated)
 }
 
+func isRasterImage(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".png" || ext == ".jpg" || ext == ".jpeg"
+}
+
 func (h *PreviewHandler) preview(c *gin.Context) {
 	id := c.Param("id")
 	study, err := h.repo.FindByID(context.Background(), id)
@@ -44,6 +53,28 @@ func (h *PreviewHandler) preview(c *gin.Context) {
 	}
 	if study.FilePath == "" {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "study has no file_path"})
+		return
+	}
+
+	// PNG / JPG / JPEG: decode → re-encode as PNG so the canvas always gets PNG.
+	if isRasterImage(study.FilePath) {
+		f, err := os.Open(study.FilePath)
+		if err != nil {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "open file: " + err.Error()})
+			return
+		}
+		defer f.Close()
+		img, _, err := image.Decode(f)
+		if err != nil {
+			c.JSON(http.StatusUnprocessableEntity, gin.H{"error": "decode image: " + err.Error()})
+			return
+		}
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, img); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "encode png: " + err.Error()})
+			return
+		}
+		c.Data(http.StatusOK, "image/png", buf.Bytes())
 		return
 	}
 

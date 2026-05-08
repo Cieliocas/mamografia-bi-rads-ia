@@ -88,6 +88,10 @@ func (a *App) launchGoCore() {
 	cmd := exec.Command(bin)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	// Apps launched via Finder inherit a minimal PATH that excludes Homebrew.
+	// go-core shells out to dcmdjpeg/gdcmconv for compressed DICOMs, so prepend
+	// the standard Homebrew locations.
+	cmd.Env = append(os.Environ(), "PATH="+augmentedPATH())
 	if err := cmd.Start(); err != nil {
 		a.fatalDialog("Falha ao iniciar go-core", fmt.Sprintf("%v", err))
 		return
@@ -102,6 +106,29 @@ func (a *App) launchGoCore() {
 		a.fatalDialog("go-core não respondeu",
 			"O processo iniciou mas /healthz não respondeu em 5s.\n\nDetalhes: "+err.Error())
 	}
+}
+
+// augmentedPATH returns the current PATH with Homebrew bin dirs prepended
+// when they exist on disk. Needed because Finder-launched apps don't inherit
+// the user's shell PATH.
+func augmentedPATH() string {
+	parts := []string{}
+	for _, p := range []string{"/opt/homebrew/bin", "/usr/local/bin"} {
+		if _, err := os.Stat(p); err == nil {
+			parts = append(parts, p)
+		}
+	}
+	if cur := os.Getenv("PATH"); cur != "" {
+		parts = append(parts, cur)
+	}
+	out := ""
+	for i, p := range parts {
+		if i > 0 {
+			out += ":"
+		}
+		out += p
+	}
+	return out
 }
 
 func waitForHealthz(timeout time.Duration) error {
