@@ -11,25 +11,30 @@
          --wails-draggable:drag torna a barra arrastável como barra de título.
          Os elementos interativos têm --wails-draggable:no-drag.
     ──────────────────────────────────────────────────────────────────── -->
-    <header class="flex h-10 items-center justify-between border-b border-white/5 pl-20 pr-4 shrink-0"
+    <header class="flex h-10 items-center justify-between border-b border-white/5 pl-[84px] pr-3 shrink-0"
             style="--wails-draggable:drag">
-      <div class="flex items-center gap-8" style="--wails-draggable:no-drag">
-        <nav class="flex items-center gap-4 text-xs font-medium uppercase tracking-wider">
-          <span class="cursor-default border-b border-secondary pb-1 text-secondary">File</span>
-          <span class="cursor-default text-on-surface-variant">Edit</span>
-          <span class="cursor-default text-on-surface-variant">View</span>
-          <span class="cursor-default text-on-surface-variant">AI Model</span>
-          <span class="cursor-default text-on-surface-variant">Help</span>
-        </nav>
-      </div>
-      <div class="flex items-center gap-3" style="--wails-draggable:no-drag">
+      <!-- Nav decorativa — discreta, não-funcional -->
+      <nav class="flex items-center gap-5 select-none" style="--wails-draggable:no-drag">
+        <span class="cursor-default text-[10px] font-medium tracking-wide text-white/30 hover:text-white/50 transition-colors">File</span>
+        <span class="cursor-default text-[10px] font-medium tracking-wide text-white/20">Edit</span>
+        <span class="cursor-default text-[10px] font-medium tracking-wide text-white/20">View</span>
+        <span class="cursor-default text-[10px] font-medium tracking-wide text-white/20">AI</span>
+        <span class="cursor-default text-[10px] font-medium tracking-wide text-white/20">Help</span>
+      </nav>
+
+      <!-- Ações principais -->
+      <div class="flex items-center gap-2" style="--wails-draggable:no-drag">
+        <!-- Abrir imagem: ícone + texto mínimo -->
         <button
-          class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant transition hover:text-secondary"
-          style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)"
           (click)="viewer.openFileDialog()"
-        >Open Image</button>
-        <button class="rounded-sm bg-gradient-to-br from-primary to-primary-dim px-4 py-1 text-xs font-bold uppercase tracking-tight text-surface-dim">
-          Activate AI
+          class="flex items-center gap-1.5 rounded px-2.5 py-1 text-[11px] font-medium text-white/50 transition hover:text-white/80 hover:bg-white/5">
+          <lucide-icon [img]="icons.FolderOpen" class="h-3.5 w-3.5"></lucide-icon>
+          Abrir
+        </button>
+        <!-- Activate AI: pílula com gradiente rosa -->
+        <button class="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-primary-dim to-primary px-3 py-1 text-[11px] font-semibold text-white/90 shadow-sm transition hover:brightness-110">
+          <lucide-icon [img]="icons.Sparkles" class="h-3 w-3"></lucide-icon>
+          IA
         </button>
       </div>
     </header>
@@ -87,7 +92,7 @@
             <p class="text-xs text-on-surface-variant">{{ study.historyFiles.length }} arquivo(s) na sessão</p>
           </div>
           <div class="space-y-2 p-3">
-            <button (click)="viewer.openFileDialog()" class="w-full p-3 text-left" style="background:rgba(175,162,255,.08);border-left:2px solid #afa2ff">
+            <button (click)="viewer.openFileDialog()" class="w-full p-3 text-left" style="background:rgba(240,154,181,.08);border-left:2px solid #F09AB5">
               <p class="truncate text-xs font-bold">{{ state.activeVPData.imageName || 'Nenhuma imagem carregada' }}</p>
               <p class="mt-1 text-[10px] text-on-surface-variant">Clique para abrir imagem</p>
             </button>
@@ -110,7 +115,7 @@
                   (keyup.enter)="loadPatients()"
                   placeholder="Buscar por nome ou ID DICOM…"
                   class="flex-1 rounded border border-white/10 bg-neutral-950/60 px-2 py-1 text-[11px] text-on-surface"/>
-                <button class="rounded border border-violet-500/30 bg-violet-900/20 px-2 py-1 text-[11px] text-violet-200 hover:bg-violet-900/40"
+                <button class="rounded border border-pink-500/30 bg-pink-900/20 px-2 py-1 text-[11px] text-pink-200 hover:bg-pink-900/40"
                   (click)="loadPatients()">↻</button>
               </div>
 
@@ -121,8 +126,8 @@
               @for (p of patients; track p.id) {
                 <button
                   class="w-full rounded border p-2 text-left transition"
-                  [class.border-violet-500\\/40]="selectedPatient?.id === p.id"
-                  [class.bg-violet-900\\/20]="selectedPatient?.id === p.id"
+                  [class.border-pink-500\\/40]="selectedPatient?.id === p.id"
+                  [class.bg-pink-900\\/20]="selectedPatient?.id === p.id"
                   [class.border-white\\/5]="selectedPatient?.id !== p.id"
                   [class.bg-neutral-900\\/40]="selectedPatient?.id !== p.id"
                   (click)="selectPatient(p)">
@@ -144,19 +149,19 @@
                     <div
                       class="rounded border border-white/5 bg-neutral-950/40 px-2 py-1.5 text-[10px] transition"
                       [class.cursor-pointer]="!!s.file_path"
-                      [class.hover:bg-violet-900\/15]="!!s.file_path"
-                      [class.hover:border-violet-500\/30]="!!s.file_path"
+                      [class.hover:bg-pink-900\/15]="!!s.file_path"
+                      [class.hover:border-pink-500\/30]="!!s.file_path"
                       [title]="s.file_path ? 'Abrir imagem' : ''"
                       (click)="s.file_path && viewer.openPath(s.file_path)">
                       <div class="flex items-center justify-between">
                         <span class="tabular-nums text-neutral-300">{{ s.study_date | date:'dd/MM/yyyy HH:mm' }}</span>
                         @if (s.birads_global) {
-                          <span class="rounded bg-violet-900/40 px-1.5 py-0.5 font-bold text-violet-200">BI-RADS {{ s.birads_global }}</span>
+                          <span class="rounded bg-pink-900/40 px-1.5 py-0.5 font-bold text-pink-200">BI-RADS {{ s.birads_global }}</span>
                         }
                       </div>
                       <p class="truncate text-[9px] text-neutral-600">{{ s.id }}</p>
                       @if (s.file_path) {
-                        <p class="truncate text-[9px] text-violet-500/60 mt-0.5">{{ s.file_path }}</p>
+                        <p class="truncate text-[9px] text-pink-500/60 mt-0.5">{{ s.file_path }}</p>
                       }
                     </div>
                   }
@@ -170,7 +175,7 @@
                 <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
                   Estudos no servidor ({{ study.backendStudies().length }})
                 </p>
-                <button class="text-[10px] text-violet-400 hover:text-violet-300 transition"
+                <button class="text-[10px] text-pink-400 hover:text-pink-300 transition"
                   (click)="study.refreshBackendStudies()">↻</button>
               </div>
               @if (!study.backendOnline()) {

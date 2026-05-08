@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms';
 import {
   LucideAngularModule,
   FolderOpen, History, Users, BarChart3, Wrench,
-  ChevronRight, ChevronLeft
+  ChevronRight, ChevronLeft, Sparkles
 } from 'lucide-angular';
 import { ApiService, PatientDTO, PatientStudyDTO } from './core/services/api.service';
 
@@ -60,7 +60,7 @@ export class App implements OnInit, OnDestroy {
   private splashFailSafe: ReturnType<typeof setTimeout>  | null = null;
   private autoSaveSub:    Subscription | null = null;
 
-  readonly icons = { FolderOpen, History, Users, BarChart3, Wrench, ChevronRight, ChevronLeft };
+  readonly icons = { FolderOpen, History, Users, BarChart3, Wrench, ChevronRight, ChevronLeft, Sparkles };
 
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   ngOnInit() {
