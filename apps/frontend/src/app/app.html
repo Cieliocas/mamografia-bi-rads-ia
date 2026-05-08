@@ -6,10 +6,15 @@
 @if (!showSplash) {
   <div class="h-screen overflow-hidden bg-surface-dim text-on-surface flex flex-col">
 
-    <!-- ── Top bar ──────────────────────────────────────────────────────── -->
-    <header class="flex h-12 items-center justify-between border-b border-white/5 px-4 shrink-0">
-      <div class="flex items-center gap-8">
-        <span class="font-headline text-lg font-bold tracking-tighter text-primary">AIdentify</span>
+    <!-- ── Top bar ─────────────────────────────────────────────────────────
+         pl-20 reserva 80 px para os traffic lights (⛔🟡🟢) no macOS.
+         --wails-draggable:drag torna a barra arrastável como barra de título.
+         Os elementos interativos têm --wails-draggable:no-drag.
+    ──────────────────────────────────────────────────────────────────── -->
+    <header class="flex h-10 items-center justify-between border-b border-white/5 pl-20 pr-4 shrink-0"
+            style="--wails-draggable:drag">
+      <div class="flex items-center gap-8" style="--wails-draggable:no-drag">
+        <span class="font-headline text-sm font-bold tracking-tighter text-primary select-none">AIdentify</span>
         <nav class="flex items-center gap-4 text-xs font-medium uppercase tracking-wider">
           <span class="cursor-default border-b border-secondary pb-1 text-secondary">File</span>
           <span class="cursor-default text-on-surface-variant">Edit</span>
@@ -18,7 +23,7 @@
           <span class="cursor-default text-on-surface-variant">Help</span>
         </nav>
       </div>
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3" style="--wails-draggable:no-drag">
         <button
           class="px-3 py-1 text-xs font-bold uppercase tracking-wider text-on-surface-variant transition hover:text-secondary"
           style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.08)"
