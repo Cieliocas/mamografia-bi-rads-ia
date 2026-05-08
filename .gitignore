@@ -27,6 +27,15 @@ build/*
 *.jpg
 *.jpeg
 *.png
+# App icon assets (exceções à regra acima)
+!apps/desktop/build/appicon.png
+!apps/desktop/build/darwin/AppIcon.icns
+!apps/frontend/public/favicon.ico
+!apps/frontend/public/icon-192.png
+!apps/frontend/public/icon-512.png
+!apps/frontend/src/favicon.ico
+!apps/frontend/src/assets/icon-192.png
+!apps/frontend/src/assets/icon-512.png
 *.dcm
 *.dicom
 
@@ -66,8 +75,8 @@ aidentify.app/
 # --- Claude Code internals ---
 .claude/
 
-# --- Desktop packaging directory (local build artifacts) ---
-desktop/
+# --- Desktop packaging directory (local build artifacts, root-level only) ---
+/desktop/
 
 # --- Compiled Go binaries ---
 apps/core/go-core
