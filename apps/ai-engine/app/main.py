@@ -61,7 +61,26 @@ app = FastAPI(title="Mammo AI Sidecar", version="0.2.0")
 MODEL_PATH = os.getenv("MODEL_PATH", "./models/unet_mammo_best.keras")
 MODEL = None
 STARTED_AT = time.time()
-SHARED_TOKEN = os.getenv("AI_SHARED_TOKEN", "mammo-local-token")
+def _load_token() -> str:
+    """Read the shared secret from env or from the token file written by go-core.
+
+    Resolution order (mirrors config.go):
+    1. AI_SHARED_TOKEN env var (CI / Docker / explicit override).
+    2. Token file at ~/.mammo-desktop/.token (written by go-core on first run).
+    3. Empty string — auth will reject all requests until go-core has written
+       the file (race condition on very first startup, retried by guardian).
+    """
+    if t := os.getenv("AI_SHARED_TOKEN", ""):
+        return t
+    token_file = os.path.join(
+        os.path.expanduser("~"), ".mammo-desktop", ".token"
+    )
+    try:
+        return open(token_file).read().strip()
+    except OSError:
+        return ""
+
+SHARED_TOKEN = _load_token()
 MODEL_ID = os.getenv("MODEL_ID", "unet-mammo-mock-v1")
 
 
