@@ -67,7 +67,7 @@ wails dev
 |---|---|---|
 | `GO_CORE_PORT` | `8088` | Porta HTTP |
 | `AI_ENGINE_URL` | `http://127.0.0.1:8090` | URL do sidecar |
-| `AI_SHARED_TOKEN` | `mammo-local-token` | Token `X-Local-Token` |
+| `AI_SHARED_TOKEN` | *(gerado automaticamente)* | Token `X-Local-Token` — se não definido, gerado em `~/.mammo-desktop/.token` |
 | `SQLITE_PATH` | `~/.mammo-desktop/mammo.db` | Banco local |
 | `AI_ENGINE_PYTHON` | (auto) | Python do sidecar |
 
