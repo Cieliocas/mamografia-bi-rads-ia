@@ -77,6 +77,7 @@ aidentify.app/
 
 # --- Notas de sessão de IA (contexto interno de desenvolvimento) ---
 NEXT_SESSION.md
+NEXT_SESSION_*.md
 
 # --- Token de segurança gerado em runtime (nunca versionar) ---
 .token

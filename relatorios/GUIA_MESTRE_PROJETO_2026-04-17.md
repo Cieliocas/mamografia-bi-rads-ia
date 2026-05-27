@@ -385,7 +385,7 @@ Critério de saída:
 4. Rodar localmente:
 
 ```bash
-cd /Users/francieliocastro/Developer/ICIT/mamografia-bi-rads-ia
+cd mamografia-bi-rads-ia
 bash desktop/tools/run_desktop_dev.sh --rebuild-go
 ```
 

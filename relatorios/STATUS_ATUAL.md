@@ -24,7 +24,7 @@ Pipelines de treino **nao** sao mais versionados neste repo (removidos em `0c7f4
 ## Entrypoint unico de desenvolvimento
 
 ```bash
-cd /Users/francieliocastro/Developer/ICIT/mamografia-bi-rads-ia
+cd mamografia-bi-rads-ia
 bash tools/run_desktop_dev.sh --rebuild-go
 ```
 

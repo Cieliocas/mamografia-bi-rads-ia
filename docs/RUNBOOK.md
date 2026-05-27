@@ -19,7 +19,7 @@ go install github.com/wailsapp/wails/v2/cmd/wails@latest
 Entrypoint único — sobe Go Core, AI sidecar e UI Wails+Angular com hot-reload:
 
 ```bash
-cd /Users/francieliocastro/Developer/ICIT/mamografia-bi-rads-ia
+cd mamografia-bi-rads-ia
 bash tools/run_desktop_dev.sh --rebuild-go
 ```
 
