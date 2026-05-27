@@ -270,12 +270,21 @@ export class ApiService {
     a.href = url; a.download = ''; a.click();
   }
 
-  /** Downloads the laudo as a real PDF from the backend. */
+  /** Downloads the laudo as a PDF (with embedded annotated image). */
   openReport(studyId: string) {
     const a = document.createElement('a');
     a.href = `${this.base}/api/studies/${studyId}/pdf`;
     a.download = `laudo-${studyId.slice(0, 8)}.pdf`;
     a.click();
+  }
+
+  /**
+   * Opens the printable HTML report in a new window.
+   * The page auto-triggers window.print() so the user can save as PDF
+   * from the browser's print dialog (supports colours and page margins).
+   */
+  openReportHTML(studyId: string) {
+    window.open(`${this.base}/api/export/report/${studyId}`, 'mammo-report');
   }
 
   /** Updates the clinical report fields on a study (BI-RADS, conclusion, …). */

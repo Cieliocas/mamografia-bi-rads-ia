@@ -116,7 +116,7 @@ func newTestServer(t *testing.T) *gin.Engine {
 	audio    := adapthttp.NewAudioHandler(annotRepo, "")
 	health   := adapthttp.NewHealthHandler(sup, "")
 	fs       := adapthttp.NewFsHandler()
-	pdf      := adapthttp.NewPDFHandler(usecase.NewGeneratePDF(studyRepo, annotRepo, patientRepo))
+	pdf      := adapthttp.NewPDFHandler(usecase.NewGeneratePDF(studyRepo, annotRepo, patientRepo, reader))
 
 	return adapthttp.NewRouter(pdi, study, infer, export, preview, backup, patient, audio, health, fs, pdf)
 }

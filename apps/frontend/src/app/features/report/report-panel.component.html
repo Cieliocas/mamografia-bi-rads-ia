@@ -159,12 +159,21 @@
       <section>
         <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Exportar</p>
 
-        <!-- Primary export: HTML Report -->
-        <button (click)="openReport()"
-          class="flex w-full items-center justify-center gap-2 rounded-lg border border-pink-500/30 bg-pink-900/20 px-3 py-2.5 text-[11px] font-semibold text-pink-200 transition hover:bg-pink-900/40 mb-2">
-          <lucide-icon [img]="icons.FileText" class="h-4 w-4"></lucide-icon>
-          Gerar Relatório PDF
-        </button>
+        <!-- Primary exports: PDF (with embedded image) + HTML (printable) -->
+        <div class="flex gap-2 mb-2">
+          <button (click)="openReport()"
+            class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-pink-500/30 bg-pink-900/20 px-3 py-2.5 text-[11px] font-semibold text-pink-200 transition hover:bg-pink-900/40"
+            title="Baixa PDF com imagem anotada embutida">
+            <lucide-icon [img]="icons.FileText" class="h-4 w-4"></lucide-icon>
+            PDF
+          </button>
+          <button (click)="openReportHTML()"
+            class="flex flex-1 items-center justify-center gap-2 rounded-lg border border-cyan-500/30 bg-cyan-900/20 px-3 py-2.5 text-[11px] font-semibold text-cyan-200 transition hover:bg-cyan-900/40"
+            title="Abre relatório HTML imprimível (⌘P para salvar PDF)">
+            <lucide-icon [img]="icons.FileText" class="h-4 w-4"></lucide-icon>
+            HTML
+          </button>
+        </div>
 
         <!-- Secondary exports row -->
         <div class="grid grid-cols-3 gap-1.5">

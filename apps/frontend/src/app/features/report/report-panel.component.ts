@@ -142,6 +142,12 @@ export class ReportPanelComponent implements OnInit, OnDestroy {
     this.api.openReport(id);
   }
 
+  openReportHTML() {
+    const id = this.study.currentStudyId();
+    if (!id) { this.toast.show('Nenhum estudo aberto.', 'error'); return; }
+    this.api.openReportHTML(id);
+  }
+
   downloadAnnotatedPNG() {
     const id = this.study.currentStudyId();
     if (!id) { this.toast.show('Nenhum estudo aberto.', 'error'); return; }
