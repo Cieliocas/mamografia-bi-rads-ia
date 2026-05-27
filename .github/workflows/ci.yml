@@ -35,7 +35,7 @@ jobs:
 
   # ── Angular Frontend ──────────────────────────────────────────────────────
   frontend:
-    name: Angular type-check & build
+    name: Angular type-check, tests & build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -56,8 +56,38 @@ jobs:
       - name: Type-check
         run: npx tsc --noEmit
 
+      - name: Unit tests (Vitest)
+        run: npx ng test --watch=false
+
       - name: Build
         run: npx ng build --configuration=production
+
+  # ── Python AI Sidecar ─────────────────────────────────────────────────────
+  ai-engine:
+    name: AI sidecar tests (pytest)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/ai-engine
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: apps/ai-engine/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest httpx
+
+      - name: Run tests
+        env:
+          AI_SHARED_TOKEN: ci-test-token
+        run: pytest tests/ -v
 
   # ── Wails desktop shell ───────────────────────────────────────────────────
   desktop:
