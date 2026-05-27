@@ -282,6 +282,20 @@ export class App implements OnInit, OnDestroy {
     const path = this.study.seriesPathAt(delta);
     if (path) this.viewerRef?.openPath(path);
   }
+
+  /**
+   * Opens `filePath` in VP1 for temporal comparison with whatever is loaded
+   * in VP0.  Switches to 1×2 grid layout if not already in multi-VP mode.
+   */
+  compareStudy(filePath: string) {
+    if (!this.viewerRef) return;
+    // Ensure we are in a 2-VP layout.
+    if (this.state.gridLayout === '1x1') {
+      this.state.setGrid('1x2', (i) => this.viewerRef!.draw(i));
+    }
+    // Wait one tick for the VP1 canvas to be created before loading.
+    setTimeout(() => this.viewerRef?.openPathInVP(filePath, 1), 200);
+  }
 }
 
 import type { BiRads } from './shared/models/types';

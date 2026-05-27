@@ -131,6 +131,19 @@ export class ViewerComponent implements AfterViewInit {
     this.state.activePanel = 'files';
   }
 
+  /**
+   * Opens a file into a specific viewport index without touching activeVp or
+   * the active panel. Used for temporal comparison (load study into VP1 while
+   * VP0 keeps the current study).
+   */
+  openPathInVP(filePath: string, vpIdx: number) {
+    this.study.loadNativePath(filePath, vpIdx, this.state.vp[vpIdx], (idx) => {
+      this.resetVP(idx);
+      this.state.clearAll(idx, false, (i) => this.draw(i));
+      setTimeout(() => this.draw(idx), 50);
+    });
+  }
+
   loadHistory(entry: import('../../core/services/study.service').HistoryEntry) {
     const vpIdx = this.state.activeVp;
     this.study.loadHistoryEntry(entry, vpIdx, this.state.vp[vpIdx],

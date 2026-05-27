@@ -159,19 +159,32 @@
                       Estudos ({{ patientStudies.length }})
                     </p>
                     @for (s of patientStudies; track s.id) {
-                      <div class="rounded border border-white/5 bg-neutral-950/40 px-2 py-1.5 text-[10px] transition"
-                        [class.cursor-pointer]="!!s.file_path"
-                        [title]="s.file_path ? 'Abrir imagem' : ''"
-                        (click)="s.file_path && viewer.openPath(s.file_path)">
-                        <div class="flex items-center justify-between">
+                      <div class="rounded border border-white/5 bg-neutral-950/40 px-2 py-1.5 text-[10px]">
+                        <!-- Date + BI-RADS badge -->
+                        <div class="flex items-center justify-between mb-1">
                           <span class="tabular-nums text-neutral-300">{{ s.study_date | date:'dd/MM/yyyy HH:mm' }}</span>
                           @if (s.birads_global) {
                             <span class="rounded bg-pink-900/40 px-1.5 py-0.5 font-bold text-pink-200">BI-RADS {{ s.birads_global }}</span>
                           }
                         </div>
-                        <p class="truncate text-[9px] text-neutral-600">{{ s.id }}</p>
+                        <p class="truncate text-[9px] text-neutral-600 mb-1">{{ s.id }}</p>
                         @if (s.file_path) {
-                          <p class="truncate text-[9px] text-pink-500/60 mt-0.5">{{ s.file_path }}</p>
+                          <p class="truncate text-[9px] text-pink-500/60 mb-1">{{ s.file_path }}</p>
+                          <!-- Action buttons -->
+                          <div class="flex gap-1.5 mt-1">
+                            <button
+                              class="flex-1 rounded border border-white/10 bg-neutral-800/60 px-2 py-1 text-[9px] text-neutral-300 transition hover:bg-neutral-700/60 hover:text-white"
+                              title="Abrir este estudo no VP activo"
+                              (click)="viewer.openPath(s.file_path)">
+                              Abrir
+                            </button>
+                            <button
+                              class="flex-1 rounded border border-cyan-500/30 bg-cyan-900/20 px-2 py-1 text-[9px] text-cyan-200 transition hover:bg-cyan-900/40"
+                              title="Comparar lado-a-lado com o estudo actual (layout 1×2)"
+                              (click)="compareStudy(s.file_path)">
+                              ⟺ Comparar
+                            </button>
+                          </div>
                         }
                       </div>
                     }
