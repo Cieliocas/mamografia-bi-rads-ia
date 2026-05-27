@@ -21,7 +21,7 @@
     (mousedown)="onMouseDown($event, 0)"
     (mousemove)="onMouseMove($event, 0)"
     (mouseup)="onMouseUp($event, 0)"
-    (mouseleave)="onMouseUp($event, 0)"
+    (mouseleave)="onMouseLeave($event, 0)"
     (mouseenter)="onMouseEnter(0)"
     (dblclick)="openFileDialog(0)"
     (dragover)="onDragOver($event, 0)"
@@ -126,7 +126,7 @@
       (mousedown)="onMouseDown($event, 1)"
       (mousemove)="onMouseMove($event, 1)"
       (mouseup)="onMouseUp($event, 1)"
-      (mouseleave)="onMouseUp($event, 1)"
+      (mouseleave)="onMouseLeave($event, 1)"
       (mouseenter)="onMouseEnter(1)"
       (dblclick)="openFileDialog(1)"
       (dragover)="onDragOver($event, 1)"
@@ -184,7 +184,7 @@
       (mousedown)="onMouseDown($event, 2)"
       (mousemove)="onMouseMove($event, 2)"
       (mouseup)="onMouseUp($event, 2)"
-      (mouseleave)="onMouseUp($event, 2)"
+      (mouseleave)="onMouseLeave($event, 2)"
       (mouseenter)="onMouseEnter(2)"
       (dblclick)="openFileDialog(2)"
       (dragover)="onDragOver($event, 2)"
@@ -235,7 +235,7 @@
       (mousedown)="onMouseDown($event, 3)"
       (mousemove)="onMouseMove($event, 3)"
       (mouseup)="onMouseUp($event, 3)"
-      (mouseleave)="onMouseUp($event, 3)"
+      (mouseleave)="onMouseLeave($event, 3)"
       (mouseenter)="onMouseEnter(3)"
       (dblclick)="openFileDialog(3)"
       (dragover)="onDragOver($event, 3)"
@@ -334,6 +334,17 @@
     [class.hover:bg-neutral-700]="state.activeTool !== 'brush'"
     (click)="state.setTool('brush')">
     <lucide-icon [img]="icons.Paintbrush" [size]="15" />
+  </button>
+
+  <!-- Magnifier / Lupa -->
+  <button title="Lupa (M)"
+    class="rounded-lg p-1.5 transition"
+    [class.bg-pink-600]="state.activeTool === 'magnifier'"
+    [class.text-white]="state.activeTool === 'magnifier'"
+    [class.text-neutral-400]="state.activeTool !== 'magnifier'"
+    [class.hover:bg-neutral-700]="state.activeTool !== 'magnifier'"
+    (click)="state.setTool('magnifier')">
+    <lucide-icon [img]="icons.Search" [size]="15" />
   </button>
 
   <span class="mx-1.5 h-4 w-px bg-neutral-700"></span>

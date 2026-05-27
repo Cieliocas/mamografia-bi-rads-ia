@@ -6,7 +6,7 @@ import {
   LucideAngularModule,
   Hand, Target, Ruler, ZoomOut, ZoomIn, Maximize2,
   ChevronLeft, ChevronRight, Paintbrush, ArrowUpRight,
-  Eraser, LayoutGrid, Link2, Unlink2
+  Eraser, LayoutGrid, Link2, Unlink2, Search
 } from 'lucide-angular';
 
 import { ViewerStateService } from '../../core/services/viewer-state.service';
@@ -30,7 +30,7 @@ export class ViewerComponent implements AfterViewInit {
   readonly icons = {
     Hand, Target, Ruler, ZoomOut, ZoomIn, Maximize2,
     ChevronLeft, ChevronRight, Paintbrush, ArrowUpRight,
-    Eraser, LayoutGrid, Link2, Unlink2
+    Eraser, LayoutGrid, Link2, Unlink2, Search
   };
 
   @ViewChild('fileInput')  fileInput!: ElementRef<HTMLInputElement>;
@@ -53,6 +53,9 @@ export class ViewerComponent implements AfterViewInit {
 
   /** Live brush stroke being painted — committed to VP on mouseUp. */
   private tempBrush: { points: { x: number; y: number }[]; color: string } | null = null;
+
+  /** Current magnifier cursor position in screen coords (null when outside VP). */
+  magnifierPos: { x: number; y: number; vpIdx: number } | null = null;
 
   /** Index of the VP currently being hovered during a drag-file operation, -1 = none. */
   dragOverVp = -1;
@@ -220,6 +223,87 @@ export class ViewerComponent implements AfterViewInit {
     if (this.tempBrush && ix?.vpIdx === vpIdx) {
       this.drawSingleBrush(ctx, canvas.width, canvas.height, vp, this.tempBrush);
     }
+
+    // ── Magnifier lens overlay ─────────────────────────────────────────────
+    if (this.state.activeTool === 'magnifier' &&
+        this.magnifierPos?.vpIdx === vpIdx) {
+      this.drawMagnifier(ctx, canvas, vp, this.magnifierPos.x, this.magnifierPos.y);
+    }
+  }
+
+  /**
+   * Draws a circular magnifying-glass lens centred at `(sx, sy)`.
+   * The lens shows the image at MAG× the current viewport zoom, so detail
+   * hidden at the current zoom level becomes visible without panning.
+   */
+  private drawMagnifier(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement,
+                        vp: VP, sx: number, sy: number) {
+    if (!vp.loadedImage) return;
+    const R   = 90;           // lens radius in pixels
+    const MAG = 3;            // extra magnification on top of current vp zoom
+    const img   = vp.loadedImage;
+    const cw    = canvas.width;
+    const ch    = canvas.height;
+    const zoom  = vp.zoom * MAG;
+
+    // Image-space position of the cursor centre
+    const baseCx = cw / 2 + vp.panX;
+    const baseCy = ch / 2 + vp.panY;
+    const imgX   = (sx - baseCx) / vp.zoom + img.naturalWidth  / 2;
+    const imgY   = (sy - baseCy) / vp.zoom + img.naturalHeight / 2;
+
+    // Screen origin of the magnified image (so imgX/Y maps to sx/sy)
+    const ox = sx - imgX * zoom;
+    const oy = sy - imgY * zoom;
+
+    ctx.save();
+
+    // ── Outer shadow (depth effect) ────────────────────────────────────────
+    ctx.beginPath();
+    ctx.arc(sx, sy, R + 3, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(0,0,0,0.55)';
+    ctx.lineWidth = 6;
+    ctx.stroke();
+
+    // ── Circular clip ──────────────────────────────────────────────────────
+    ctx.beginPath();
+    ctx.arc(sx, sy, R, 0, Math.PI * 2);
+    ctx.clip();
+
+    // ── Background fill (visible when image doesn't cover the full lens) ───
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(sx - R, sy - R, R * 2, R * 2);
+
+    // ── Magnified image ────────────────────────────────────────────────────
+    // drawImage uses the raw HTMLImageElement directly at the magnified zoom.
+    // The WW/WC rendering was already baked in by the backend preview PNG;
+    // brightness/contrast CSS filters are not applied here (acceptable for v1).
+    ctx.drawImage(img,
+      0, 0, img.naturalWidth, img.naturalHeight,
+      ox, oy, img.naturalWidth * zoom, img.naturalHeight * zoom
+    );
+
+    ctx.restore();
+
+    // ── Bright border ──────────────────────────────────────────────────────
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(sx, sy, R, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.60)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+
+    // ── Crosshair ─────────────────────────────────────────────────────────
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.38)';
+    ctx.lineWidth = 0.8;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(sx - R, sy); ctx.lineTo(sx + R, sy);
+    ctx.moveTo(sx, sy - R); ctx.lineTo(sx, sy + R);
+    ctx.stroke();
+    ctx.restore();
   }
 
   private drawROIs(ctx: CanvasRenderingContext2D, cw: number, ch: number,
@@ -540,6 +624,14 @@ export class ViewerComponent implements AfterViewInit {
   }
 
   onMouseMove(e: MouseEvent, vpIdx: number) {
+    // ── Magnifier: track cursor, no drag state needed ──────────────────────
+    if (this.state.activeTool === 'magnifier') {
+      const sc = this.screenXY(e, vpIdx);
+      this.magnifierPos = { x: sc.x, y: sc.y, vpIdx };
+      this.draw(vpIdx);
+      return;
+    }
+
     const ix = this.state.ix;
     if (!ix || ix.vpIdx !== vpIdx) return;
     const vp  = this.state.vp[vpIdx];
@@ -642,6 +734,17 @@ export class ViewerComponent implements AfterViewInit {
 
   onMouseEnter(vpIdx: number) { this.state.activeVp = vpIdx; }
 
+  /** Clears the magnifier lens and commits any in-progress drag when the
+   *  cursor leaves a viewport container. */
+  onMouseLeave(e: MouseEvent, vpIdx: number) {
+    if (this.magnifierPos?.vpIdx === vpIdx) {
+      this.magnifierPos = null;
+      this.draw(vpIdx);
+    }
+    // Commit any in-progress drag (pan, roi draw, etc.) as onMouseUp would.
+    this.onMouseUp(e, vpIdx);
+  }
+
   // ── Drag & Drop file onto viewport ────────────────────────────────────────
   onDragOver(e: DragEvent, vpIdx: number) {
     // Only accept file drops
@@ -721,6 +824,7 @@ export class ViewerComponent implements AfterViewInit {
     if (activeTool === 'arrow')     return 'cursor-crosshair';
     if (activeTool === 'brush')     return 'cursor-crosshair';
     if (activeTool === 'erase-roi' || activeTool === 'erase-ruler') return 'cursor-pointer';
+    if (activeTool === 'magnifier') return 'cursor-none';
     return 'cursor-default';
   }
 }
