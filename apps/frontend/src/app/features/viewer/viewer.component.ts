@@ -6,7 +6,7 @@ import {
   LucideAngularModule,
   Hand, Target, Ruler, ZoomOut, ZoomIn, Maximize2,
   ChevronLeft, ChevronRight, Paintbrush, ArrowUpRight,
-  Eraser, LayoutGrid
+  Eraser, LayoutGrid, Link2, Unlink2
 } from 'lucide-angular';
 
 import { ViewerStateService } from '../../core/services/viewer-state.service';
@@ -30,30 +30,55 @@ export class ViewerComponent implements AfterViewInit {
   readonly icons = {
     Hand, Target, Ruler, ZoomOut, ZoomIn, Maximize2,
     ChevronLeft, ChevronRight, Paintbrush, ArrowUpRight,
-    Eraser, LayoutGrid
+    Eraser, LayoutGrid, Link2, Unlink2
   };
 
   @ViewChild('fileInput')  fileInput!: ElementRef<HTMLInputElement>;
-  @ViewChild('c0',  { static: false }) c0?:  ElementRef<HTMLCanvasElement>;
-  @ViewChild('ct0', { static: false }) ct0?: ElementRef<HTMLDivElement>;
-  @ViewChild('c1',  { static: false }) c1?:  ElementRef<HTMLCanvasElement>;
-  @ViewChild('ct1', { static: false }) ct1?: ElementRef<HTMLDivElement>;
-  @ViewChild('c2',  { static: false }) c2?:  ElementRef<HTMLCanvasElement>;
-  @ViewChild('ct2', { static: false }) ct2?: ElementRef<HTMLDivElement>;
-  @ViewChild('c3',  { static: false }) c3?:  ElementRef<HTMLCanvasElement>;
-  @ViewChild('ct3', { static: false }) ct3?: ElementRef<HTMLDivElement>;
+  // Overlay canvases: ROIs, rulers, brushes (no filter applied here)
+  @ViewChild('c0',   { static: false }) c0?:   ElementRef<HTMLCanvasElement>;
+  @ViewChild('ct0',  { static: false }) ct0?:  ElementRef<HTMLDivElement>;
+  @ViewChild('c1',   { static: false }) c1?:   ElementRef<HTMLCanvasElement>;
+  @ViewChild('ct1',  { static: false }) ct1?:  ElementRef<HTMLDivElement>;
+  @ViewChild('c2',   { static: false }) c2?:   ElementRef<HTMLCanvasElement>;
+  @ViewChild('ct2',  { static: false }) ct2?:  ElementRef<HTMLDivElement>;
+  @ViewChild('c3',   { static: false }) c3?:   ElementRef<HTMLCanvasElement>;
+  @ViewChild('ct3',  { static: false }) ct3?:  ElementRef<HTMLDivElement>;
+  // Image canvases: draw only the DICOM/raster image; CSS filter handles
+  // brightness/contrast/invert so it works on all WebKit versions (ctx.filter
+  // was only added to Safari in 15.4 / macOS 12.3, too recent to rely on).
+  @ViewChild('img0', { static: false }) img0?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('img1', { static: false }) img1?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('img2', { static: false }) img2?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('img3', { static: false }) img3?: ElementRef<HTMLCanvasElement>;
 
   /** Live brush stroke being painted — committed to VP on mouseUp. */
   private tempBrush: { points: { x: number; y: number }[]; color: string } | null = null;
 
+  /** Index of the VP currently being hovered during a drag-file operation, -1 = none. */
+  dragOverVp = -1;
+
   ngAfterViewInit() {}
 
   // ── Canvas refs ────────────────────────────────────────────────────────────
+  /** Overlay canvas: ROIs, rulers, brush strokes — no filter. */
   private cv(i: number): HTMLCanvasElement | undefined {
     return [this.c0, this.c1, this.c2, this.c3][i]?.nativeElement;
   }
+  /** Image canvas: raw DICOM/raster image only; CSS filter for B/C/invert. */
+  private imgCv(i: number): HTMLCanvasElement | undefined {
+    return [this.img0, this.img1, this.img2, this.img3][i]?.nativeElement;
+  }
   private ct(i: number): HTMLDivElement | undefined {
     return [this.ct0, this.ct1, this.ct2, this.ct3][i]?.nativeElement;
+  }
+
+  /** Build the CSS filter string from VP brightness/contrast/invert settings.
+   *  CSS filter works on ALL WebKit versions; ctx.filter only landed in
+   *  Safari 15.4 (macOS 12.3) which is too recent to rely on in Wails. */
+  private buildImgFilter(vp: VP): string {
+    const parts = [`contrast(${vp.contrast}%)`, `brightness(${vp.brightness}%)`];
+    if (vp.invertColors) parts.push('invert(100%)');
+    return parts.join(' ');
   }
 
   /** True when running inside the Wails desktop shell. */
@@ -138,33 +163,53 @@ export class ViewerComponent implements AfterViewInit {
   // ── Zoom / fit ─────────────────────────────────────────────────────────────
   zoomIn(vpIdx = this.state.activeVp)  { this.state.zoomIn(vpIdx,  (i) => this.draw(i)); }
   zoomOut(vpIdx = this.state.activeVp) { this.state.zoomOut(vpIdx, (i) => this.draw(i)); }
-  fitScreen(vpIdx = this.state.activeVp) { this.resetVP(vpIdx); this.draw(vpIdx); }
+  fitScreen(vpIdx = this.state.activeVp) {
+    this.resetVP(vpIdx);
+    this.draw(vpIdx);
+    this.state.propagateView(vpIdx, (i) => this.draw(i));
+  }
   onContrastChange(vpIdx = this.state.activeVp) { this.draw(vpIdx); }
 
   // ── Draw ───────────────────────────────────────────────────────────────────
   draw(vpIdx: number) {
-    const canvas = this.cv(vpIdx);
-    const ct     = this.ct(vpIdx);
-    const vp     = this.state.vp[vpIdx];
+    const canvas    = this.cv(vpIdx);
+    const imgCanvas = this.imgCv(vpIdx);
+    const ct        = this.ct(vpIdx);
+    const vp        = this.state.vp[vpIdx];
     if (!canvas || !ct) return;
+
+    // ── Image layer (separate canvas, CSS filter) ──────────────────────────
+    // Painting the DICOM image on its own canvas and applying brightness /
+    // contrast / invert via element.style.filter guarantees correct rendering
+    // on all WebKit versions shipped with macOS.  ctx.filter only landed in
+    // Safari 15.4 and silently becomes a no-op on older releases.
+    if (vp.loadedImage && imgCanvas) {
+      imgCanvas.width  = ct.clientWidth;
+      imgCanvas.height = ct.clientHeight;
+      imgCanvas.style.filter = this.buildImgFilter(vp);
+      const ictx = imgCanvas.getContext('2d')!;
+      ictx.clearRect(0, 0, imgCanvas.width, imgCanvas.height);
+      ictx.save();
+      const icx = imgCanvas.width  / 2 + vp.panX;
+      const icy = imgCanvas.height / 2 + vp.panY;
+      ictx.translate(icx, icy);
+      ictx.scale(vp.zoom, vp.zoom);
+      const img = vp.loadedImage;
+      ictx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2,
+        img.naturalWidth, img.naturalHeight);
+      ictx.restore();
+    } else if (imgCanvas) {
+      // No image — clear the image canvas and reset filter
+      imgCanvas.style.filter = 'none';
+      const ictx = imgCanvas.getContext('2d');
+      if (ictx) ictx.clearRect(0, 0, imgCanvas.width, imgCanvas.height);
+    }
+
+    // ── Overlay layer (ROIs, rulers, brushes — no filter) ─────────────────
     canvas.width  = ct.clientWidth;
     canvas.height = ct.clientHeight;
     const ctx = canvas.getContext('2d')!;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    if (vp.loadedImage) {
-      ctx.save();
-      const invertPart = vp.invertColors ? ' invert(100%)' : '';
-      ctx.filter = `contrast(${vp.contrast}%) brightness(${vp.brightness}%)${invertPart}`;
-      const cx = canvas.width / 2 + vp.panX;
-      const cy = canvas.height / 2 + vp.panY;
-      ctx.translate(cx, cy);
-      ctx.scale(vp.zoom, vp.zoom);
-      const img = vp.loadedImage;
-      ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2,
-        img.naturalWidth, img.naturalHeight);
-      ctx.restore();
-    }
 
     const ix    = this.state.ix;
     const tROI  = ix?.vpIdx === vpIdx && ix.mode === 'draw-roi'   ? ix.tempROI   : null;
@@ -503,7 +548,9 @@ export class ViewerComponent implements AfterViewInit {
     if (ix.mode === 'pan') {
       vp.panX = ix.panX0 + (e.clientX - ix.clientX0);
       vp.panY = ix.panY0 + (e.clientY - ix.clientY0);
-      this.draw(vpIdx); return;
+      this.draw(vpIdx);
+      this.state.propagateView(vpIdx, (i) => this.draw(i));
+      return;
     }
     if (ix.mode === 'draw-roi' && ix.tempROI) {
       const dx = Math.abs(img.x - ix.imgX0) / 2, dy = Math.abs(img.y - ix.imgY0) / 2;
@@ -595,6 +642,36 @@ export class ViewerComponent implements AfterViewInit {
 
   onMouseEnter(vpIdx: number) { this.state.activeVp = vpIdx; }
 
+  // ── Drag & Drop file onto viewport ────────────────────────────────────────
+  onDragOver(e: DragEvent, vpIdx: number) {
+    // Only accept file drops
+    if (!e.dataTransfer?.types.includes('Files')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    this.dragOverVp = vpIdx;
+  }
+
+  onDragLeave(e: DragEvent, vpIdx: number) {
+    // Only clear when truly leaving the container (not entering a child element)
+    const related = e.relatedTarget as Node | null;
+    const ct = this.ct(vpIdx);
+    if (!ct || (related && ct.contains(related))) return;
+    if (this.dragOverVp === vpIdx) this.dragOverVp = -1;
+  }
+
+  onDrop(e: DragEvent, vpIdx: number) {
+    e.preventDefault();
+    this.dragOverVp = -1;
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    this.state.pendingVp = vpIdx;
+    this.study.loadFile(file, vpIdx, this.state.vp[vpIdx], (idx) => {
+      this.resetVP(idx);
+      this.state.clearAll(idx, false, (i) => this.draw(i));
+      setTimeout(() => this.draw(idx), 50);
+    });
+  }
+
   // ── Wheel zoom ─────────────────────────────────────────────────────────────
   @HostListener('window:wheel', ['$event'])
   onWheel(e: WheelEvent) {
@@ -606,9 +683,19 @@ export class ViewerComponent implements AfterViewInit {
         const delta = e.deltaY > 0 ? 0.95 : 1.05;
         this.state.vp[i].zoom = Math.min(Math.max(this.state.vp[i].zoom * delta, 0.03), 12);
         this.draw(i);
+        this.state.propagateView(i, (j) => this.draw(j));
         return;
       }
     }
+  }
+
+  // ── Series navigation (prev/next file in folder) ──────────────────────────
+  get seriesCount(): number { return this.study.seriesFiles().length; }
+  get seriesIdx():   number { return this.study.seriesIdx(); }
+
+  navigateSeries(delta: number) {
+    const path = this.study.seriesPathAt(delta);
+    if (path) this.openPath(path);
   }
 
   // ── Multi-frame navigation ─────────────────────────────────────────────────

@@ -68,8 +68,10 @@
     </div>
   } @else {
 
-    <!-- File tree -->
-    <div class="flex-1 overflow-y-auto py-1">
+    <!-- File tree — min-h-0 is required so flexbox allows this child to shrink
+         and the overflow-y-auto actually kicks in (flex items default to
+         min-height:auto which prevents shrinking below content height). -->
+    <div class="flex-1 overflow-y-auto min-h-0 py-1">
       @if (filtered().length === 0) {
         <p class="px-3 py-4 text-[10px] text-on-surface-variant/50">Nenhum arquivo encontrado.</p>
       }
@@ -85,7 +87,7 @@
         } @else {
           <!-- File row -->
           <button
-            (click)="isImage(entry) && openFile.emit(currentPath() + '/' + entry.name)"
+            (click)="isImage(entry) && openImageFile(entry)"
             [class.cursor-default]="!isImage(entry)"
             [class.hover:bg-white\/4]="isImage(entry)"
             [class.hover:border-primary\/20]="isImage(entry)"

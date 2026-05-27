@@ -10,6 +10,7 @@ import {
 } from 'lucide-angular';
 
 import { ViewerStateService, GridLayout } from '../../core/services/viewer-state.service';
+import { MAMMOGRAPHY_PRESETS, WindowPreset } from '../../shared/models/types';
 
 @Component({
   selector: 'app-tools-panel',
@@ -49,15 +50,39 @@ export class ToolsPanelComponent {
 
   // ── Brightness / contrast ─────────────────────────────────────────────────
   get brightness(): number { return this.state.activeVPData.brightness; }
-  set brightness(v: number) { this.state.activeVPData.brightness = v; this.draw(); }
+  set brightness(v: number) {
+    this.state.activeVPData.brightness = v;
+    this.state.activeVPData.activePreset = null; // manual override
+    this.draw();
+  }
 
   get contrast(): number { return this.state.activeVPData.contrast; }
-  set contrast(v: number) { this.state.activeVPData.contrast = v; this.draw(); }
+  set contrast(v: number) {
+    this.state.activeVPData.contrast = v;
+    this.state.activeVPData.activePreset = null; // manual override
+    this.draw();
+  }
 
   resetVisualization() {
     const vp = this.state.activeVPData;
     vp.brightness = 100; vp.contrast = 80; vp.invertColors = false;
+    vp.activePreset = 'Padrão';
     this.draw();
+  }
+
+  // ── Windowing presets ─────────────────────────────────────────────────────
+  readonly presets: WindowPreset[] = MAMMOGRAPHY_PRESETS;
+
+  applyPreset(p: WindowPreset) {
+    const vp = this.state.activeVPData;
+    vp.brightness   = p.brightness;
+    vp.contrast     = p.contrast;
+    vp.activePreset = p.label;
+    this.draw();
+  }
+
+  isActivePreset(label: string): boolean {
+    return this.state.activeVPData.activePreset === label;
   }
 
   // ── Layout ────────────────────────────────────────────────────────────────

@@ -40,7 +40,10 @@ export class ShortcutsModalComponent {
         { keys: ['-'],        description: 'Reduzir' },
         { keys: ['F'],        description: 'Ajustar à tela (fit)' },
         { keys: ['0'],        description: 'Ajustar à tela (alt)' },
+        { keys: ['←'],        description: 'Arquivo anterior na série' },
+        { keys: ['→'],        description: 'Próximo arquivo na série' },
         { keys: ['⌘', '⇧', 'O'], description: 'Abrir pasta…' },
+        { keys: ['⌘', 'L'],  description: 'Painel de Laudo' },
       ]
     },
     {

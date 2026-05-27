@@ -26,15 +26,18 @@ func (r *AnnotationRepository) Save(ctx context.Context, studyID string, a *enti
 	// When audio fields are empty (geometry-only save), preserve whatever is
 	// already stored in the row so voice notes survive re-saves.
 	_, err = r.db.ExecContext(ctx, `
-		INSERT INTO annotations (id, study_id, finding_id, kind, data, audio_path, audio_duration_ms, audio_transcript)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO annotations (id, study_id, finding_id, kind, data, label, notes, audio_path, audio_duration_ms, audio_transcript)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			kind              = excluded.kind,
 			data              = excluded.data,
+			label             = excluded.label,
+			notes             = excluded.notes,
 			audio_path        = CASE WHEN excluded.audio_path != '' THEN excluded.audio_path ELSE audio_path END,
 			audio_duration_ms = CASE WHEN excluded.audio_path != '' THEN excluded.audio_duration_ms ELSE audio_duration_ms END,
 			audio_transcript  = CASE WHEN excluded.audio_path != '' THEN excluded.audio_transcript ELSE audio_transcript END`,
 		string(a.ID), studyID, "", string(a.Kind), data,
+		a.Label, a.Notes,
 		a.AudioPath, a.AudioDurationMs, a.AudioTranscript,
 	)
 	return err
@@ -74,7 +77,7 @@ func (r *AnnotationRepository) DeleteByStudyIDExcept(ctx context.Context, studyI
 
 func (r *AnnotationRepository) LoadByStudyID(ctx context.Context, studyID string) ([]*entity.Annotation, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, kind, data, audio_path, audio_duration_ms, audio_transcript
+		`SELECT id, kind, data, label, notes, audio_path, audio_duration_ms, audio_transcript
 		 FROM annotations WHERE study_id = ? ORDER BY created_at`, studyID)
 	if err != nil {
 		return nil, err
@@ -83,15 +86,17 @@ func (r *AnnotationRepository) LoadByStudyID(ctx context.Context, studyID string
 
 	var result []*entity.Annotation
 	for rows.Next() {
-		var id, kind, data, audioPath, audioTranscript string
+		var id, kind, data, label, notes, audioPath, audioTranscript string
 		var audioDurationMs int
-		if err := rows.Scan(&id, &kind, &data, &audioPath, &audioDurationMs, &audioTranscript); err != nil {
+		if err := rows.Scan(&id, &kind, &data, &label, &notes, &audioPath, &audioDurationMs, &audioTranscript); err != nil {
 			return nil, err
 		}
 		ann, err := unmarshalAnnotation(id, entity.AnnotationKind(kind), data)
 		if err != nil {
 			return nil, err
 		}
+		ann.Label = label
+		ann.Notes = notes
 		ann.AudioPath = audioPath
 		ann.AudioDurationMs = audioDurationMs
 		ann.AudioTranscript = audioTranscript
@@ -103,12 +108,12 @@ func (r *AnnotationRepository) LoadByStudyID(ctx context.Context, studyID string
 // FindByID returns a single annotation. Used by the audio handler to verify
 // existence before attaching a recording.
 func (r *AnnotationRepository) FindByID(ctx context.Context, id string) (*entity.Annotation, string, error) {
-	var studyID, kind, data, audioPath, audioTranscript string
+	var studyID, kind, data, label, notes, audioPath, audioTranscript string
 	var audioDurationMs int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT study_id, kind, data, audio_path, audio_duration_ms, audio_transcript
+		`SELECT study_id, kind, data, label, notes, audio_path, audio_duration_ms, audio_transcript
 		 FROM annotations WHERE id = ?`, id,
-	).Scan(&studyID, &kind, &data, &audioPath, &audioDurationMs, &audioTranscript)
+	).Scan(&studyID, &kind, &data, &label, &notes, &audioPath, &audioDurationMs, &audioTranscript)
 	if err != nil {
 		return nil, "", err
 	}
@@ -116,6 +121,8 @@ func (r *AnnotationRepository) FindByID(ctx context.Context, id string) (*entity
 	if err != nil {
 		return nil, studyID, err
 	}
+	ann.Label = label
+	ann.Notes = notes
 	ann.AudioPath = audioPath
 	ann.AudioDurationMs = audioDurationMs
 	ann.AudioTranscript = audioTranscript

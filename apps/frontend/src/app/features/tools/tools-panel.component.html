@@ -179,26 +179,45 @@
           <span class="text-[9px] opacity-40">I</span>
         </button>
 
-        <!-- Brilho -->
+        <!-- Presets de janelamento (mamografia) -->
+        <div class="space-y-1.5">
+          <p class="text-[10px] text-on-surface-variant/60">Presets de janelamento</p>
+          <div class="grid grid-cols-2 gap-1">
+            @for (p of presets; track p.label) {
+              <button (click)="applyPreset(p)"
+                class="rounded border py-1.5 text-[10px] font-semibold transition"
+                [class.border-pink-500\/50]="isActivePreset(p.label)"
+                [class.bg-pink-900\/25]="isActivePreset(p.label)"
+                [class.text-pink-200]="isActivePreset(p.label)"
+                [class.border-white\/8]="!isActivePreset(p.label)"
+                [class.text-on-surface-variant]="!isActivePreset(p.label)"
+                [class.hover:bg-white\/5]="!isActivePreset(p.label)">
+                {{ p.label }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <!-- Brilho (W/L manual) -->
         <div class="space-y-1">
           <div class="flex items-center justify-between">
             <span class="text-[10px] text-on-surface-variant flex items-center gap-1.5">
               <lucide-icon [img]="icons.Sun" class="h-3 w-3"></lucide-icon>Brilho
             </span>
-            <span class="text-[10px] tabular-nums text-on-surface-variant">{{ brightness }}%</span>
+            <span class="text-[10px] tabular-nums text-on-surface-variant/60">{{ brightness }}%</span>
           </div>
           <input type="range" min="20" max="300" step="5"
             [ngModel]="brightness" (ngModelChange)="brightness = $event"
             class="w-full accent-pink-500 h-1 appearance-none rounded"/>
         </div>
 
-        <!-- Contraste -->
+        <!-- Contraste (W/L manual) -->
         <div class="space-y-1">
           <div class="flex items-center justify-between">
             <span class="text-[10px] text-on-surface-variant flex items-center gap-1.5">
               <lucide-icon [img]="icons.Contrast" class="h-3 w-3"></lucide-icon>Contraste
             </span>
-            <span class="text-[10px] tabular-nums text-on-surface-variant">{{ contrast }}%</span>
+            <span class="text-[10px] tabular-nums text-on-surface-variant/60">{{ contrast }}%</span>
           </div>
           <input type="range" min="20" max="300" step="5"
             [ngModel]="contrast" (ngModelChange)="contrast = $event"

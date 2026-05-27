@@ -74,7 +74,10 @@ export interface AnnotationDTO {
   w?: number;
   h?: number;
   bbox?: { x: number; y: number; w: number; h: number };
+  label?: string;
+  notes?: string;
   audio_duration_ms?: number;
+  audio_transcript?: string;
 }
 
 export interface SaveAnnotationsRequest {
@@ -202,7 +205,9 @@ export class ApiService {
       x: r.x - r.rx,
       y: r.y - r.ry,
       w: r.rx * 2,
-      h: r.ry * 2
+      h: r.ry * 2,
+      ...(r.label ? { label: r.label } : {}),
+      ...(r.notes ? { notes: r.notes } : {}),
     }));
     return this.http.post(`${this.base}/api/studies/${studyId}/annotations`, {
       annotations
@@ -234,9 +239,12 @@ export class ApiService {
     a.href = url; a.download = ''; a.click();
   }
 
-  /** Opens the HTML report in a new window for PDF printing. */
+  /** Downloads the laudo as a real PDF from the backend. */
   openReport(studyId: string) {
-    window.open(`${this.base}/api/export/report/${studyId}`, 'mammo-report');
+    const a = document.createElement('a');
+    a.href = `${this.base}/api/studies/${studyId}/pdf`;
+    a.download = `laudo-${studyId.slice(0, 8)}.pdf`;
+    a.click();
   }
 
   /** Updates the clinical report fields on a study (BI-RADS, conclusion, …). */
@@ -341,9 +349,16 @@ export class ApiService {
 
   // ── audio annotations ─────────────────────────────────────────────────────
   /** Upload raw WebM audio blob for an annotation. Returns duration_ms on success. */
-  uploadAnnotationAudio(annotId: string, blob: Blob, durationMs: number): Observable<{ audio_duration_ms: number } | null> {
+  uploadAnnotationAudio(
+    annotId: string,
+    blob: Blob,
+    durationMs: number,
+    transcript?: string,
+  ): Observable<{ audio_duration_ms: number } | null> {
+    const params = new URLSearchParams({ duration_ms: String(durationMs) });
+    if (transcript) params.set('transcript', transcript);
     return this.http.post<{ audio_duration_ms: number }>(
-      `${this.base}/api/annotations/${annotId}/audio?duration_ms=${durationMs}`,
+      `${this.base}/api/annotations/${annotId}/audio?${params}`,
       blob,
       { headers: { 'Content-Type': 'audio/webm' } }
     ).pipe(catchError(() => of(null)));

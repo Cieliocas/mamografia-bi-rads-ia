@@ -14,12 +14,17 @@ import (
 type AnnotationDTO struct {
 	// ID is optional; when present the existing annotation row is reused so
 	// voice notes attached to it survive a re-save.
-	ID   string  `json:"id,omitempty"`
-	Kind string  `json:"kind"`
-	X    float64 `json:"x,omitempty"`
-	Y    float64 `json:"y,omitempty"`
-	W    float64 `json:"w,omitempty"`
-	H    float64 `json:"h,omitempty"`
+	ID    string  `json:"id,omitempty"`
+	Kind  string  `json:"kind"`
+	X     float64 `json:"x,omitempty"`
+	Y     float64 `json:"y,omitempty"`
+	W     float64 `json:"w,omitempty"`
+	H     float64 `json:"h,omitempty"`
+	Label string  `json:"label,omitempty"`
+	Notes string  `json:"notes,omitempty"`
+	// Read-only fields returned by GET /annotations — never written by the client.
+	AudioDurationMs int    `json:"audio_duration_ms,omitempty"`
+	AudioTranscript string `json:"audio_transcript,omitempty"`
 }
 
 // SaveAnnotations persists a slice of annotations for a given study.
@@ -94,7 +99,11 @@ func dtoToEntity(dto AnnotationDTO) *entity.Annotation {
 	if id == "" {
 		id = uuid.NewString()
 	}
-	ann := &entity.Annotation{ID: entity.AnnotationID(id)}
+	ann := &entity.Annotation{
+		ID:    entity.AnnotationID(id),
+		Label: dto.Label,
+		Notes: dto.Notes,
+	}
 	switch dto.Kind {
 	case "polygon":
 		ann.Kind = entity.AnnotationPolygon
@@ -107,4 +116,27 @@ func dtoToEntity(dto AnnotationDTO) *entity.Annotation {
 		ann.BBox = &entity.BoundingBox{X: dto.X, Y: dto.Y, Width: dto.W, Height: dto.H}
 	}
 	return ann
+}
+
+// EntityToDTO converts a persisted annotation to a DTO for API responses.
+func EntityToDTO(a *entity.Annotation) AnnotationDTO {
+	dto := AnnotationDTO{
+		ID:              string(a.ID),
+		Kind:            string(a.Kind),
+		Label:           a.Label,
+		Notes:           a.Notes,
+		AudioDurationMs: a.AudioDurationMs,
+		AudioTranscript: a.AudioTranscript,
+	}
+	switch a.Kind {
+	case entity.AnnotationBoundingBox:
+		if a.BBox != nil {
+			dto.X, dto.Y, dto.W, dto.H = a.BBox.X, a.BBox.Y, a.BBox.Width, a.BBox.Height
+		}
+	case entity.AnnotationPoint:
+		if a.Point != nil {
+			dto.X, dto.Y = a.Point.X, a.Point.Y
+		}
+	}
+	return dto
 }

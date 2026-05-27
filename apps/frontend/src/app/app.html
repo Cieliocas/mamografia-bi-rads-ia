@@ -85,6 +85,12 @@
           [class.text-on-surface-variant]="state.activePanel!=='tools'">
           <lucide-icon [img]="icons.Wrench" class="h-5 w-5"></lucide-icon> Tools
         </button>
+        <button (click)="state.setPanel('report')"
+          class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold transition"
+          [class.text-secondary]="state.activePanel==='report'"
+          [class.text-on-surface-variant]="state.activePanel!=='report'">
+          <lucide-icon [img]="icons.ClipboardList" class="h-5 w-5"></lucide-icon> Laudo
+        </button>
       </aside>
 
       <!-- Left panel -->
@@ -104,6 +110,7 @@
           @if (state.activePanel === 'files') {
             <app-files-panel #filesPanel
               (openFile)="onOpenFilePath($event)"
+              (openSeries)="onOpenSeries($event)"
               (pickFolder)="onPickFolder()"
             />
           }
@@ -205,6 +212,11 @@
           <!-- ANALYSIS -->
           @if (state.activePanel === 'analysis') {
             <app-analysis-panel />
+          }
+
+          <!-- REPORT / LAUDO -->
+          @if (state.activePanel === 'report') {
+            <app-report-panel />
           }
 
         </aside>

@@ -76,10 +76,15 @@ func (h *AudioHandler) upload(c *gin.Context) {
 			durationMs = n
 		}
 	}
+	// Optional voice-to-text transcript sent by the client alongside the blob.
+	transcript := c.Query("transcript")
 
 	rel, _ := filepath.Rel(h.localRoot, dst)
 	ann.AudioPath = rel
 	ann.AudioDurationMs = durationMs
+	if transcript != "" {
+		ann.AudioTranscript = transcript
+	}
 	if err := h.repo.Save(context.Background(), studyID, ann); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "persist: " + err.Error()})
 		return
