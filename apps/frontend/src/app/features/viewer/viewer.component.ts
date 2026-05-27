@@ -390,7 +390,7 @@ export class ViewerComponent implements AfterViewInit {
           ctx.fillStyle = col; ctx.fill();
         });
         const pxDist = Math.sqrt((ru.x2 - ru.x1) ** 2 + (ru.y2 - ru.y1) ** 2);
-        const ps     = this.study.currentMetadata()?.pixelSpacing;
+        const ps     = vp.pixelSpacing;
         const distLabel = ps && ps > 0
           ? `${(pxDist * ps).toFixed(2)} mm`
           : `${pxDist.toFixed(1)} px`;

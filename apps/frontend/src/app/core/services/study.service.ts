@@ -314,6 +314,10 @@ export class StudyService {
       this.refreshBackendStudies();
       this.loadClinical(resp.id);
 
+      // Store pixel spacing on the VP so ruler calibration is per-viewport.
+      vp.pixelSpacing = resp.pixel_spacing && resp.pixel_spacing > 0
+        ? resp.pixel_spacing : null;
+
       const previewURL = this.api.previewURL(resp.id);
       const img = new Image();
       img.onload = () => {

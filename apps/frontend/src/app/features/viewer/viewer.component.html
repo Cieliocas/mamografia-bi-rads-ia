@@ -101,11 +101,17 @@
           </p>
         }
       </div>
-      <!-- Bottom-right: B/C -->
-      <div class="absolute bottom-2 right-2 pointer-events-none text-right">
+      <!-- Bottom-right: B/C · calibration indicator -->
+      <div class="absolute bottom-2 right-2 pointer-events-none text-right space-y-0.5">
         <p class="rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-white/35 tabular-nums">
           B{{ state.vp[0].brightness }}% C{{ state.vp[0].contrast }}%
         </p>
+        @if (state.vp[0].pixelSpacing) {
+          <p class="rounded bg-emerald-900/40 px-1.5 py-0.5 text-[9px] text-emerald-300/80 tabular-nums"
+             title="Régua calibrada — {{ state.vp[0].pixelSpacing }} mm/px">
+            ✓ CAL {{ state.vp[0].pixelSpacing | number:'1.3-3' }} mm/px
+          </p>
+        }
       </div>
     } @else {
       @if (state.vpCount > 1) {
@@ -165,9 +171,17 @@
             <p class="rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-pink-300/60">{{ state.vp[1].activePreset }}</p>
           }
         </div>
-        <p class="absolute bottom-2 right-2 pointer-events-none rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-white/35 tabular-nums">
-          B{{ state.vp[1].brightness }}% C{{ state.vp[1].contrast }}%
-        </p>
+        <div class="absolute bottom-2 right-2 pointer-events-none text-right space-y-0.5">
+          <p class="rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-white/35 tabular-nums">
+            B{{ state.vp[1].brightness }}% C{{ state.vp[1].contrast }}%
+          </p>
+          @if (state.vp[1].pixelSpacing) {
+            <p class="rounded bg-emerald-900/40 px-1.5 py-0.5 text-[9px] text-emerald-300/80 tabular-nums"
+               title="Régua calibrada — {{ state.vp[1].pixelSpacing }} mm/px">
+              ✓ CAL {{ state.vp[1].pixelSpacing | number:'1.3-3' }} mm/px
+            </p>
+          }
+        </div>
       }
     </div>
   }
