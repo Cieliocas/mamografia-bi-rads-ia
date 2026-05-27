@@ -32,6 +32,15 @@ jobs:
         working-directory: apps/frontend
         run: npm install --legacy-peer-deps
 
+      # ── Build Angular frontend ──────────────────────────────────────────────
+      - name: Build Angular frontend
+        working-directory: apps/frontend
+        run: npm run build
+
+      # ── Copy built frontend into Wails embed dir ───────────────────────────
+      - name: Copy frontend dist to desktop embed dir
+        run: cp -r apps/frontend/dist/. apps/desktop/dist/
+
       # ── Wails CLI ───────────────────────────────────────────────────────────
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
@@ -43,6 +52,7 @@ jobs:
           wails build \
             -platform darwin/universal \
             -clean \
+            -nofrontend \
             -o AIdentify
 
       # ── Package as zip ──────────────────────────────────────────────────────
@@ -81,6 +91,15 @@ jobs:
         working-directory: apps/frontend
         run: npm install --legacy-peer-deps
 
+      # ── Build Angular frontend ──────────────────────────────────────────────
+      - name: Build Angular frontend
+        working-directory: apps/frontend
+        run: npm run build
+
+      # ── Copy built frontend into Wails embed dir ───────────────────────────
+      - name: Copy frontend dist to desktop embed dir
+        run: cp -r apps/frontend/dist/. apps/desktop/dist/
+
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
@@ -88,7 +107,7 @@ jobs:
       - name: Build Windows installer
         working-directory: apps/desktop
         run: |
-          wails build -platform windows/amd64 -clean -nsis -o AIdentify
+          wails build -platform windows/amd64 -clean -nofrontend -nsis -o AIdentify
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
