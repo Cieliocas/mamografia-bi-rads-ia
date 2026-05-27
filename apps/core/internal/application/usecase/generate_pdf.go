@@ -4,31 +4,36 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"image/png"
 	"strings"
 	"time"
 
 	"github.com/go-pdf/fpdf"
 
 	"mammo/apps/core/internal/domain/entity"
+	"mammo/apps/core/internal/imaging"
 	"mammo/apps/core/internal/ports/outbound"
 )
 
 // GeneratePDF builds a laudo (radiologist report) PDF for a given study.
 type GeneratePDF struct {
-	studyRepo  outbound.StudyRepository
-	annotRepo  outbound.AnnotationRepository
+	studyRepo   outbound.StudyRepository
+	annotRepo   outbound.AnnotationRepository
 	patientRepo outbound.PatientRepository
+	reader      outbound.FilesystemReader
 }
 
 func NewGeneratePDF(
 	studyRepo outbound.StudyRepository,
 	annotRepo outbound.AnnotationRepository,
 	patientRepo outbound.PatientRepository,
+	reader outbound.FilesystemReader,
 ) *GeneratePDF {
 	return &GeneratePDF{
 		studyRepo:   studyRepo,
 		annotRepo:   annotRepo,
 		patientRepo: patientRepo,
+		reader:      reader,
 	}
 }
 
@@ -55,7 +60,50 @@ func (uc *GeneratePDF) Execute(ctx context.Context, studyID string) ([]byte, err
 		anns = nil // non-fatal; proceed without annotations
 	}
 
-	return buildPDF(study, patient, anns)
+	// Render annotated preview image (best-effort — PDF is still generated on failure).
+	pngBytes := uc.renderAnnotatedPNG(study.FilePath, anns)
+
+	return buildPDF(study, patient, anns, pngBytes)
+}
+
+// renderAnnotatedPNG renders the DICOM file with annotation overlays as PNG
+// bytes. Returns nil if the file is missing, unreadable, or a plain raster
+// image (those are passed through without DICOM decoding).
+func (uc *GeneratePDF) renderAnnotatedPNG(filePath string, anns []*entity.Annotation) []byte {
+	if filePath == "" || uc.reader == nil {
+		return nil
+	}
+	// Skip raster images — no pixel-level DICOM decoding needed.
+	lower := strings.ToLower(filePath)
+	if strings.HasSuffix(lower, ".png") || strings.HasSuffix(lower, ".jpg") || strings.HasSuffix(lower, ".jpeg") {
+		return nil
+	}
+
+	pixels, meta, err := uc.reader.ReadDICOM(filePath)
+	if err != nil || pixels == nil {
+		return nil
+	}
+
+	// Use DICOM windowing defaults.
+	wc, ww := 2048.0, 4096.0
+	if meta != nil {
+		if meta.WindowCenter != 0 {
+			wc = meta.WindowCenter
+		}
+		if meta.WindowWidth != 0 {
+			ww = meta.WindowWidth
+		}
+	}
+
+	gray := imaging.RenderGrayscale(pixels, wc, ww)
+	rgba := imaging.ToRGBA(gray)
+	imaging.DrawAnnotations(rgba, anns)
+
+	var buf bytes.Buffer
+	if err := png.Encode(&buf, rgba); err != nil {
+		return nil
+	}
+	return buf.Bytes()
 }
 
 // ─── PDF construction ─────────────────────────────────────────────────────────
@@ -67,7 +115,7 @@ const (
 	colorText  = 30.0  // near-black text
 )
 
-func buildPDF(study *entity.Study, patient *entity.Patient, anns []*entity.Annotation) ([]byte, error) {
+func buildPDF(study *entity.Study, patient *entity.Patient, anns []*entity.Annotation, pngBytes []byte) ([]byte, error) {
 	pdf := fpdf.New("P", "mm", "A4", "")
 	pdf.SetMargins(20, 22, 20)
 	pdf.SetAutoPageBreak(true, 18)
@@ -106,6 +154,11 @@ func buildPDF(study *entity.Study, patient *entity.Patient, anns []*entity.Annot
 	drawBiradsBadge(pdf, study.BiradsGlobal)
 
 	pdf.Ln(3)
+
+	// ── Annotated image ───────────────────────────────────────────────────────
+	if len(pngBytes) > 0 {
+		drawImageSection(pdf, pngBytes)
+	}
 
 	// ── Findings table ───────────────────────────────────────────────────────
 	if len(anns) > 0 {
@@ -212,6 +265,42 @@ func drawBiradsBadge(pdf *fpdf.Fpdf, birads string) {
 	pdf.SetTextColor(90, 90, 90)
 	pdf.CellFormat(170, 5, biradsLabel(birads), "", 1, "C", false, 0, "")
 	pdf.SetTextColor(colorText, colorText, colorText)
+}
+
+// drawImageSection embeds the annotated PNG into the PDF, centred and scaled
+// to fit within the printable width (170 mm) with a maximum height of 130 mm.
+func drawImageSection(pdf *fpdf.Fpdf, pngBytes []byte) {
+	drawSection(pdf, "Imagem Anotada")
+
+	r := bytes.NewReader(pngBytes)
+	imgName := "annotated_preview.png"
+	info := pdf.RegisterImageOptionsReader(imgName, fpdf.ImageOptions{ImageType: "PNG"}, r)
+	if info == nil {
+		pdf.SetFont("Helvetica", "I", 8)
+		pdf.SetTextColor(160, 160, 160)
+		pdf.MultiCell(170, 5, "[Imagem não disponível]", "", "C", false)
+		pdf.SetTextColor(colorText, colorText, colorText)
+		pdf.Ln(3)
+		return
+	}
+
+	const maxW, maxH = 150.0, 130.0
+	iw := float64(info.Width())
+	ih := float64(info.Height())
+
+	w := maxW
+	h := w * ih / iw
+	if h > maxH {
+		h = maxH
+		w = h * iw / ih
+	}
+
+	// Centre horizontally within the 170 mm content area (left margin = 20 mm).
+	x := 20.0 + (170.0-w)/2.0
+	y := pdf.GetY()
+
+	pdf.ImageOptions(imgName, x, y, w, h, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+	pdf.Ln(h + 4)
 }
 
 func drawAnnotationsTable(pdf *fpdf.Fpdf, anns []*entity.Annotation) {

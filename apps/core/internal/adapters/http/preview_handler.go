@@ -5,8 +5,6 @@ import (
 	"context"
 	"fmt"
 	"image"
-	"image/color"
-	"image/draw"
 	_ "image/jpeg"
 	"image/png"
 	"net/http"
@@ -19,7 +17,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"mammo/apps/core/internal/domain/entity"
+	"mammo/apps/core/internal/imaging"
 	"mammo/apps/core/internal/ports/outbound"
 )
 
@@ -144,7 +142,7 @@ func (h *PreviewHandler) preview(c *gin.Context) {
 		return
 	}
 
-	img := renderGrayscale(pixels, wc, ww)
+	img := imaging.RenderGrayscale(pixels, wc, ww)
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, img); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "encode png: " + err.Error()})
@@ -197,23 +195,15 @@ func (h *PreviewHandler) previewAnnotated(c *gin.Context) {
 		return
 	}
 	wc, ww := pickWindowing(c, meta)
-	gray := renderGrayscale(pixels, wc, ww)
-
-	// Promote to RGBA so we can draw coloured overlays.
-	rgba := image.NewRGBA(gray.Bounds())
-	draw.Draw(rgba, rgba.Bounds(), gray, image.Point{}, draw.Src)
+	gray := imaging.RenderGrayscale(pixels, wc, ww)
+	rgba := imaging.ToRGBA(gray)
 
 	anns, err := h.annotRepo.LoadByStudyID(context.Background(), id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	for i, a := range anns {
-		if a.BBox == nil {
-			continue
-		}
-		drawBBox(rgba, a.BBox, i+1)
-	}
+	imaging.DrawAnnotations(rgba, anns)
 
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, rgba); err != nil {
@@ -221,103 +211,4 @@ func (h *PreviewHandler) previewAnnotated(c *gin.Context) {
 		return
 	}
 	c.Data(http.StatusOK, "image/png", buf.Bytes())
-}
-
-// drawBBox paints a hollow rectangle (3-px stroke) and a small filled
-// numeric badge in the top-left corner. Colour is fixed for now (cyan);
-// per-BI-RADS colouring lands once we persist the BI-RADS class on
-// annotations.
-func drawBBox(img *image.RGBA, b *entity.BoundingBox, n int) {
-	stroke := color.RGBA{R: 6, G: 182, B: 212, A: 255} // cyan-500
-	x0, y0 := int(b.X), int(b.Y)
-	x1, y1 := int(b.X+b.Width), int(b.Y+b.Height)
-
-	// Hollow rectangle, 3px thick.
-	for t := 0; t < 3; t++ {
-		drawHLine(img, x0-t, x1+t, y0-t, stroke)
-		drawHLine(img, x0-t, x1+t, y1+t, stroke)
-		drawVLine(img, x0-t, y0-t, y1+t, stroke)
-		drawVLine(img, x1+t, y0-t, y1+t, stroke)
-	}
-	// Filled badge in the corner. Crude proportional sizing: 16px tall.
-	badge := image.Rect(x0, y0-18, x0+18, y0)
-	draw.Draw(img, badge.Intersect(img.Bounds()), &image.Uniform{stroke}, image.Point{}, draw.Src)
-	// Number is drawn by the caller as a 5x7 bitmap; keep it simple and
-	// avoid bringing in a font for v1: a tiny dot pattern stands in.
-	_ = n
-}
-
-func drawHLine(img *image.RGBA, x0, x1, y int, c color.Color) {
-	if y < img.Bounds().Min.Y || y >= img.Bounds().Max.Y {
-		return
-	}
-	if x0 < img.Bounds().Min.X {
-		x0 = img.Bounds().Min.X
-	}
-	if x1 > img.Bounds().Max.X-1 {
-		x1 = img.Bounds().Max.X - 1
-	}
-	for x := x0; x <= x1; x++ {
-		img.Set(x, y, c)
-	}
-}
-
-func drawVLine(img *image.RGBA, x, y0, y1 int, c color.Color) {
-	if x < img.Bounds().Min.X || x >= img.Bounds().Max.X {
-		return
-	}
-	if y0 < img.Bounds().Min.Y {
-		y0 = img.Bounds().Min.Y
-	}
-	if y1 > img.Bounds().Max.Y-1 {
-		y1 = img.Bounds().Max.Y - 1
-	}
-	for y := y0; y <= y1; y++ {
-		img.Set(x, y, c)
-	}
-}
-
-// renderGrayscale maps pixel values through a linear WW/WC LUT into an
-// 8-bit grayscale image. Values outside the window are clipped to 0 / 255.
-//
-// p.Signed controls how the int16 storage is interpreted:
-//   - Signed == true  → two's-complement signed range (-32768…32767)
-//   - Signed == false → unsigned bits reinterpreted as uint16 (0…65535);
-//     this is the correct handling for PixelRepresentation=0 DICOMs where
-//     pixel values > 32767 would otherwise appear as negative (black).
-//
-// p.Photometric == "MONOCHROME1" causes the output to be inverted (0=white).
-// This is required by DICOM standard for some modalities (CR, XA, MG scans
-// stored with inverted polarity — bright areas represent bone/tissue density).
-func renderGrayscale(p *outbound.Pixels16, wc, ww float64) *image.Gray {
-	img    := image.NewGray(image.Rect(0, 0, p.Width, p.Height))
-	half   := ww / 2
-	low    := wc - half
-	invert := strings.EqualFold(p.Photometric, "MONOCHROME1")
-
-	for y := 0; y < p.Height; y++ {
-		for x := 0; x < p.Width; x++ {
-			raw := p.Data[y*p.Width+x]
-			var v float64
-			if p.Signed {
-				v = float64(raw)
-			} else {
-				v = float64(uint16(raw)) // reinterpret bits as unsigned
-			}
-			var g uint8
-			switch {
-			case v <= low:
-				g = 0
-			case v >= low+ww:
-				g = 255
-			default:
-				g = uint8(((v - low) / ww) * 255)
-			}
-			if invert {
-				g = 255 - g
-			}
-			img.SetGray(x, y, color.Gray{Y: g})
-		}
-	}
-	return img
 }
