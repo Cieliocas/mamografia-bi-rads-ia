@@ -52,7 +52,7 @@ jobs:
           wails build \
             -platform darwin/universal \
             -clean \
-            -nofrontend \
+            -s \
             -o AIdentify
 
       # ── Package as zip ──────────────────────────────────────────────────────
@@ -107,7 +107,7 @@ jobs:
       - name: Build Windows installer
         working-directory: apps/desktop
         run: |
-          wails build -platform windows/amd64 -clean -nofrontend -nsis -o AIdentify
+          wails build -platform windows/amd64 -clean -s -nsis -o AIdentify
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
