@@ -36,13 +36,32 @@ export interface VP {
   imageDataUrl: string|null;
   imageName: string;
   zoom: number; panX: number; panY: number;
+  /** CSS brightness (%) — 100 = neutral. Used for the image CSS filter. */
   contrast: number; brightness: number;
   invertColors: boolean;
   rois: ROI[]; rulers: RulerLine[]; brushStrokes: BrushStroke[];
   selectedROIId: number|null;
   roiCounter: number; rulerCounter: number; brushCounter: number;
   undoStack: Snapshot[]; redoStack: Snapshot[];
+  /** Active windowing preset label (null = custom / manual). */
+  activePreset: string | null;
 }
+
+/** Named windowing preset for mammography display. */
+export interface WindowPreset {
+  label: string;
+  /** CSS brightness % */
+  brightness: number;
+  /** CSS contrast % */
+  contrast: number;
+}
+
+export const MAMMOGRAPHY_PRESETS: WindowPreset[] = [
+  { label: 'Padrão',        brightness: 100, contrast:  80 },
+  { label: 'Tecido mole',   brightness:  80, contrast: 160 },
+  { label: 'Microcalc.',    brightness:  60, contrast: 280 },
+  { label: 'Alta exposição', brightness: 140, contrast:  55 },
+];
 
 export type IxMode =
   'pan'|'draw-roi'|'draw-ruler'|'draw-arrow'|'draw-brush'|
@@ -69,7 +88,8 @@ export function mkVP(): VP {
     loadedImage: null, imageDataUrl: null, imageName: '',
     zoom: 1, panX: 0, panY: 0, contrast: 80, brightness: 100, invertColors: false,
     rois: [], rulers: [], brushStrokes: [], selectedROIId: null,
-    roiCounter: 1, rulerCounter: 1, brushCounter: 1, undoStack: [], redoStack: []
+    roiCounter: 1, rulerCounter: 1, brushCounter: 1, undoStack: [], redoStack: [],
+    activePreset: 'Padrão',
   };
 }
 

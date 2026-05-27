@@ -67,17 +67,25 @@ func (uc *OpenStudy) Execute(ctx context.Context, in OpenStudyInput) (*OpenStudy
 		return nil, fmt.Errorf("ensure patient: %w", err)
 	}
 
-	study := &entity.Study{
-		ID:          entity.StudyID(uuid.NewString()),
-		PatientID:   meta.PatientID,
-		PatientUUID: string(patient.ID),
-		StudyDate:   time.Now(),
-		FilePath:    in.FilePath,
-		CreatedAt:   time.Now(),
+	// Reuse an existing study for this file path so that previously saved
+	// annotations, clinical fields and voice notes are still accessible.
+	// Only create a new study row when this file has never been opened before.
+	study, err := uc.repo.FindByFilePath(ctx, in.FilePath)
+	if err != nil {
+		return nil, fmt.Errorf("lookup study by path: %w", err)
 	}
-
-	if err := uc.repo.Save(ctx, study); err != nil {
-		return nil, fmt.Errorf("save study: %w", err)
+	if study == nil {
+		study = &entity.Study{
+			ID:          entity.StudyID(uuid.NewString()),
+			PatientID:   meta.PatientID,
+			PatientUUID: string(patient.ID),
+			StudyDate:   time.Now(),
+			FilePath:    in.FilePath,
+			CreatedAt:   time.Now(),
+		}
+		if err := uc.repo.Save(ctx, study); err != nil {
+			return nil, fmt.Errorf("save study: %w", err)
+		}
 	}
 
 	return &OpenStudyOutput{
@@ -109,16 +117,23 @@ func (uc *OpenStudy) openRaster(ctx context.Context, path string) (*OpenStudyOut
 		return nil, fmt.Errorf("ensure patient: %w", err)
 	}
 
-	study := &entity.Study{
-		ID:          entity.StudyID(uuid.NewString()),
-		PatientID:   patientID,
-		PatientUUID: string(patient.ID),
-		StudyDate:   time.Now(),
-		FilePath:    path,
-		CreatedAt:   time.Now(),
+	// Reuse existing study for this raster path (same persistence logic as DICOM).
+	study, err := uc.repo.FindByFilePath(ctx, path)
+	if err != nil {
+		return nil, fmt.Errorf("lookup study by path: %w", err)
 	}
-	if err := uc.repo.Save(ctx, study); err != nil {
-		return nil, fmt.Errorf("save study: %w", err)
+	if study == nil {
+		study = &entity.Study{
+			ID:          entity.StudyID(uuid.NewString()),
+			PatientID:   patientID,
+			PatientUUID: string(patient.ID),
+			StudyDate:   time.Now(),
+			FilePath:    path,
+			CreatedAt:   time.Now(),
+		}
+		if err := uc.repo.Save(ctx, study); err != nil {
+			return nil, fmt.Errorf("save study: %w", err)
+		}
 	}
 
 	meta := &outbound.DICOMMetadata{

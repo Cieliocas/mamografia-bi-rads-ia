@@ -131,6 +131,7 @@ func main() {
 		httpadapter.NewAudioHandler(annotRepo, cfg.LocalDataRoot),
 		healthHandler,
 		httpadapter.NewFsHandler(),
+		httpadapter.NewPDFHandler(usecase.NewGeneratePDF(studyRepo, annotRepo, patientRepo)),
 	)
 
 	addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)

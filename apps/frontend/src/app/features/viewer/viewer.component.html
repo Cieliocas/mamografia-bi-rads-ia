@@ -12,15 +12,32 @@
 
   <!-- ── VP 0 (always visible) ──────────────────────────────────────────── -->
   <div #ct0
-    class="relative overflow-hidden rounded-lg bg-neutral-950 select-none"
+    class="relative overflow-hidden rounded-lg bg-neutral-950 select-none transition-[box-shadow]"
     [class]="cursorClass"
+    [class.ring-2]="dragOverVp === 0"
+    [class.ring-pink-400]="dragOverVp === 0"
+    [class.ring-offset-1]="dragOverVp === 0"
+    [class.ring-offset-neutral-950]="dragOverVp === 0"
     (mousedown)="onMouseDown($event, 0)"
     (mousemove)="onMouseMove($event, 0)"
     (mouseup)="onMouseUp($event, 0)"
     (mouseleave)="onMouseUp($event, 0)"
     (mouseenter)="onMouseEnter(0)"
-    (dblclick)="openFileDialog(0)">
+    (dblclick)="openFileDialog(0)"
+    (dragover)="onDragOver($event, 0)"
+    (dragleave)="onDragLeave($event, 0)"
+    (drop)="onDrop($event, 0)">
+    <!-- Image layer: brightness/contrast/invert via CSS filter -->
+    <canvas #img0 class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+    <!-- Overlay layer: ROIs, rulers, brushes (transparent background, no filter) -->
     <canvas #c0 class="absolute inset-0 w-full h-full"></canvas>
+    <!-- Drag-over overlay -->
+    @if (dragOverVp === 0) {
+      <div class="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 rounded-lg bg-pink-900/30 pointer-events-none">
+        <lucide-icon [img]="icons.Maximize2" class="h-10 w-10 text-pink-300 opacity-80"></lucide-icon>
+        <p class="text-[11px] font-semibold text-pink-200">Soltar para abrir</p>
+      </div>
+    }
 
     @if (!state.vp[0].loadedImage) {
       <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none select-none">
@@ -33,31 +50,96 @@
       </div>
     }
 
-    @if (state.vpCount > 1) {
-      <span class="absolute left-2 top-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300 pointer-events-none">VP 1</span>
-    }
     @if (state.vp[0].loadedImage) {
-      <span class="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 pointer-events-none tabular-nums">
-        {{ state.zoomPct(0) }}
-      </span>
-    }
-    @if (state.vp[0].invertColors) {
-      <span class="absolute top-2 right-2 rounded bg-violet-800/60 px-1.5 py-0.5 text-[10px] text-violet-200 pointer-events-none">INV</span>
+      <!-- ── DICOM overlay VP 0 ─── -->
+      <!-- Top-left: VP label · paciente · nome do arquivo -->
+      <div class="absolute left-2 top-2 pointer-events-none space-y-0.5 max-w-[55%]">
+        @if (state.vpCount > 1) {
+          <span class="inline-block rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300">VP 1</span>
+        }
+        @if (study.currentPatient()?.name) {
+          <p class="truncate rounded bg-black/40 px-1.5 py-0.5 text-[10px] font-semibold text-white/80">
+            {{ study.currentPatient()!.name }}
+          </p>
+        }
+        @if (study.currentPatient()?.birth_date) {
+          <p class="rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-white/50">
+            Nasc: {{ study.currentPatient()!.birth_date }}
+          </p>
+        }
+        <p class="truncate rounded bg-black/30 px-1.5 py-0.5 text-[9px] font-mono text-white/35">
+          {{ state.vp[0].imageName }}
+        </p>
+      </div>
+      <!-- Top-right: modalidade · dimensões · INV -->
+      <div class="absolute right-2 top-2 pointer-events-none text-right space-y-0.5">
+        @if (study.currentMetadata()?.modality) {
+          <span class="inline-block rounded bg-black/50 px-1.5 py-0.5 text-[11px] font-bold text-white/70">
+            {{ study.currentMetadata()!.modality }}
+          </span>
+        }
+        @if (study.currentMetadata()?.width) {
+          <p class="rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-white/40 tabular-nums">
+            {{ study.currentMetadata()!.width }}×{{ study.currentMetadata()!.height }}
+            @if (study.currentMetadata()!.bitsStored) {
+              · {{ study.currentMetadata()!.bitsStored }}b
+            }
+          </p>
+        }
+        @if (state.vp[0].invertColors) {
+          <span class="inline-block rounded bg-violet-800/60 px-1.5 py-0.5 text-[10px] text-violet-200">INV</span>
+        }
+      </div>
+      <!-- Bottom-left: zoom · preset -->
+      <div class="absolute bottom-2 left-2 pointer-events-none space-y-0.5">
+        <span class="rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 tabular-nums">
+          {{ state.zoomPct(0) }}
+        </span>
+        @if (state.vp[0].activePreset) {
+          <p class="rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-pink-300/60">
+            {{ state.vp[0].activePreset }}
+          </p>
+        }
+      </div>
+      <!-- Bottom-right: B/C -->
+      <div class="absolute bottom-2 right-2 pointer-events-none text-right">
+        <p class="rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-white/35 tabular-nums">
+          B{{ state.vp[0].brightness }}% C{{ state.vp[0].contrast }}%
+        </p>
+      </div>
+    } @else {
+      @if (state.vpCount > 1) {
+        <span class="absolute left-2 top-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300 pointer-events-none">VP 1</span>
+      }
     }
   </div>
 
   <!-- ── VP 1 (1x2 and 2x2) ─────────────────────────────────────────────── -->
   @if (state.vpCount >= 2) {
     <div #ct1
-      class="relative overflow-hidden rounded-lg bg-neutral-950 select-none"
+      class="relative overflow-hidden rounded-lg bg-neutral-950 select-none transition-[box-shadow]"
       [class]="cursorClass"
+      [class.ring-2]="dragOverVp === 1"
+      [class.ring-pink-400]="dragOverVp === 1"
+      [class.ring-offset-1]="dragOverVp === 1"
+      [class.ring-offset-neutral-950]="dragOverVp === 1"
       (mousedown)="onMouseDown($event, 1)"
       (mousemove)="onMouseMove($event, 1)"
       (mouseup)="onMouseUp($event, 1)"
       (mouseleave)="onMouseUp($event, 1)"
       (mouseenter)="onMouseEnter(1)"
-      (dblclick)="openFileDialog(1)">
+      (dblclick)="openFileDialog(1)"
+      (dragover)="onDragOver($event, 1)"
+      (dragleave)="onDragLeave($event, 1)"
+      (drop)="onDrop($event, 1)">
+      <canvas #img1 class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
       <canvas #c1 class="absolute inset-0 w-full h-full"></canvas>
+      @if (dragOverVp === 1) {
+        <div class="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 rounded-lg bg-pink-900/30 pointer-events-none">
+          <lucide-icon [img]="icons.Maximize2" class="h-10 w-10 text-pink-300 opacity-80"></lucide-icon>
+          <p class="text-[11px] font-semibold text-pink-200">Soltar para abrir</p>
+        </div>
+      }
 
       @if (!state.vp[1].loadedImage) {
         <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none select-none">
@@ -70,14 +152,22 @@
         </div>
       }
 
+      <!-- ── DICOM overlay VP 1 ─── -->
       <span class="absolute left-2 top-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300 pointer-events-none">VP 2</span>
       @if (state.vp[1].loadedImage) {
-        <span class="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 pointer-events-none tabular-nums">
-          {{ state.zoomPct(1) }}
-        </span>
-      }
-      @if (state.vp[1].invertColors) {
-        <span class="absolute top-2 right-2 rounded bg-violet-800/60 px-1.5 py-0.5 text-[10px] text-violet-200 pointer-events-none">INV</span>
+        <p class="absolute left-2 top-7 pointer-events-none truncate max-w-[55%] rounded bg-black/30 px-1.5 py-0.5 text-[9px] font-mono text-white/35">{{ state.vp[1].imageName }}</p>
+        @if (state.vp[1].invertColors) {
+          <span class="absolute right-2 top-2 rounded bg-violet-800/60 px-1.5 py-0.5 text-[10px] text-violet-200 pointer-events-none">INV</span>
+        }
+        <div class="absolute bottom-2 left-2 pointer-events-none space-y-0.5">
+          <span class="rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 tabular-nums">{{ state.zoomPct(1) }}</span>
+          @if (state.vp[1].activePreset) {
+            <p class="rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-pink-300/60">{{ state.vp[1].activePreset }}</p>
+          }
+        </div>
+        <p class="absolute bottom-2 right-2 pointer-events-none rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-white/35 tabular-nums">
+          B{{ state.vp[1].brightness }}% C{{ state.vp[1].contrast }}%
+        </p>
       }
     </div>
   }
@@ -85,15 +175,29 @@
   <!-- ── VP 2 (2x2 only) ────────────────────────────────────────────────── -->
   @if (state.vpCount >= 4) {
     <div #ct2
-      class="relative overflow-hidden rounded-lg bg-neutral-950 select-none"
+      class="relative overflow-hidden rounded-lg bg-neutral-950 select-none transition-[box-shadow]"
       [class]="cursorClass"
+      [class.ring-2]="dragOverVp === 2"
+      [class.ring-pink-400]="dragOverVp === 2"
+      [class.ring-offset-1]="dragOverVp === 2"
+      [class.ring-offset-neutral-950]="dragOverVp === 2"
       (mousedown)="onMouseDown($event, 2)"
       (mousemove)="onMouseMove($event, 2)"
       (mouseup)="onMouseUp($event, 2)"
       (mouseleave)="onMouseUp($event, 2)"
       (mouseenter)="onMouseEnter(2)"
-      (dblclick)="openFileDialog(2)">
+      (dblclick)="openFileDialog(2)"
+      (dragover)="onDragOver($event, 2)"
+      (dragleave)="onDragLeave($event, 2)"
+      (drop)="onDrop($event, 2)">
+      <canvas #img2 class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
       <canvas #c2 class="absolute inset-0 w-full h-full"></canvas>
+      @if (dragOverVp === 2) {
+        <div class="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 rounded-lg bg-pink-900/30 pointer-events-none">
+          <lucide-icon [img]="icons.Maximize2" class="h-10 w-10 text-pink-300 opacity-80"></lucide-icon>
+          <p class="text-[11px] font-semibold text-pink-200">Soltar para abrir</p>
+        </div>
+      }
 
       @if (!state.vp[2].loadedImage) {
         <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none select-none">
@@ -104,25 +208,47 @@
         </div>
       }
 
+      <!-- ── DICOM overlay VP 2 ─── -->
       <span class="absolute left-2 top-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300 pointer-events-none">VP 3</span>
       @if (state.vp[2].loadedImage) {
-        <span class="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 pointer-events-none tabular-nums">
-          {{ state.zoomPct(2) }}
-        </span>
+        <p class="absolute left-2 top-7 pointer-events-none truncate max-w-[55%] rounded bg-black/30 px-1.5 py-0.5 text-[9px] font-mono text-white/35">{{ state.vp[2].imageName }}</p>
+        <div class="absolute bottom-2 left-2 pointer-events-none space-y-0.5">
+          <span class="rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 tabular-nums">{{ state.zoomPct(2) }}</span>
+          @if (state.vp[2].activePreset) {
+            <p class="rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-pink-300/60">{{ state.vp[2].activePreset }}</p>
+          }
+        </div>
+        <p class="absolute bottom-2 right-2 pointer-events-none rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-white/35 tabular-nums">
+          B{{ state.vp[2].brightness }}% C{{ state.vp[2].contrast }}%
+        </p>
       }
     </div>
 
     <!-- ── VP 3 ──────────────────────────────────────────────────────────── -->
     <div #ct3
-      class="relative overflow-hidden rounded-lg bg-neutral-950 select-none"
+      class="relative overflow-hidden rounded-lg bg-neutral-950 select-none transition-[box-shadow]"
       [class]="cursorClass"
+      [class.ring-2]="dragOverVp === 3"
+      [class.ring-pink-400]="dragOverVp === 3"
+      [class.ring-offset-1]="dragOverVp === 3"
+      [class.ring-offset-neutral-950]="dragOverVp === 3"
       (mousedown)="onMouseDown($event, 3)"
       (mousemove)="onMouseMove($event, 3)"
       (mouseup)="onMouseUp($event, 3)"
       (mouseleave)="onMouseUp($event, 3)"
       (mouseenter)="onMouseEnter(3)"
-      (dblclick)="openFileDialog(3)">
+      (dblclick)="openFileDialog(3)"
+      (dragover)="onDragOver($event, 3)"
+      (dragleave)="onDragLeave($event, 3)"
+      (drop)="onDrop($event, 3)">
+      <canvas #img3 class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
       <canvas #c3 class="absolute inset-0 w-full h-full"></canvas>
+      @if (dragOverVp === 3) {
+        <div class="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 rounded-lg bg-pink-900/30 pointer-events-none">
+          <lucide-icon [img]="icons.Maximize2" class="h-10 w-10 text-pink-300 opacity-80"></lucide-icon>
+          <p class="text-[11px] font-semibold text-pink-200">Soltar para abrir</p>
+        </div>
+      }
 
       @if (!state.vp[3].loadedImage) {
         <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none select-none">
@@ -133,11 +259,19 @@
         </div>
       }
 
+      <!-- ── DICOM overlay VP 3 ─── -->
       <span class="absolute left-2 top-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300 pointer-events-none">VP 4</span>
       @if (state.vp[3].loadedImage) {
-        <span class="absolute bottom-2 left-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 pointer-events-none tabular-nums">
-          {{ state.zoomPct(3) }}
-        </span>
+        <p class="absolute left-2 top-7 pointer-events-none truncate max-w-[55%] rounded bg-black/30 px-1.5 py-0.5 text-[9px] font-mono text-white/35">{{ state.vp[3].imageName }}</p>
+        <div class="absolute bottom-2 left-2 pointer-events-none space-y-0.5">
+          <span class="rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 tabular-nums">{{ state.zoomPct(3) }}</span>
+          @if (state.vp[3].activePreset) {
+            <p class="rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-pink-300/60">{{ state.vp[3].activePreset }}</p>
+          }
+        </div>
+        <p class="absolute bottom-2 right-2 pointer-events-none rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-white/35 tabular-nums">
+          B{{ state.vp[3].brightness }}% C{{ state.vp[3].contrast }}%
+        </p>
       }
     </div>
   }
@@ -226,6 +360,41 @@
     (click)="fitScreen()">
     <lucide-icon [img]="icons.Maximize2" [size]="15" />
   </button>
+
+  <!-- Series navigation (prev/next file in current folder) -->
+  @if (seriesCount > 1) {
+    <span class="mx-1.5 h-4 w-px bg-neutral-700"></span>
+    <button title="Arquivo anterior (←)"
+      class="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+      [disabled]="seriesIdx <= 0"
+      (click)="navigateSeries(-1)">
+      <lucide-icon [img]="icons.ChevronLeft" [size]="15" />
+    </button>
+    <span class="min-w-[4rem] text-center text-[11px] tabular-nums text-neutral-400 select-none">
+      {{ seriesIdx + 1 }} / {{ seriesCount }}
+    </span>
+    <button title="Próximo arquivo (→)"
+      class="rounded-lg p-1.5 text-neutral-400 transition hover:bg-neutral-700 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed"
+      [disabled]="seriesIdx >= seriesCount - 1"
+      (click)="navigateSeries(+1)">
+      <lucide-icon [img]="icons.ChevronRight" [size]="15" />
+    </button>
+  }
+
+  <!-- VP linking (only visible when more than one VP is shown) -->
+  @if (state.vpCount > 1) {
+    <span class="mx-1.5 h-4 w-px bg-neutral-700"></span>
+    <button
+      title="{{ state.linkVps ? 'Desactivar sincronização de VPs' : 'Sincronizar pan/zoom entre VPs' }}"
+      class="rounded-lg p-1.5 transition"
+      [class.bg-pink-600]="state.linkVps"
+      [class.text-white]="state.linkVps"
+      [class.text-neutral-400]="!state.linkVps"
+      [class.hover:bg-neutral-700]="!state.linkVps"
+      (click)="state.linkVps = !state.linkVps">
+      <lucide-icon [img]="state.linkVps ? icons.Link2 : icons.Unlink2" [size]="15" />
+    </button>
+  }
 
   <!-- Frame navigation (multi-frame DICOM only) -->
   @if (frameCount > 1) {

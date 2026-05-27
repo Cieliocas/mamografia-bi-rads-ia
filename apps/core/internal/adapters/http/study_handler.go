@@ -177,5 +177,9 @@ func (h *StudyHandler) getAnnotations(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"annotations": out.Annotations, "count": len(out.Annotations)})
+	dtos := make([]usecase.AnnotationDTO, 0, len(out.Annotations))
+	for _, a := range out.Annotations {
+		dtos = append(dtos, usecase.EntityToDTO(a))
+	}
+	c.JSON(http.StatusOK, gin.H{"annotations": dtos, "count": len(dtos)})
 }

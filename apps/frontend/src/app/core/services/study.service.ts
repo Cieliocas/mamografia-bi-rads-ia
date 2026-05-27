@@ -60,6 +60,31 @@ export class StudyService {
    */
   dbCorrupted = signal<string>('');
 
+  // ── Series navigation ──────────────────────────────────────────────────────
+  /** All image paths in the current folder/series (populated by FilesPanel). */
+  seriesFiles = signal<string[]>([]);
+  /** 0-based index of the currently displayed file within seriesFiles. */
+  seriesIdx   = signal<number>(-1);
+
+  /** Store a series context when the user opens a file from the Files panel. */
+  setSeriesContext(files: string[], idx: number) {
+    this.seriesFiles.set(files);
+    this.seriesIdx.set(idx);
+  }
+
+  /**
+   * Advances the series by `delta` (+1 = next, -1 = prev).
+   * Updates seriesIdx and returns the new path, or null if out of bounds.
+   */
+  seriesPathAt(delta: number): string | null {
+    const files = this.seriesFiles();
+    if (!files.length) return null;
+    const next = this.seriesIdx() + delta;
+    if (next < 0 || next >= files.length) return null;
+    this.seriesIdx.set(next);
+    return files[next];
+  }
+
   constructor() {
     this.refreshHealth();
     // Poll readiness every 5 s so the UI reflects sidecar transitions.
@@ -284,8 +309,8 @@ export class StudyService {
               ry: bh / 2,
               shape: (a.kind === 'rect' || a.kind === 'bbox') ? 'rect' : 'ellipse',
               birads: null,
-              label: '',
-              notes: '',
+              label: a.label ?? '',
+              notes: a.notes ?? '',
               isSelected: false,
               audioDurationMs: a.audio_duration_ms ?? 0,
             };

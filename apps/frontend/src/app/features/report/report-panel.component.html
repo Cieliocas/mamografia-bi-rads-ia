@@ -1,0 +1,192 @@
+<div class="flex flex-col h-full overflow-y-auto">
+
+  <!-- Header -->
+  <div class="shrink-0 border-b border-white/5 px-4 py-3 flex items-center justify-between">
+    <p class="text-[11px] font-bold uppercase tracking-widest text-on-surface-variant">Laudo</p>
+    <div class="flex items-center gap-2">
+      <!-- Auto-save indicator -->
+      @if (saving) {
+        <lucide-icon [img]="icons.Loader" class="h-3.5 w-3.5 animate-spin text-on-surface-variant/40"></lucide-icon>
+      } @else if (lastSaved) {
+        <span class="text-[10px] text-emerald-400/70">✓ {{ lastSaved }}</span>
+      }
+      <!-- Manual save -->
+      <button (click)="save()" [disabled]="!hasStudy || saving"
+        class="rounded p-1 text-on-surface-variant transition hover:text-primary disabled:opacity-40"
+        title="Salvar laudo">
+        <lucide-icon [img]="icons.Save" class="h-3.5 w-3.5"></lucide-icon>
+      </button>
+    </div>
+  </div>
+
+  <!-- No study open -->
+  @if (!hasStudy) {
+    <div class="flex flex-1 flex-col items-center justify-center gap-2 text-center py-10">
+      <lucide-icon [img]="icons.ClipboardList" class="h-10 w-10 text-on-surface-variant/20"></lucide-icon>
+      <p class="text-[11px] text-on-surface-variant">Nenhuma imagem aberta.</p>
+      <p class="text-[10px] text-on-surface-variant/50">Abra uma mamografia para iniciar o laudo.</p>
+    </div>
+  }
+
+  @if (hasStudy) {
+    <div class="flex flex-col gap-5 p-3 pb-8">
+
+      <!-- ── Paciente ──────────────────────────────────────────────────────── -->
+      @if (study.currentPatient()) {
+        <section>
+          <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Paciente</p>
+          <div class="rounded-lg border border-white/5 bg-neutral-900/40 px-3 py-2.5 space-y-0.5">
+            <p class="text-[12px] font-semibold text-on-surface truncate">
+              {{ study.currentPatient()!.name || '— sem nome —' }}
+            </p>
+            <div class="flex flex-wrap gap-x-3 gap-y-0.5">
+              @if (study.currentPatient()!.external_id) {
+                <span class="text-[10px] text-on-surface-variant/60">
+                  ID: {{ study.currentPatient()!.external_id }}
+                </span>
+              }
+              @if (study.currentPatient()!.birth_date) {
+                <span class="text-[10px] text-on-surface-variant/60">
+                  Nasc: {{ study.currentPatient()!.birth_date }}
+                </span>
+              }
+              @if (study.currentPatient()!.sex) {
+                <span class="text-[10px] text-on-surface-variant/60">
+                  {{ study.currentPatient()!.sex }}
+                </span>
+              }
+            </div>
+          </div>
+        </section>
+      }
+
+      <!-- ── BI-RADS Global ────────────────────────────────────────────────── -->
+      <section>
+        <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">BI-RADS Global</p>
+
+        <!-- Category chips -->
+        <div class="flex flex-wrap gap-1.5 mb-2">
+          @for (chip of biradsChips; track chip) {
+            <button
+              (click)="selectBirads(chip)"
+              class="rounded px-2.5 py-1 text-[11px] font-bold transition border"
+              [style.background]="biradsGlobal === chip ? (biradsColor(chip) + '30') : 'rgba(255,255,255,0.03)'"
+              [style.color]="biradsGlobal === chip ? biradsColor(chip) : 'rgba(200,200,200,0.5)'"
+              [style.borderColor]="biradsGlobal === chip ? (biradsColor(chip) + '60') : 'rgba(255,255,255,0.07)'">
+              {{ chip }}
+            </button>
+          }
+        </div>
+
+        <!-- Description of selected category -->
+        @if (biradsGlobal && biradsInfo[biradsGlobal]) {
+          <p class="rounded border border-white/5 bg-neutral-900/30 px-2.5 py-1.5 text-[10px]"
+            [style.color]="biradsColor(biradsGlobal)">
+            BI-RADS {{ biradsGlobal }} — {{ biradsInfo[biradsGlobal] }}
+          </p>
+        }
+      </section>
+
+      <!-- ── Conclusão ─────────────────────────────────────────────────────── -->
+      <section>
+        <label class="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">
+          Conclusão
+        </label>
+        <textarea
+          [(ngModel)]="conclusion"
+          (ngModelChange)="onFieldChange()"
+          rows="4"
+          placeholder="Descreva os achados e a impressão diagnóstica…"
+          class="w-full resize-none rounded-lg border border-white/8 bg-neutral-950/60 px-3 py-2 text-[11px] text-on-surface placeholder:text-on-surface-variant/30 focus:border-primary/40 focus:outline-none transition">
+        </textarea>
+      </section>
+
+      <!-- ── Recomendação ──────────────────────────────────────────────────── -->
+      <section>
+        <label class="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">
+          Recomendação
+        </label>
+        <textarea
+          [(ngModel)]="recommendation"
+          (ngModelChange)="onFieldChange()"
+          rows="3"
+          placeholder="Conduta sugerida, seguimento, biópsia…"
+          class="w-full resize-none rounded-lg border border-white/8 bg-neutral-950/60 px-3 py-2 text-[11px] text-on-surface placeholder:text-on-surface-variant/30 focus:border-primary/40 focus:outline-none transition">
+        </textarea>
+      </section>
+
+      <!-- ── Assinatura ────────────────────────────────────────────────────── -->
+      <section>
+        <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Assinatura</p>
+
+        @if (isSigned) {
+          <!-- Signed state -->
+          <div class="rounded-lg border border-emerald-800/40 bg-emerald-900/10 px-3 py-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <lucide-icon [img]="icons.CheckCircle" class="h-4 w-4 text-emerald-400 shrink-0"></lucide-icon>
+                <div>
+                  <p class="text-[11px] font-semibold text-emerald-300">{{ signedBy }}</p>
+                  <p class="text-[10px] text-on-surface-variant/60">{{ signedAtLabel }}</p>
+                </div>
+              </div>
+              <button (click)="clearSignature()"
+                class="rounded px-2 py-1 text-[10px] text-on-surface-variant/50 hover:text-red-400 transition">
+                Remover
+              </button>
+            </div>
+          </div>
+        } @else {
+          <!-- Unsigned state -->
+          <div class="space-y-2">
+            <input type="text"
+              [(ngModel)]="signedBy"
+              (ngModelChange)="onFieldChange()"
+              placeholder="Nome do radiologista"
+              class="w-full rounded-lg border border-white/8 bg-neutral-950/60 px-3 py-2 text-[11px] text-on-surface placeholder:text-on-surface-variant/30 focus:border-primary/40 focus:outline-none transition" />
+            <button (click)="signNow()"
+              class="flex w-full items-center justify-center gap-2 rounded-lg border border-primary/30 bg-primary/10 px-3 py-2 text-[11px] font-semibold text-primary transition hover:bg-primary/20">
+              <lucide-icon [img]="icons.PenLine" class="h-3.5 w-3.5"></lucide-icon>
+              Assinar agora
+            </button>
+          </div>
+        }
+      </section>
+
+      <div class="h-px bg-white/5"></div>
+
+      <!-- ── Exportar ──────────────────────────────────────────────────────── -->
+      <section>
+        <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Exportar</p>
+
+        <!-- Primary export: HTML Report -->
+        <button (click)="openReport()"
+          class="flex w-full items-center justify-center gap-2 rounded-lg border border-pink-500/30 bg-pink-900/20 px-3 py-2.5 text-[11px] font-semibold text-pink-200 transition hover:bg-pink-900/40 mb-2">
+          <lucide-icon [img]="icons.FileText" class="h-4 w-4"></lucide-icon>
+          Gerar Relatório PDF
+        </button>
+
+        <!-- Secondary exports row -->
+        <div class="grid grid-cols-3 gap-1.5">
+          <button (click)="downloadAnnotatedPNG()"
+            class="flex flex-col items-center gap-1 rounded-lg border border-white/8 bg-neutral-900/40 px-2 py-2 text-[10px] text-on-surface-variant transition hover:text-primary hover:border-primary/30">
+            <lucide-icon [img]="icons.Image" class="h-4 w-4"></lucide-icon>
+            PNG
+          </button>
+          <button (click)="exportJSON()"
+            class="flex flex-col items-center gap-1 rounded-lg border border-white/8 bg-neutral-900/40 px-2 py-2 text-[10px] text-on-surface-variant transition hover:text-primary hover:border-primary/30">
+            <lucide-icon [img]="icons.Download" class="h-4 w-4"></lucide-icon>
+            JSON
+          </button>
+          <button (click)="exportCSV()"
+            class="flex flex-col items-center gap-1 rounded-lg border border-white/8 bg-neutral-900/40 px-2 py-2 text-[10px] text-on-surface-variant transition hover:text-primary hover:border-primary/30">
+            <lucide-icon [img]="icons.Download" class="h-4 w-4"></lucide-icon>
+            CSV
+          </button>
+        </div>
+      </section>
+
+    </div>
+  }
+
+</div>

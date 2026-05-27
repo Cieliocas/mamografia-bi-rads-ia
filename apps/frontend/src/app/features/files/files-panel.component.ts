@@ -25,6 +25,9 @@ const IMAGE_EXTS = new Set(['.dcm', '.png', '.jpg', '.jpeg']);
   standalone: true,
   imports: [CommonModule, FormsModule, LucideAngularModule],
   templateUrl: './files-panel.component.html',
+  // The host element sits inside a flex column; these classes make it fill the
+  // available height so the inner overflow-y-auto scroll actually works.
+  host: { class: 'flex flex-col flex-1 min-h-0 overflow-hidden' },
 })
 export class FilesPanelComponent {
   private api = inject(ApiService);
@@ -43,6 +46,8 @@ export class FilesPanelComponent {
 
   @Output() openFile      = new EventEmitter<string>();
   @Output() pickFolder    = new EventEmitter<void>();   // triggers Wails dialog
+  /** Emitted when an image file is clicked; carries the full ordered series. */
+  @Output() openSeries    = new EventEmitter<{ path: string; files: string[]; index: number }>();
 
   filtered = computed(() => {
     const q = this.filter().toLowerCase();
@@ -105,6 +110,20 @@ export class FilesPanelComponent {
     } else {
       this.load(''); // loads $HOME
     }
+  }
+
+  /**
+   * Called when the user clicks an image file.
+   * Emits both `openFile` (backward-compat) and `openSeries` (with full list).
+   */
+  openImageFile(entry: FsEntry) {
+    const path = `${this.currentPath()}/${entry.name}`;
+    const imageFiles = this.filtered()
+      .filter(e => this.isImage(e))
+      .map(e => `${this.currentPath()}/${e.name}`);
+    const index = imageFiles.indexOf(path);
+    this.openFile.emit(path);
+    this.openSeries.emit({ path, files: imageFiles, index });
   }
 
   /** Friendly display of the current path (last 2 segments). */

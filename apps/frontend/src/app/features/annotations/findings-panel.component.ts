@@ -41,6 +41,15 @@ export class FindingsPanelComponent implements OnDestroy {
   private recordingStart = 0;
   private recordingTimer: ReturnType<typeof setInterval> | null = null;
 
+  // ── Real-time speech transcription (SpeechRecognition API) ─────────────────
+  // Uses the browser-native SpeechRecognition (available in WKWebView on macOS).
+  // Falls back gracefully when the API is not available.
+  private recognition: any = null;
+  /** Confirmed (final) transcript text accumulated during the current recording. */
+  finalTranscript = '';
+  /** Unstable (interim) text being recognised right now — shown live in UI. */
+  interimTranscript = '';
+
   /** Audio element for playback (one shared instance per panel). */
   audioPlayer: HTMLAudioElement | null = null;
   audioPlaying = false;
@@ -88,6 +97,38 @@ export class FindingsPanelComponent implements OnDestroy {
       this.recordingTimer = setInterval(() => {
         this.audioRecordingSec = Math.floor((Date.now() - this.recordingStart) / 1000);
       }, 500);
+
+      // ── SpeechRecognition for real-time transcription ──────────────────────
+      // WKWebView (macOS) exposes webkitSpeechRecognition; standard browsers
+      // expose SpeechRecognition.  Falls back silently when neither is present.
+      const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+      if (SR) {
+        this.finalTranscript   = '';
+        this.interimTranscript = '';
+        this.recognition = new SR();
+        this.recognition.lang            = 'pt-BR';
+        this.recognition.continuous      = true;
+        this.recognition.interimResults  = true;
+        this.recognition.onresult = (e: any) => {
+          let interim = '';
+          for (let i = e.resultIndex; i < e.results.length; i++) {
+            const text = e.results[i][0].transcript;
+            if (e.results[i].isFinal) {
+              this.finalTranscript += text + ' ';
+            } else {
+              interim += text;
+            }
+          }
+          this.interimTranscript = interim;
+        };
+        // Restart automatically on non-fatal errors (e.g. silence timeout)
+        this.recognition.onerror = (e: any) => {
+          if (e.error !== 'aborted' && this.audioRecording) {
+            try { this.recognition?.start(); } catch {}
+          }
+        };
+        this.recognition.start();
+      }
     } catch {
       this.audioError = 'Microfone não disponível';
     }
@@ -100,7 +141,19 @@ export class FindingsPanelComponent implements OnDestroy {
     this.mediaRecorder = null;
     this.audioRecording = false;
 
+    // Stop SpeechRecognition before stopping the mic stream so we get the
+    // last 'onresult' callback before the recognition session closes.
+    if (this.recognition) {
+      try { this.recognition.stop(); } catch {}
+      this.recognition = null;
+    }
+
     mr.stream.getTracks().forEach(t => t.stop());
+
+    // Capture the accumulated transcript before clearing it
+    const transcript = this.finalTranscript.trim();
+    this.finalTranscript   = '';
+    this.interimTranscript = '';
 
     if (!upload) { this.audioChunks = []; return; }
 
@@ -110,8 +163,15 @@ export class FindingsPanelComponent implements OnDestroy {
       this.audioChunks = [];
       const roi = this.state.selectedROI;
       if (!roi?.annotationId) { this.audioError = 'Salve as anotações antes de gravar áudio'; return; }
+
+      // Append transcribed text to ROI notes
+      if (transcript) {
+        roi.notes = roi.notes ? `${roi.notes}\n${transcript}` : transcript;
+        this.state.updateROI((i) => this.drawRequest.emit(i));
+      }
+
       this.audioUploading = true;
-      this.api.uploadAnnotationAudio(roi.annotationId, blob, durationMs).subscribe(res => {
+      this.api.uploadAnnotationAudio(roi.annotationId, blob, durationMs, transcript || undefined).subscribe(res => {
         this.audioUploading = false;
         if (res) {
           roi.audioDurationMs = res.audio_duration_ms;

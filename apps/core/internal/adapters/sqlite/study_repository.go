@@ -146,6 +146,21 @@ func (r *StudyRepository) FindByID(ctx context.Context, id string) (*entity.Stud
 	return scanStudy(row)
 }
 
+// FindByFilePath returns the most recent study for a given file path,
+// or (nil, nil) when no match exists. Used by OpenStudy to avoid creating
+// duplicate study rows every time the same file is reopened.
+func (r *StudyRepository) FindByFilePath(ctx context.Context, filePath string) (*entity.Study, error) {
+	row := r.db.QueryRowContext(ctx,
+		`SELECT `+studyCols+` FROM studies WHERE file_path = ? ORDER BY created_at DESC LIMIT 1`,
+		filePath)
+	s, err := scanStudy(row)
+	if err != nil {
+		// sql.ErrNoRows → no existing study, not a real error.
+		return nil, nil //nolint:nilerr
+	}
+	return s, nil
+}
+
 func (r *StudyRepository) List(ctx context.Context) ([]*entity.Study, error) {
 	rows, err := r.db.QueryContext(ctx,
 		`SELECT `+studyCols+` FROM studies ORDER BY created_at DESC`)

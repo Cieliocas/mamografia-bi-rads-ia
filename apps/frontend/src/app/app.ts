@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms';
 import {
   LucideAngularModule,
   FolderOpen, FolderInput, History, Users, BarChart3, Wrench,
-  ChevronRight, ChevronLeft, Sparkles, House
+  ChevronRight, ChevronLeft, Sparkles, House, ClipboardList
 } from 'lucide-angular';
 import { ApiService, PatientDTO, PatientStudyDTO } from './core/services/api.service';
 import { WindowToggleMaximise } from './wailsjs/runtime/runtime';
@@ -25,6 +25,7 @@ import { HomePanelComponent }     from './features/home/home-panel.component';
 import { FilesPanelComponent }     from './features/files/files-panel.component';
 import { ToolsPanelComponent }     from './features/tools/tools-panel.component';
 import { AnalysisPanelComponent }  from './features/analysis/analysis-panel.component';
+import { ReportPanelComponent }    from './features/report/report-panel.component';
 import { ShortcutsModalComponent } from './shared/components/shortcuts-modal/shortcuts-modal.component';
 
 @Component({
@@ -35,7 +36,7 @@ import { ShortcutsModalComponent } from './shared/components/shortcuts-modal/sho
     ViewerComponent, FindingsPanelComponent,
     SplashComponent, ConfirmModalComponent, ToastComponent,
     HomePanelComponent, FilesPanelComponent, ToolsPanelComponent,
-    AnalysisPanelComponent, ShortcutsModalComponent,
+    AnalysisPanelComponent, ReportPanelComponent, ShortcutsModalComponent,
   ],
   templateUrl: './app.html',
   styleUrls: ['./app.css'],
@@ -71,7 +72,7 @@ export class App implements OnInit, OnDestroy {
   private splashFailSafe: ReturnType<typeof setTimeout>  | null = null;
   private autoSaveSub:    Subscription | null = null;
 
-  readonly icons = { FolderOpen, FolderInput, History, Users, BarChart3, Wrench, ChevronRight, ChevronLeft, Sparkles, House };
+  readonly icons = { FolderOpen, FolderInput, History, Users, BarChart3, Wrench, ChevronRight, ChevronLeft, Sparkles, House, ClipboardList };
 
   // ── ViewChild references ──────────────────────────────────────────────────
   @ViewChild('filesPanel') filesPanelRef?: FilesPanelComponent;
@@ -201,6 +202,17 @@ export class App implements OnInit, OnDestroy {
       this.state.setBirads(quickBirads(e.key, this.state.selectedROI.birads),
         (i) => this.viewerRef!.draw(i));
     }
+    // Quick-navigate to Laudo panel: ⌘L
+    else if (ctrl && e.key === 'l') {
+      e.preventDefault(); this.state.setPanel('report');
+    }
+    // Series navigation: ← prev · → next (when no ROI selected, no field focused)
+    else if (!inField && !this.state.selectedROI && e.key === 'ArrowLeft') {
+      e.preventDefault(); this.navigateSeriesDelta(-1);
+    }
+    else if (!inField && !this.state.selectedROI && e.key === 'ArrowRight') {
+      e.preventDefault(); this.navigateSeriesDelta(+1);
+    }
     // Open folder: ⌘⇧O
     else if (ctrl && e.shiftKey && e.key === 'O') {
       e.preventDefault();
@@ -256,9 +268,21 @@ export class App implements OnInit, OnDestroy {
     }, 50);
   }
 
-  /** Open a file path from the Files panel. */
+  /** Open a file path from the Files panel (no series context). */
   onOpenFilePath(path: string) {
     this.viewerRef?.openPath(path);
+  }
+
+  /** Open a file from the Files panel AND register the full folder series. */
+  onOpenSeries(event: { path: string; files: string[]; index: number }) {
+    this.study.setSeriesContext(event.files, event.index);
+    this.viewerRef?.openPath(event.path);
+  }
+
+  /** Navigate ±1 within the current series (keyboard ← →). */
+  navigateSeriesDelta(delta: number) {
+    const path = this.study.seriesPathAt(delta);
+    if (path) this.viewerRef?.openPath(path);
   }
 }
 

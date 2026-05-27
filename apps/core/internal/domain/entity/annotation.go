@@ -38,6 +38,10 @@ type Annotation struct {
 	Polygon *Polygon       `json:"polygon,omitempty"`
 	Point   *Point         `json:"point,omitempty"`
 
+	// Free-text label and clinical notes written by the radiologist.
+	Label string `json:"label,omitempty"`
+	Notes string `json:"notes,omitempty"`
+
 	// Voice note metadata. AudioPath is relative to MAMMO_LOCAL_ROOT/audio/.
 	AudioPath       string `json:"audio_path,omitempty"`
 	AudioDurationMs int    `json:"audio_duration_ms,omitempty"`

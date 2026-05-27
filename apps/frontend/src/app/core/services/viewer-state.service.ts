@@ -7,7 +7,7 @@ import {
 
 export type ActiveTool = 'pan'|'roi'|'ruler'|'arrow'|'brush'|'erase-roi'|'erase-ruler';
 export type ActiveShape = 'ellipse'|'rect';
-export type ActivePanel = 'home'|'files'|'history'|'patients'|'analysis'|'tools';
+export type ActivePanel = 'home'|'files'|'history'|'patients'|'analysis'|'tools'|'report';
 export type GridLayout  = '1x1'|'1x2'|'2x2';
 
 @Injectable({ providedIn: 'root' })
@@ -215,15 +215,37 @@ export class ViewerStateService {
   zoomIn(vpIdx: number, drawFn: (i: number) => void) {
     this.vp[vpIdx].zoom = Math.min(this.vp[vpIdx].zoom * 1.1, 12);
     drawFn(vpIdx);
+    this.propagateView(vpIdx, drawFn);
   }
 
   zoomOut(vpIdx: number, drawFn: (i: number) => void) {
     this.vp[vpIdx].zoom = Math.max(this.vp[vpIdx].zoom / 1.1, 0.03);
     drawFn(vpIdx);
+    this.propagateView(vpIdx, drawFn);
   }
 
   zoomPct(vpIdx: number): string {
     return Math.round(this.vp[vpIdx].zoom * 100) + '%';
+  }
+
+  // ── Viewport linking ──────────────────────────────────────────────────────
+  /** When true, pan and zoom are mirrored across all visible viewports. */
+  linkVps = false;
+
+  /**
+   * Copies zoom + pan from `srcIdx` to every other active VP and redraws them.
+   * No-op when `linkVps` is false.
+   */
+  propagateView(srcIdx: number, drawFn: (i: number) => void) {
+    if (!this.linkVps) return;
+    const src = this.vp[srcIdx];
+    for (let i = 0; i < this.vpCount; i++) {
+      if (i === srcIdx) continue;
+      this.vp[i].zoom = src.zoom;
+      this.vp[i].panX = src.panX;
+      this.vp[i].panY = src.panY;
+      drawFn(i);
+    }
   }
 
   pad(n: number): string { return String(n).padStart(2, '0'); }
