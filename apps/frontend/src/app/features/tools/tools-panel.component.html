@@ -195,6 +195,20 @@
                 {{ p.label }}
               </button>
             }
+            <!-- Preset DICOM — restaura WW/WC do cabeçalho (J1) -->
+            @if (hasDicomWindow) {
+              <button (click)="restoreDicomWindow()"
+                class="col-span-2 rounded border py-1.5 text-[10px] font-semibold transition"
+                [class.border-cyan-500\/50]="isActivePreset('DICOM')"
+                [class.bg-cyan-900\/25]="isActivePreset('DICOM')"
+                [class.text-cyan-200]="isActivePreset('DICOM')"
+                [class.border-white\/8]="!isActivePreset('DICOM')"
+                [class.text-on-surface-variant]="!isActivePreset('DICOM')"
+                [class.hover:bg-white\/5]="!isActivePreset('DICOM')"
+                title="Restaurar janelamento do cabeçalho DICOM">
+                DICOM (WW/WC)
+              </button>
+            }
           </div>
         </div>
 
