@@ -20,7 +20,7 @@ jobs:
 
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.22"
+          go-version: "1.25"
           cache-dependency-path: apps/core/go.sum
 
       # go-sqlite3 needs cgo + gcc (already present on ubuntu-latest)
