@@ -45,6 +45,12 @@ export interface VP {
   undoStack: Snapshot[]; redoStack: Snapshot[];
   /** Active windowing preset label (null = custom / manual). */
   activePreset: string | null;
+  /**
+   * DICOM pixel spacing in mm/px (tag 0028,0030 row value).
+   * When set (non-null, > 0), ruler measurements are displayed in mm.
+   * Null means the image has no spatial calibration — distances are in px.
+   */
+  pixelSpacing: number | null;
 }
 
 /** Named windowing preset for mammography display. */
@@ -90,6 +96,7 @@ export function mkVP(): VP {
     rois: [], rulers: [], brushStrokes: [], selectedROIId: null,
     roiCounter: 1, rulerCounter: 1, brushCounter: 1, undoStack: [], redoStack: [],
     activePreset: 'Padrão',
+    pixelSpacing: null,
   };
 }
 
