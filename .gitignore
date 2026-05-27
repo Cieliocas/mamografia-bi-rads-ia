@@ -79,6 +79,9 @@ aidentify.app/
 NEXT_SESSION.md
 NEXT_SESSION_*.md
 
+# --- Relatórios e documentos internos (não públicos) ---
+relatorios/
+
 # --- Token de segurança gerado em runtime (nunca versionar) ---
 .token
 apps/core/.token

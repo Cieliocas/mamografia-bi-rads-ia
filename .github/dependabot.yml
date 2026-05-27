@@ -1,0 +1,56 @@
+version: 2
+
+updates:
+  # ── Go Core (apps/core) ───────────────────────────────────────────────────
+  - package-ecosystem: gomod
+    directory: /apps/core
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+    labels: [dependencies, go]
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 5
+
+  # ── Desktop shell (apps/desktop) ─────────────────────────────────────────
+  - package-ecosystem: gomod
+    directory: /apps/desktop
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+    labels: [dependencies, go]
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 5
+
+  # ── Angular Frontend (apps/frontend) ─────────────────────────────────────
+  - package-ecosystem: npm
+    directory: /apps/frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+    labels: [dependencies, javascript]
+    commit-message:
+      prefix: "chore(deps)"
+    open-pull-requests-limit: 5
+    ignore:
+      # Angular major versions requerem migração manual
+      - dependency-name: "@angular/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@angular-devkit/*"
+        update-types: ["version-update:semver-major"]
+
+  # ── GitHub Actions ────────────────────────────────────────────────────────
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "08:00"
+    labels: [dependencies, ci]
+    commit-message:
+      prefix: "chore(ci)"
+    open-pull-requests-limit: 5
