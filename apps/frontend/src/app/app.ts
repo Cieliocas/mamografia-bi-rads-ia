@@ -167,6 +167,7 @@ export class App implements OnInit, OnDestroy {
     else if (e.key === 'l' || e.key === 'L') this.state.setTool('ruler');
     else if (e.key === 'a' || e.key === 'A') this.state.setTool('arrow');
     else if (e.key === 'b' || e.key === 'B') this.state.setTool('brush');
+    else if (e.key === 'm' || e.key === 'M') this.state.setTool('magnifier');
     else if (e.key === 'e' && !e.shiftKey)   this.state.setTool('erase-roi');
     else if (e.key === 'E' && e.shiftKey)    this.state.setTool('erase-ruler');
     else if (e.key === 'i' || e.key === 'I') this.state.toggleInvert((i) => this.viewerRef!.draw(i));

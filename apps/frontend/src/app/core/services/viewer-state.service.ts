@@ -5,7 +5,7 @@ import {
   mkVP, clone, BIRADS_CHIPS, BIRADS_INFO
 } from '../../shared/models/types';
 
-export type ActiveTool = 'pan'|'roi'|'ruler'|'arrow'|'brush'|'erase-roi'|'erase-ruler';
+export type ActiveTool = 'pan'|'roi'|'ruler'|'arrow'|'brush'|'erase-roi'|'erase-ruler'|'magnifier';
 export type ActiveShape = 'ellipse'|'rect';
 export type ActivePanel = 'home'|'files'|'history'|'patients'|'analysis'|'tools'|'report'|'dicom';
 export type GridLayout  = '1x1'|'1x2'|'2x2';
