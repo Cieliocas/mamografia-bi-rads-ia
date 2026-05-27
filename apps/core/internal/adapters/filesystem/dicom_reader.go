@@ -52,22 +52,57 @@ func (r *DICOMReader) ReadDICOM(path string) (*outbound.Pixels16, *outbound.DICO
 	}
 
 	meta := &outbound.DICOMMetadata{
-		PatientID:    firstString(ds, tag.PatientID, "UNKNOWN"),
-		StudyDate:    firstString(ds, tag.StudyDate, ""),
-		Modality:     firstString(ds, tag.Modality, "MG"),
-		Description:  dicomDescription(ds, path),
-		Photometric:  firstString(ds, tag.PhotometricInterpretation, ""),
+		// Patient
+		PatientName:      firstString(ds, tag.PatientName, ""),
+		PatientID:        firstString(ds, tag.PatientID, "UNKNOWN"),
+		PatientBirthDate: firstString(ds, tag.PatientBirthDate, ""),
+		PatientSex:       firstString(ds, tag.PatientSex, ""),
+		// Study
+		StudyDate:        firstString(ds, tag.StudyDate, ""),
+		StudyDescription: firstString(ds, tag.StudyDescription, ""),
+		AccessionNumber:  firstString(ds, tag.AccessionNumber, ""),
+		StudyInstanceUID: firstString(ds, tag.StudyInstanceUID, ""),
+		// Series
+		Modality:         firstString(ds, tag.Modality, "MG"),
+		Description:      dicomDescription(ds, path),
+		SeriesNumber:     firstString(ds, tag.SeriesNumber, ""),
+		Laterality:       firstString(ds, tag.Laterality, ""),
+		ViewPosition:     firstString(ds, tag.ViewPosition, ""),
+		BodyPartExamined: firstString(ds, tag.BodyPartExamined, ""),
+		// Equipment
+		Manufacturer:      firstString(ds, tag.Manufacturer, ""),
+		ManufacturerModel: firstString(ds, tag.ManufacturerModelName, ""),
+		InstitutionName:   firstString(ds, tag.InstitutionName, ""),
+		StationName:       firstString(ds, tag.StationName, ""),
+		// Image
+		Photometric: firstString(ds, tag.PhotometricInterpretation, ""),
 	}
+
+	// Windowing
 	meta.WindowCenter, _ = firstFloat(ds, tag.WindowCenter)
 	meta.WindowWidth, _ = firstFloat(ds, tag.WindowWidth)
+
+	// Acquisition numeric fields
+	meta.KVP, _ = firstFloat(ds, tag.KVP)
+	meta.ExposureTime, _ = firstInt(ds, tag.ExposureTime)
+	meta.TubeCurrent, _ = firstInt(ds, tag.XRayTubeCurrent)
+	meta.Exposure, _ = firstInt(ds, tag.Exposure)
+	meta.CompressionForce, _ = firstFloat(ds, tag.CompressionForce)
+	if ips, ok := firstFloat(ds, tag.ImagerPixelSpacing); ok && ips > 0 {
+		meta.ImagerPixelSpacingRow = ips
+	}
+
+	// Image numeric fields
 	meta.BitsStored, _ = firstInt(ds, tag.BitsStored)
+	meta.BitsAllocated, _ = firstInt(ds, tag.BitsAllocated)
+	meta.Rows, _ = firstInt(ds, tag.Rows)
+	meta.Columns, _ = firstInt(ds, tag.Columns)
+
 	// PixelSpacing (0028,0030): [row_spacing, col_spacing] in mm/pixel.
-	// Use row spacing (index 0) as the canonical value.
 	if ps, ok := firstFloat(ds, tag.PixelSpacing); ok && ps > 0 {
 		meta.PixelSpacing = ps
-	} else if ips, ok := firstFloat(ds, tag.ImagerPixelSpacing); ok && ips > 0 {
-		// Fallback: ImagerPixelSpacing (0018,1164), present in some mammography DICOMs.
-		meta.PixelSpacing = ips
+	} else if meta.ImagerPixelSpacingRow > 0 {
+		meta.PixelSpacing = meta.ImagerPixelSpacingRow
 	}
 
 	// FrameCount: prefer explicit (0028,0008); fall back to counting parsed frames.
@@ -81,10 +116,10 @@ func (r *DICOMReader) ReadDICOM(path string) (*outbound.Pixels16, *outbound.DICO
 
 	ts := strings.TrimSpace(firstString(ds, tag.TransferSyntaxUID, ""))
 
-	bitsAlloc, _ := firstInt(ds, tag.BitsAllocated)
+	bitsAlloc := meta.BitsAllocated
 	samplesPerPx, _ := firstInt(ds, tag.SamplesPerPixel)
-	rows, _ := firstInt(ds, tag.Rows)
-	cols, _ := firstInt(ds, tag.Columns)
+	rows := meta.Rows
+	cols := meta.Columns
 	// PixelRepresentation (0028,0103): 0 = unsigned, 1 = signed.
 	pixelRepr, _ := firstInt(ds, tag.PixelRepresentation)
 

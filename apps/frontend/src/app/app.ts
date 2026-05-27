@@ -8,7 +8,7 @@ import { FormsModule } from '@angular/forms';
 import {
   LucideAngularModule,
   FolderOpen, FolderInput, History, Users, BarChart3, Wrench,
-  ChevronRight, ChevronLeft, Sparkles, House, ClipboardList
+  ChevronRight, ChevronLeft, Sparkles, House, ClipboardList, Info
 } from 'lucide-angular';
 import { ApiService, PatientDTO, PatientStudyDTO } from './core/services/api.service';
 import { WindowToggleMaximise } from './wailsjs/runtime/runtime';
@@ -26,6 +26,7 @@ import { FilesPanelComponent }     from './features/files/files-panel.component'
 import { ToolsPanelComponent }     from './features/tools/tools-panel.component';
 import { AnalysisPanelComponent }  from './features/analysis/analysis-panel.component';
 import { ReportPanelComponent }    from './features/report/report-panel.component';
+import { DicomPanelComponent }     from './features/dicom-panel/dicom-panel.component';
 import { ShortcutsModalComponent } from './shared/components/shortcuts-modal/shortcuts-modal.component';
 
 @Component({
@@ -36,7 +37,8 @@ import { ShortcutsModalComponent } from './shared/components/shortcuts-modal/sho
     ViewerComponent, FindingsPanelComponent,
     SplashComponent, ConfirmModalComponent, ToastComponent,
     HomePanelComponent, FilesPanelComponent, ToolsPanelComponent,
-    AnalysisPanelComponent, ReportPanelComponent, ShortcutsModalComponent,
+    AnalysisPanelComponent, ReportPanelComponent, DicomPanelComponent,
+    ShortcutsModalComponent,
   ],
   templateUrl: './app.html',
   styleUrls: ['./app.css'],
@@ -72,7 +74,7 @@ export class App implements OnInit, OnDestroy {
   private splashFailSafe: ReturnType<typeof setTimeout>  | null = null;
   private autoSaveSub:    Subscription | null = null;
 
-  readonly icons = { FolderOpen, FolderInput, History, Users, BarChart3, Wrench, ChevronRight, ChevronLeft, Sparkles, House, ClipboardList };
+  readonly icons = { FolderOpen, FolderInput, History, Users, BarChart3, Wrench, ChevronRight, ChevronLeft, Sparkles, House, ClipboardList, Info };
 
   // ── ViewChild references ──────────────────────────────────────────────────
   @ViewChild('filesPanel') filesPanelRef?: FilesPanelComponent;

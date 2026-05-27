@@ -91,6 +91,12 @@
           [class.text-on-surface-variant]="state.activePanel!=='report'">
           <lucide-icon [img]="icons.ClipboardList" class="h-5 w-5"></lucide-icon> Laudo
         </button>
+        <button (click)="state.setPanel('dicom')"
+          class="flex w-full flex-col items-center gap-1 py-4 text-[11px] font-semibold transition"
+          [class.text-secondary]="state.activePanel==='dicom'"
+          [class.text-on-surface-variant]="state.activePanel!=='dicom'">
+          <lucide-icon [img]="icons.Info" class="h-5 w-5"></lucide-icon> DICOM
+        </button>
       </aside>
 
       <!-- Left panel -->
@@ -217,6 +223,11 @@
           <!-- REPORT / LAUDO -->
           @if (state.activePanel === 'report') {
             <app-report-panel />
+          }
+
+          <!-- DICOM METADATA -->
+          @if (state.activePanel === 'dicom') {
+            <app-dicom-panel class="flex-1 overflow-hidden" />
           }
 
         </aside>

@@ -59,6 +59,37 @@ export interface OpenStudyResponse {
   pixel_spacing?: number;
   /** PhotometricInterpretation (0028,0004): "MONOCHROME1" | "MONOCHROME2" | … */
   photometric?: string;
+
+  // ── Full DICOM panel fields (Plano P) ────────────────────────────────────
+  // Patient
+  patient_name?: string;
+  patient_birth_date?: string;
+  patient_sex?: string;
+  // Study
+  study_description?: string;
+  accession_number?: string;
+  study_instance_uid?: string;
+  // Series
+  series_number?: string;
+  laterality?: string;
+  view_position?: string;
+  body_part_examined?: string;
+  // Equipment
+  manufacturer?: string;
+  manufacturer_model?: string;
+  institution_name?: string;
+  station_name?: string;
+  // Acquisition
+  kvp?: number;
+  exposure_time_ms?: number;
+  tube_current_ma?: number;
+  exposure_mas?: number;
+  compression_force_n?: number;
+  imager_pixel_spacing?: number;
+  // Image
+  bits_allocated?: number;
+  rows?: number;
+  columns?: number;
 }
 
 export interface StudyListItem {
