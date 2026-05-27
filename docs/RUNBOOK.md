@@ -19,7 +19,7 @@ go install github.com/wailsapp/wails/v2/cmd/wails@latest
 Entrypoint único — sobe Go Core, AI sidecar e UI Wails+Angular com hot-reload:
 
 ```bash
-cd /Users/francieliocastro/Developer/ICIT/mamografia-bi-rads-ia
+cd mamografia-bi-rads-ia
 bash tools/run_desktop_dev.sh --rebuild-go
 ```
 
@@ -67,7 +67,7 @@ wails dev
 |---|---|---|
 | `GO_CORE_PORT` | `8088` | Porta HTTP |
 | `AI_ENGINE_URL` | `http://127.0.0.1:8090` | URL do sidecar |
-| `AI_SHARED_TOKEN` | `mammo-local-token` | Token `X-Local-Token` |
+| `AI_SHARED_TOKEN` | *(gerado automaticamente)* | Token `X-Local-Token` — se não definido, gerado em `~/.mammo-desktop/.token` |
 | `SQLITE_PATH` | `~/.mammo-desktop/mammo.db` | Banco local |
 | `AI_ENGINE_PYTHON` | (auto) | Python do sidecar |
 

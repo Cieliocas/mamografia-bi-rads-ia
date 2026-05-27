@@ -2,8 +2,8 @@
 #SBATCH --job-name=mammo_unet_train  # Nome do job
 #SBATCH --output=logs/output_%j.txt  # Arquivo de saída (%j = JobID)
 #SBATCH --error=logs/error_%j.txt    # Arquivo de erro
-#SBATCH --partition=gpu              # Partição definida para execução
-#SBATCH --nodelist=gpunode01         # Nó alvo
+#SBATCH --partition=YOUR_GPU_PARTITION   # substitua pelo nome da partição do seu cluster
+# #SBATCH --nodelist=YOUR_GPU_NODE     # opcional: descomente e substitua para fixar um nó
 #SBATCH --nodes=1                    # Número de nós
 #SBATCH --ntasks=1                   # Número de tarefas
 #SBATCH --gres=gpu:2                 # Solicitando 2 GPUs

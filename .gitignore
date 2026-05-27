@@ -75,6 +75,17 @@ aidentify.app/
 # --- Claude Code internals ---
 .claude/
 
+# --- Notas de sessão de IA (contexto interno de desenvolvimento) ---
+NEXT_SESSION.md
+NEXT_SESSION_*.md
+
+# --- Relatórios e documentos internos (não públicos) ---
+relatorios/
+
+# --- Token de segurança gerado em runtime (nunca versionar) ---
+.token
+apps/core/.token
+
 # --- Desktop packaging directory (local build artifacts, root-level only) ---
 /desktop/
 

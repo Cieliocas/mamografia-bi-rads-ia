@@ -81,6 +81,11 @@ export class App implements OnInit, OnDestroy {
     try { WindowToggleMaximise(); } catch { /* browser/dev mode sem runtime Wails */ }
   }
 
+  /** Double-click na titlebar → zoom padrão macOS. */
+  toggleMaximise() {
+    try { WindowToggleMaximise(); } catch { /* browser/dev mode sem runtime Wails */ }
+  }
+
   // ── Lifecycle ─────────────────────────────────────────────────────────────
   ngOnInit() {
     this.splashTick = setInterval(() => {

@@ -29,7 +29,7 @@ Status e relatórios:
 ## Quick Start
 
 ```bash
-cd /Users/francieliocastro/Developer/ICIT/mamografia-bi-rads-ia
+cd mamografia-bi-rads-ia
 bash tools/run_desktop_dev.sh --rebuild-go
 ```
 
@@ -41,9 +41,21 @@ O script sobe Go Core + AI sidecar + UI Wails+Angular em um fluxo único, com ho
 
 ## Segurança e privacidade
 
-- Comunicação restrita a `127.0.0.1` (loopback).
-- Token compartilhado entre Go Core e sidecar.
-- Armazenamento local — nenhum dado clínico trafega para fora da máquina.
+**Nenhum dado de paciente sai do dispositivo.**
+
+| Garantia | Detalhe |
+|---|---|
+| Comunicação local | Toda troca entre UI, Go Core e sidecar IA usa `127.0.0.1` (loopback) — sem tráfego externo |
+| Token único por instalação | Gerado com `crypto/rand` na primeira execução; salvo em `~/.mammo-desktop/.token` (permissão `0600`) — nunca hardcoded no código |
+| Dados clínicos locais | Banco SQLite e arquivos de áudio ficam em `~/.mammo-desktop/` no dispositivo do usuário |
+| Sem telemetria | O aplicativo não coleta nem envia métricas, logs ou analytics para qualquer servidor externo |
+| Sem dependência de nuvem | Funciona 100% offline após a instalação |
+
+> **LGPD — Lei Geral de Proteção de Dados (Lei 13.709/2018)**  
+> Imagens de mamografia e dados de pacientes são dados pessoais sensíveis de saúde (Art. 11).  
+> O AIdentify processa esses dados exclusivamente no dispositivo local do profissional habilitado,  
+> sem transmissão, armazenamento remoto ou compartilhamento com terceiros.  
+> O operador/controlador dos dados é a instituição ou profissional que utiliza o software.
 
 ---
 
