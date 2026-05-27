@@ -105,18 +105,46 @@ func (h *StudyHandler) createStudy(c *gin.Context) {
 		}
 	}
 	if m := out.Metadata; m != nil {
-		resp["modality"] = m.Modality
-		resp["description"] = m.Description
-		resp["window_center"] = m.WindowCenter
-		resp["window_width"] = m.WindowWidth
-		resp["bits_stored"] = m.BitsStored
-		resp["frame_count"] = m.FrameCount
-		if m.PixelSpacing > 0 {
-			resp["pixel_spacing"] = m.PixelSpacing
-		}
-		if m.Photometric != "" {
-			resp["photometric"] = m.Photometric
-		}
+		// Basic (already existed)
+		resp["modality"]       = m.Modality
+		resp["description"]    = m.Description
+		resp["window_center"]  = m.WindowCenter
+		resp["window_width"]   = m.WindowWidth
+		resp["bits_stored"]    = m.BitsStored
+		resp["frame_count"]    = m.FrameCount
+		if m.PixelSpacing > 0 { resp["pixel_spacing"] = m.PixelSpacing }
+		if m.Photometric != "" { resp["photometric"] = m.Photometric }
+
+		// ── Full DICOM panel fields ──────────────────────────────────────────
+		// Patient
+		setIfNonEmpty(resp, "patient_name",       m.PatientName)
+		setIfNonEmpty(resp, "patient_birth_date",  m.PatientBirthDate)
+		setIfNonEmpty(resp, "patient_sex",         m.PatientSex)
+		// Study
+		setIfNonEmpty(resp, "study_description",   m.StudyDescription)
+		setIfNonEmpty(resp, "accession_number",    m.AccessionNumber)
+		setIfNonEmpty(resp, "study_instance_uid",  m.StudyInstanceUID)
+		// Series
+		setIfNonEmpty(resp, "series_number",       m.SeriesNumber)
+		setIfNonEmpty(resp, "laterality",          m.Laterality)
+		setIfNonEmpty(resp, "view_position",       m.ViewPosition)
+		setIfNonEmpty(resp, "body_part_examined",  m.BodyPartExamined)
+		// Equipment
+		setIfNonEmpty(resp, "manufacturer",        m.Manufacturer)
+		setIfNonEmpty(resp, "manufacturer_model",  m.ManufacturerModel)
+		setIfNonEmpty(resp, "institution_name",    m.InstitutionName)
+		setIfNonEmpty(resp, "station_name",        m.StationName)
+		// Acquisition
+		if m.KVP > 0              { resp["kvp"] = m.KVP }
+		if m.ExposureTime > 0     { resp["exposure_time_ms"] = m.ExposureTime }
+		if m.TubeCurrent > 0      { resp["tube_current_ma"] = m.TubeCurrent }
+		if m.Exposure > 0         { resp["exposure_mas"] = m.Exposure }
+		if m.CompressionForce > 0 { resp["compression_force_n"] = m.CompressionForce }
+		if m.ImagerPixelSpacingRow > 0 { resp["imager_pixel_spacing"] = m.ImagerPixelSpacingRow }
+		// Image dims
+		if m.BitsAllocated > 0 { resp["bits_allocated"] = m.BitsAllocated }
+		if m.Rows > 0          { resp["rows"] = m.Rows }
+		if m.Columns > 0       { resp["columns"] = m.Columns }
 	}
 	c.JSON(http.StatusCreated, resp)
 }
@@ -169,6 +197,13 @@ func (h *StudyHandler) saveAnnotations(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"status": "saved"})
+}
+
+// setIfNonEmpty adds key→value to the map only when value is not the zero string.
+func setIfNonEmpty(m gin.H, key, value string) {
+	if value != "" {
+		m[key] = value
+	}
 }
 
 func (h *StudyHandler) getAnnotations(c *gin.Context) {

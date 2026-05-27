@@ -3,17 +3,51 @@ import { VP, ROI } from '../../shared/models/types';
 import { ApiService, ClinicalFields, FindingDTO, OpenStudyResponse, PatientDTO, StudyListItem } from './api.service';
 
 export interface StudyMetadata {
+  // Image display
   modality?: string;
   description?: string;
   windowCenter?: number;
   windowWidth?: number;
   bitsStored?: number;
+  bitsAllocated?: number;
   width?: number;
   height?: number;
-  /** Real-world pixel size in mm from DICOM (0028,0030). 0 = unknown. */
+  rows?: number;
+  columns?: number;
   pixelSpacing?: number;
-  /** PhotometricInterpretation: "MONOCHROME1" | "MONOCHROME2" | undefined. */
   photometric?: string;
+  frameCount?: number;
+
+  // Patient
+  patientName?: string;
+  patientBirthDate?: string;
+  patientSex?: string;
+
+  // Study
+  studyDate?: string;
+  studyDescription?: string;
+  accessionNumber?: string;
+  studyInstanceUID?: string;
+
+  // Series
+  seriesNumber?: string;
+  laterality?: string;
+  viewPosition?: string;
+  bodyPartExamined?: string;
+
+  // Equipment
+  manufacturer?: string;
+  manufacturerModel?: string;
+  institutionName?: string;
+  stationName?: string;
+
+  // Acquisition
+  kvp?: number;
+  exposureTimeMs?: number;
+  tubeCurrentMa?: number;
+  exposureMas?: number;
+  compressionForceN?: number;
+  imagerPixelSpacing?: number;
 }
 
 export interface HistoryEntry {
@@ -145,15 +179,46 @@ export class StudyService {
   /** Stores the parsed DICOM metadata so the viewer can use WW/WC defaults. */
   private applyOpenStudyMetadata(resp: OpenStudyResponse) {
     this.currentMetadata.set({
-      modality:     resp.modality,
-      description:  resp.description,
-      windowCenter: resp.window_center  || undefined,
-      windowWidth:  resp.window_width   || undefined,
-      bitsStored:   resp.bits_stored    || undefined,
-      width:        resp.width,
-      height:       resp.height,
-      pixelSpacing: resp.pixel_spacing  || undefined,
-      photometric:  resp.photometric    || undefined,
+      // Display
+      modality:        resp.modality,
+      description:     resp.description,
+      windowCenter:    resp.window_center    || undefined,
+      windowWidth:     resp.window_width     || undefined,
+      bitsStored:      resp.bits_stored      || undefined,
+      bitsAllocated:   resp.bits_allocated   || undefined,
+      width:           resp.width,
+      height:          resp.height,
+      rows:            resp.rows             || undefined,
+      columns:         resp.columns          || undefined,
+      pixelSpacing:    resp.pixel_spacing    || undefined,
+      photometric:     resp.photometric      || undefined,
+      frameCount:      resp.frame_count      || undefined,
+      // Patient
+      patientName:     resp.patient_name     || undefined,
+      patientBirthDate: resp.patient_birth_date || undefined,
+      patientSex:      resp.patient_sex      || undefined,
+      // Study
+      studyDate:       resp.study_date       || undefined,
+      studyDescription: resp.study_description || undefined,
+      accessionNumber: resp.accession_number || undefined,
+      studyInstanceUID: resp.study_instance_uid || undefined,
+      // Series
+      seriesNumber:    resp.series_number    || undefined,
+      laterality:      resp.laterality       || undefined,
+      viewPosition:    resp.view_position    || undefined,
+      bodyPartExamined: resp.body_part_examined || undefined,
+      // Equipment
+      manufacturer:    resp.manufacturer     || undefined,
+      manufacturerModel: resp.manufacturer_model || undefined,
+      institutionName: resp.institution_name || undefined,
+      stationName:     resp.station_name     || undefined,
+      // Acquisition
+      kvp:             resp.kvp              || undefined,
+      exposureTimeMs:  resp.exposure_time_ms || undefined,
+      tubeCurrentMa:   resp.tube_current_ma  || undefined,
+      exposureMas:     resp.exposure_mas     || undefined,
+      compressionForceN: resp.compression_force_n || undefined,
+      imagerPixelSpacing: resp.imager_pixel_spacing || undefined,
     });
     this.currentFrameCount.set(resp.frame_count && resp.frame_count > 1 ? resp.frame_count : 1);
     this.currentFrame.set(0);
