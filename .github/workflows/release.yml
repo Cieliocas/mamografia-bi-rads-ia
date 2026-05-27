@@ -100,10 +100,13 @@ jobs:
       - name: Copy frontend dist to desktop embed dir
         run: cp -r apps/frontend/dist/. apps/desktop/dist/
 
+      - name: Install NSIS
+        run: choco install nsis -y
+
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
 
-      # Build Windows amd64 installer (NSIS is available on windows-latest)
+      # Build Windows amd64 installer
       - name: Build Windows installer
         working-directory: apps/desktop
         run: |
