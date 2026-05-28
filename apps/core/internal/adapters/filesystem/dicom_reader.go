@@ -202,17 +202,16 @@ func readFrameInt16(ds dicom.Dataset, path, ts string, frameIdx, bitsAlloc, samp
 		return encapsulatedJPEGToPixels16(ef)
 
 	case tsJPEGLosslessDef, tsJPEGLossless:
-		// JPEG Lossless (Process 14): most common in digital mammography.
-		if frameIdx == 0 {
-			if pix, err := decompressViaDCMTK(path); err == nil {
-				return pix, nil
-			}
+		// JPEG Lossless (Process 14 / SV1): most common in digital mammography.
+		// Priority: pure-Go SOF3 decoder → DCMTK shell-out → error.
+		if pix, err := decodeLosslessJPEG(ef.Data); err == nil {
+			return pix, nil
 		}
-		if pix, err := encapsulatedJPEGToPixels16(ef); err == nil {
+		if pix, err := decompressViaDCMTK(path); err == nil {
 			return pix, nil
 		}
 		return nil, fmt.Errorf(
-			"JPEG Lossless (TS %s) requires DCMTK ('brew install dcmtk')", ts)
+			"JPEG Lossless (TS %s): pure-Go decoder failed and DCMTK is not installed ('brew install dcmtk')", ts)
 
 	case tsJPEGLSLossless, tsJPEGLSNear:
 		if frameIdx == 0 {
