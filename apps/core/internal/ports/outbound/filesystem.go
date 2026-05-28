@@ -64,6 +64,12 @@ type DICOMMetadata struct {
 	PixelSpacing float64 // (0028,0030) mm per pixel (row spacing)
 	Photometric  string  // (0028,0004)
 	FrameCount   int     // total number of frames; 1 for single-frame DICOMs
+
+	// VOI LUT Sequence (0028,3010) — present on many Hologic/Siemens DICOMs.
+	// When non-nil, rendering must apply this table instead of linear WW/WC.
+	// Pixel value p maps to VOILUTData[p - VOILUTFirstEntry].
+	VOILUTData       []uint16
+	VOILUTFirstEntry int
 }
 
 // FilesystemReader provides raw access to DICOM files on disk.

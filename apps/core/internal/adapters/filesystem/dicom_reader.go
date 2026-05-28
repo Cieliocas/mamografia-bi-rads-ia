@@ -78,9 +78,12 @@ func (r *DICOMReader) ReadDICOM(path string) (*outbound.Pixels16, *outbound.DICO
 		Photometric: firstString(ds, tag.PhotometricInterpretation, ""),
 	}
 
-	// Windowing
+	// Windowing — linear WW/WC (fallback when no VOI LUT Sequence present)
 	meta.WindowCenter, _ = firstFloat(ds, tag.WindowCenter)
 	meta.WindowWidth, _ = firstFloat(ds, tag.WindowWidth)
+
+	// VOI LUT Sequence (0028,3010): takes precedence over WW/WC when present.
+	meta.VOILUTData, meta.VOILUTFirstEntry = readVOILUT(ds)
 
 	// Acquisition numeric fields
 	meta.KVP, _ = firstFloat(ds, tag.KVP)
@@ -434,6 +437,82 @@ func decompressViaGDCM(srcPath string) (*outbound.Pixels16, error) {
 	dr := &DICOMReader{}
 	pix, _, err := dr.ReadDICOM(tmp.Name())
 	return pix, err
+}
+
+// --- VOI LUT helpers ---
+
+// voiLUTSeqTag is (0028,3010) — VOI LUT Sequence.
+var (
+	voiLUTSeqTag  = tag.Tag{Group: 0x0028, Element: 0x3010}
+	voiLUTDescTag = tag.Tag{Group: 0x0028, Element: 0x3002} // LUT Descriptor
+	voiLUTDataTag = tag.Tag{Group: 0x0028, Element: 0x3006} // LUT Data
+)
+
+// readVOILUT parses the VOI LUT Sequence from a DICOM dataset.
+// Returns the expanded LUT table and the first mapped pixel value.
+// Returns nil, 0 when the sequence is absent or malformed.
+func readVOILUT(ds dicom.Dataset) (lut []uint16, firstEntry int) {
+	el, err := ds.FindElementByTag(voiLUTSeqTag)
+	if err != nil {
+		return nil, 0
+	}
+
+	// suyashkumar/dicom represents sequence items as []*dicom.Dataset.
+	items, ok := el.Value.GetValue().([]*dicom.Dataset)
+	if !ok || len(items) == 0 {
+		return nil, 0
+	}
+	item := items[0]
+
+	// LUT Descriptor (0028,3002): [nEntries, firstMappedValue, bitsForEntry]
+	descEl, err := item.FindElementByTag(voiLUTDescTag)
+	if err != nil {
+		return nil, 0
+	}
+	var nEntries, first int
+	switch v := descEl.Value.GetValue().(type) {
+	case []int:
+		if len(v) < 3 {
+			return nil, 0
+		}
+		nEntries = v[0]
+		first = v[1]
+	default:
+		return nil, 0
+	}
+	if nEntries == 0 {
+		nEntries = 65536 // per DICOM PS 3.3 C.7.6.3.1.5
+	}
+
+	// LUT Data (0028,3006): stored as OW (Other Word) or US (Unsigned Short).
+	dataEl, err := item.FindElementByTag(voiLUTDataTag)
+	if err != nil {
+		return nil, 0
+	}
+
+	var lutData []uint16
+	switch v := dataEl.Value.GetValue().(type) {
+	case []int:
+		lutData = make([]uint16, len(v))
+		for i, x := range v {
+			lutData[i] = uint16(x)
+		}
+	case []byte:
+		if len(v)%2 != 0 {
+			return nil, 0
+		}
+		lutData = make([]uint16, len(v)/2)
+		for i := range lutData {
+			lutData[i] = binary.LittleEndian.Uint16(v[i*2:])
+		}
+	default:
+		return nil, 0
+	}
+
+	if len(lutData) == 0 {
+		return nil, 0
+	}
+	return lutData, first
 }
 
 // --- dataset helpers ---

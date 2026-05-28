@@ -15,6 +15,51 @@ import (
 	"mammo/apps/core/internal/ports/outbound"
 )
 
+// RenderFromMetadata selects the best rendering strategy for a DICOM frame:
+//   - When VOILUTData is non-nil it applies the DICOM VOI LUT table.
+//   - Otherwise it falls back to linear WW/WC windowing.
+func RenderFromMetadata(p *outbound.Pixels16, meta *outbound.DICOMMetadata) *image.Gray {
+	if len(meta.VOILUTData) > 0 {
+		return RenderVOILUT(p, meta.VOILUTData, meta.VOILUTFirstEntry)
+	}
+	return RenderGrayscale(p, meta.WindowCenter, meta.WindowWidth)
+}
+
+// RenderVOILUT maps raw DICOM pixel values through a pre-built VOI LUT table
+// and returns an 8-bit grayscale image.
+// Each pixel p maps to VOILUTData[p - firstEntry] (clamped to table bounds).
+// The table output is scaled linearly from the observed range to 0–255.
+func RenderVOILUT(p *outbound.Pixels16, lut []uint16, firstEntry int) *image.Gray {
+	img := image.NewGray(image.Rect(0, 0, p.Width, p.Height))
+	invert := strings.EqualFold(p.Photometric, "MONOCHROME1")
+	n := len(lut)
+
+	for y := 0; y < p.Height; y++ {
+		for x := 0; x < p.Width; x++ {
+			raw := p.Data[y*p.Width+x]
+			var pv int
+			if p.Signed {
+				pv = int(raw)
+			} else {
+				pv = int(uint16(raw))
+			}
+			idx := pv - firstEntry
+			if idx < 0 {
+				idx = 0
+			} else if idx >= n {
+				idx = n - 1
+			}
+			// LUT entries are 0–65535; scale to 0–255.
+			g := uint8(uint32(lut[idx]) * 255 / 65535)
+			if invert {
+				g = 255 - g
+			}
+			img.SetGray(x, y, color.Gray{Y: g})
+		}
+	}
+	return img
+}
+
 // RenderGrayscale maps raw DICOM pixel values through a linear WW/WC look-up
 // table and returns an 8-bit grayscale image.
 //
