@@ -230,7 +230,7 @@
 
           <!-- ANALYSIS -->
           @if (state.activePanel === 'analysis') {
-            <app-analysis-panel />
+            <app-analysis-panel (compareWith)="onCompareWith($event)" />
           }
 
           <!-- REPORT / LAUDO -->
