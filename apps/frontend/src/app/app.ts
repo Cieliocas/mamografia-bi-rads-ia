@@ -287,6 +287,9 @@ export class App implements OnInit, OnDestroy {
    * Opens `filePath` in VP1 for temporal comparison with whatever is loaded
    * in VP0.  Switches to 1×2 grid layout if not already in multi-VP mode.
    */
+  /** Called when the analysis-panel timeline emits a (compareWith) event. */
+  onCompareWith(filePath: string) { this.compareStudy(filePath); }
+
   compareStudy(filePath: string) {
     if (!this.viewerRef) return;
     // Ensure we are in a 2-VP layout.

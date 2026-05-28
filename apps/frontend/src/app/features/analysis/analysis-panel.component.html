@@ -233,5 +233,94 @@
       </div>
     </section>
 
+    <!-- ── Histórico Temporal ─────────────────────────────────────────────── -->
+    @if (study.currentPatient()) {
+      <section>
+        <div class="mb-2 flex items-center justify-between">
+          <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Histórico Temporal</p>
+          <button class="rounded p-1 text-on-surface-variant/50 hover:text-on-surface-variant transition"
+            title="Recarregar histórico" (click)="loadPatientHistory()">
+            <lucide-icon [img]="icons.RefreshCw" class="h-3 w-3" [class.animate-spin]="historyLoading"></lucide-icon>
+          </button>
+        </div>
+
+        @if (historyLoading) {
+          <p class="text-[11px] text-on-surface-variant/50 py-2">Carregando histórico…</p>
+        } @else if (historyError) {
+          <p class="text-[11px] text-red-400/70 py-2">Erro ao carregar histórico.</p>
+        } @else if (historyStudies.length === 0) {
+          <p class="text-[11px] text-on-surface-variant/40 py-2">Nenhum exame anterior encontrado para esta paciente.</p>
+        } @else {
+
+          <!-- SVG timeline chart -->
+          <div class="mb-2 overflow-x-auto rounded-lg bg-neutral-900/40 px-1 py-1">
+            <svg viewBox="0 0 360 100" class="w-full" style="min-width:180px;height:100px"
+                 xmlns="http://www.w3.org/2000/svg">
+
+              <!-- Y-axis grid lines (BI-RADS 1-6) -->
+              @for (lvl of [1,2,3,4,5,6]; track lvl) {
+                @let yPos = 80 - ((lvl - 1) / 5) * 70;
+                <line x1="28" [attr.x2]="352" [attr.y1]="yPos" [attr.y2]="yPos"
+                      stroke="#334155" stroke-width="0.5"/>
+                <text x="26" [attr.y]="yPos + 3" font-size="6" fill="#64748b"
+                      text-anchor="end">{{ lvl }}</text>
+              }
+
+              <!-- BI-RADS label -->
+              <text x="14" y="45" font-size="6" fill="#64748b" transform="rotate(-90 14 45)"
+                    text-anchor="middle">BI-RADS</text>
+
+              <!-- Connecting line -->
+              @if (timelinePoints.length > 1) {
+                <polyline [attr.points]="polylinePoints"
+                          fill="none" stroke="#475569" stroke-width="1.5"
+                          stroke-linejoin="round" stroke-linecap="round"/>
+              }
+
+              <!-- Data points -->
+              @for (pt of timelinePoints; track pt.study.id) {
+                @let coords = svgCoords(pt);
+                <circle
+                  [attr.cx]="coords.x" [attr.cy]="coords.y" r="5"
+                  [attr.fill]="pt.color" stroke="#0f172a" stroke-width="1.5"
+                  class="cursor-pointer hover:opacity-80 transition-opacity"
+                  (click)="compareStudy(pt)">
+                  <title>{{ pt.dateLabel }} — BI-RADS {{ pt.biRadsNum || '?' }}</title>
+                </circle>
+                <!-- Date label below point -->
+                <text [attr.x]="coords.x" y="95" font-size="5" fill="#64748b"
+                      text-anchor="middle">{{ pt.dateLabel.slice(0, 6) }}</text>
+              }
+            </svg>
+          </div>
+
+          <!-- Study list below chart -->
+          <div class="space-y-1">
+            @for (pt of timelinePoints | slice:0:8; track pt.study.id) {
+              <button class="flex w-full items-center justify-between rounded-lg border border-white/5 bg-neutral-900/30 px-3 py-1.5 text-left hover:bg-white/5 transition"
+                (click)="compareStudy(pt)"
+                [title]="'Comparar: ' + pt.dateLabel">
+                <span class="flex items-center gap-2">
+                  <span class="h-2 w-2 rounded-full shrink-0" [style.background]="pt.color"></span>
+                  <span class="text-[11px] text-on-surface-variant">{{ pt.dateLabel }}</span>
+                </span>
+                <span class="flex items-center gap-1.5">
+                  @if (pt.biRadsNum > 0) {
+                    <span class="rounded px-1.5 py-0.5 text-[9px] font-bold" [style.background]="pt.color + '33'"
+                          [style.color]="pt.color">
+                      BI-RADS {{ pt.biRadsNum }}
+                    </span>
+                  }
+                  @if (pt.study.file_path) {
+                    <lucide-icon [img]="icons.GitCompare" class="h-3 w-3 text-on-surface-variant/40"></lucide-icon>
+                  }
+                </span>
+              </button>
+            }
+          </div>
+        }
+      </section>
+    }
+
   </div>
 </div>
