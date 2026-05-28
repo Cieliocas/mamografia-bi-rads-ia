@@ -8,19 +8,26 @@ import {
 export type ActiveTool = 'pan'|'roi'|'ruler'|'arrow'|'brush'|'erase-roi'|'erase-ruler'|'magnifier';
 export type ActiveShape = 'ellipse'|'rect';
 export type ActivePanel = 'home'|'files'|'history'|'patients'|'analysis'|'tools'|'report'|'dicom';
-export type GridLayout  = '1x1'|'1x2'|'2x2';
+export type GridLayout  = '1x1'|'1x2'|'2x2'|'2x3';
 
 @Injectable({ providedIn: 'root' })
 export class ViewerStateService {
 
   // ── Viewports ─────────────────────────────────────────────────────────────
-  vp: VP[] = [mkVP(), mkVP(), mkVP(), mkVP()];
+  vp: VP[] = [mkVP(), mkVP(), mkVP(), mkVP(), mkVP(), mkVP()];
   activeVp = 0;
   gridLayout: GridLayout = '1x1';
   /** Backward-compat: true when any multi-vp layout is active. */
   get splitMode(): boolean { return this.gridLayout !== '1x1'; }
   /** Number of visible viewports for the current layout. */
-  get vpCount(): number { return this.gridLayout === '2x2' ? 4 : this.gridLayout === '1x2' ? 2 : 1; }
+  get vpCount(): number {
+    switch (this.gridLayout) {
+      case '2x3': return 6;
+      case '2x2': return 4;
+      case '1x2': return 2;
+      default:    return 1;
+    }
+  }
   pendingVp = 0;
 
   // ── Tools ─────────────────────────────────────────────────────────────────

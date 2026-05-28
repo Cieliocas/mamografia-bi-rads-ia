@@ -43,6 +43,10 @@ export class ViewerComponent implements AfterViewInit {
   @ViewChild('ct2',  { static: false }) ct2?:  ElementRef<HTMLDivElement>;
   @ViewChild('c3',   { static: false }) c3?:   ElementRef<HTMLCanvasElement>;
   @ViewChild('ct3',  { static: false }) ct3?:  ElementRef<HTMLDivElement>;
+  @ViewChild('c4',   { static: false }) c4?:   ElementRef<HTMLCanvasElement>;
+  @ViewChild('ct4',  { static: false }) ct4?:  ElementRef<HTMLDivElement>;
+  @ViewChild('c5',   { static: false }) c5?:   ElementRef<HTMLCanvasElement>;
+  @ViewChild('ct5',  { static: false }) ct5?:  ElementRef<HTMLDivElement>;
   // Image canvases: draw only the DICOM/raster image; CSS filter handles
   // brightness/contrast/invert so it works on all WebKit versions (ctx.filter
   // was only added to Safari in 15.4 / macOS 12.3, too recent to rely on).
@@ -50,6 +54,8 @@ export class ViewerComponent implements AfterViewInit {
   @ViewChild('img1', { static: false }) img1?: ElementRef<HTMLCanvasElement>;
   @ViewChild('img2', { static: false }) img2?: ElementRef<HTMLCanvasElement>;
   @ViewChild('img3', { static: false }) img3?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('img4', { static: false }) img4?: ElementRef<HTMLCanvasElement>;
+  @ViewChild('img5', { static: false }) img5?: ElementRef<HTMLCanvasElement>;
 
   /** Live brush stroke being painted — committed to VP on mouseUp. */
   private tempBrush: { points: { x: number; y: number }[]; color: string } | null = null;
@@ -65,14 +71,14 @@ export class ViewerComponent implements AfterViewInit {
   // ── Canvas refs ────────────────────────────────────────────────────────────
   /** Overlay canvas: ROIs, rulers, brush strokes — no filter. */
   private cv(i: number): HTMLCanvasElement | undefined {
-    return [this.c0, this.c1, this.c2, this.c3][i]?.nativeElement;
+    return [this.c0, this.c1, this.c2, this.c3, this.c4, this.c5][i]?.nativeElement;
   }
   /** Image canvas: raw DICOM/raster image only; CSS filter for B/C/invert. */
   private imgCv(i: number): HTMLCanvasElement | undefined {
-    return [this.img0, this.img1, this.img2, this.img3][i]?.nativeElement;
+    return [this.img0, this.img1, this.img2, this.img3, this.img4, this.img5][i]?.nativeElement;
   }
   private ct(i: number): HTMLDivElement | undefined {
-    return [this.ct0, this.ct1, this.ct2, this.ct3][i]?.nativeElement;
+    return [this.ct0, this.ct1, this.ct2, this.ct3, this.ct4, this.ct5][i]?.nativeElement;
   }
 
   /** Build the CSS filter string from VP brightness/contrast/invert settings.
