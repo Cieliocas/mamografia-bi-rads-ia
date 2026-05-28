@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"image"
 	"image/png"
 	"strings"
 	"time"
@@ -84,18 +85,22 @@ func (uc *GeneratePDF) renderAnnotatedPNG(filePath string, anns []*entity.Annota
 		return nil
 	}
 
-	// Use DICOM windowing defaults.
-	wc, ww := 2048.0, 4096.0
-	if meta != nil {
-		if meta.WindowCenter != 0 {
-			wc = meta.WindowCenter
+	// Use VOI LUT when available, otherwise fall back to WW/WC windowing.
+	var gray *image.Gray
+	if meta != nil && len(meta.VOILUTData) > 0 {
+		gray = imaging.RenderVOILUT(pixels, meta.VOILUTData, meta.VOILUTFirstEntry)
+	} else {
+		wc, ww := 2048.0, 4096.0
+		if meta != nil {
+			if meta.WindowCenter != 0 {
+				wc = meta.WindowCenter
+			}
+			if meta.WindowWidth != 0 {
+				ww = meta.WindowWidth
+			}
 		}
-		if meta.WindowWidth != 0 {
-			ww = meta.WindowWidth
-		}
+		gray = imaging.RenderGrayscale(pixels, wc, ww)
 	}
-
-	gray := imaging.RenderGrayscale(pixels, wc, ww)
 	rgba := imaging.ToRGBA(gray)
 	imaging.DrawAnnotations(rgba, anns)
 

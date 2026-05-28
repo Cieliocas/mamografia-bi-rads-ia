@@ -142,7 +142,13 @@ func (h *PreviewHandler) preview(c *gin.Context) {
 		return
 	}
 
-	img := imaging.RenderGrayscale(pixels, wc, ww)
+	// Use VOI LUT when available and no explicit wc/ww query params are set.
+	var img *image.Gray
+	if meta != nil && len(meta.VOILUTData) > 0 && c.Query("wc") == "" && c.Query("ww") == "" {
+		img = imaging.RenderVOILUT(pixels, meta.VOILUTData, meta.VOILUTFirstEntry)
+	} else {
+		img = imaging.RenderGrayscale(pixels, wc, ww)
+	}
 	var buf bytes.Buffer
 	if err := png.Encode(&buf, img); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "encode png: " + err.Error()})
@@ -195,7 +201,12 @@ func (h *PreviewHandler) previewAnnotated(c *gin.Context) {
 		return
 	}
 	wc, ww := pickWindowing(c, meta)
-	gray := imaging.RenderGrayscale(pixels, wc, ww)
+	var gray *image.Gray
+	if len(meta.VOILUTData) > 0 {
+		gray = imaging.RenderVOILUT(pixels, meta.VOILUTData, meta.VOILUTFirstEntry)
+	} else {
+		gray = imaging.RenderGrayscale(pixels, wc, ww)
+	}
 	rgba := imaging.ToRGBA(gray)
 
 	anns, err := h.annotRepo.LoadByStudyID(context.Background(), id)
