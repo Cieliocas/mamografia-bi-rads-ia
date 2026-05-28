@@ -301,6 +301,21 @@
           <span class="text-[8px] opacity-50">4</span>
         </button>
 
+        <!-- 2×3 -->
+        <button (click)="setGrid('2x3')"
+          class="flex flex-col items-center gap-1 rounded-lg border py-2.5 text-[10px] font-semibold transition"
+          [class.border-pink-500\/50]="isGrid('2x3')"
+          [class.bg-pink-900\/25]="isGrid('2x3')"
+          [class.text-pink-200]="isGrid('2x3')"
+          [class.border-white\/8]="!isGrid('2x3')"
+          [class.text-on-surface-variant]="!isGrid('2x3')"
+          [class.hover:bg-white\/5]="!isGrid('2x3')"
+          title="Grade 2×3 (6)">
+          <lucide-icon [img]="icons.LayoutGrid" class="h-4 w-4"></lucide-icon>
+          2×3
+          <span class="text-[8px] opacity-50">6</span>
+        </button>
+
       </div>
     </section>
 

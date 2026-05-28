@@ -34,6 +34,11 @@ describe('ViewerStateService', () => {
     expect(state.vpCount).toBe(4);
   });
 
+  it('vpCount é 6 na layout 2x3', () => {
+    state.setGrid('2x3', () => {});
+    expect(state.vpCount).toBe(6);
+  });
+
   it('activePanel começa como home', () => expect(state.activePanel).toBe('home'));
 
   // ── Tool / panel controls ────────────────────────────────────────────────

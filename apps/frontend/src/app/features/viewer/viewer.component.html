@@ -5,9 +5,10 @@
 <div class="h-full w-full overflow-hidden"
      [class.grid]="true"
      [class.grid-cols-1]="state.gridLayout === '1x1'"
-     [class.grid-cols-2]="state.gridLayout === '1x2' || state.gridLayout === '2x2'"
-     [class.grid-rows-1]="state.gridLayout !== '2x2'"
+     [class.grid-cols-2]="state.gridLayout === '1x2' || state.gridLayout === '2x2' || state.gridLayout === '2x3'"
+     [class.grid-rows-1]="state.gridLayout === '1x1' || state.gridLayout === '1x2'"
      [class.grid-rows-2]="state.gridLayout === '2x2'"
+     [class.grid-rows-3]="state.gridLayout === '2x3'"
      style="gap:4px">
 
   <!-- ── VP 0 (always visible) ──────────────────────────────────────────── -->
@@ -186,7 +187,7 @@
     </div>
   }
 
-  <!-- ── VP 2 (2x2 only) ────────────────────────────────────────────────── -->
+  <!-- ── VP 2 and VP 3 (2x2 and 2x3) ─────────────────────────────────────── -->
   @if (state.vpCount >= 4) {
     <div #ct2
       class="relative overflow-hidden rounded-lg bg-neutral-950 select-none transition-[box-shadow]"
@@ -285,6 +286,104 @@
         </div>
         <p class="absolute bottom-2 right-2 pointer-events-none rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-white/35 tabular-nums">
           B{{ state.vp[3].brightness }}% C{{ state.vp[3].contrast }}%
+        </p>
+      }
+    </div>
+  }
+
+  <!-- ── VP 4 and VP 5 (2x3 only) ──────────────────────────────────────────── -->
+  @if (state.vpCount >= 6) {
+    <div #ct4
+      class="relative overflow-hidden rounded-lg bg-neutral-950 select-none transition-[box-shadow]"
+      [class]="cursorClass"
+      [class.ring-2]="dragOverVp === 4"
+      [class.ring-pink-400]="dragOverVp === 4"
+      [class.ring-offset-1]="dragOverVp === 4"
+      [class.ring-offset-neutral-950]="dragOverVp === 4"
+      (mousedown)="onMouseDown($event, 4)"
+      (mousemove)="onMouseMove($event, 4)"
+      (mouseup)="onMouseUp($event, 4)"
+      (mouseleave)="onMouseLeave($event, 4)"
+      (mouseenter)="onMouseEnter(4)"
+      (dblclick)="openFileDialog(4)"
+      (dragover)="onDragOver($event, 4)"
+      (dragleave)="onDragLeave($event, 4)"
+      (drop)="onDrop($event, 4)">
+      <canvas #img4 class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+      <canvas #c4 class="absolute inset-0 w-full h-full"></canvas>
+      @if (dragOverVp === 4) {
+        <div class="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 rounded-lg bg-pink-900/30 pointer-events-none">
+          <lucide-icon [img]="icons.Maximize2" class="h-10 w-10 text-pink-300 opacity-80"></lucide-icon>
+          <p class="text-[11px] font-semibold text-pink-200">Soltar para abrir</p>
+        </div>
+      }
+      @if (!state.vp[4].loadedImage) {
+        <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none select-none">
+          <div class="rounded-full bg-neutral-800/60 p-4">
+            <lucide-icon [img]="icons.Maximize2" class="text-neutral-500" [size]="28" />
+          </div>
+          <p class="text-[11px] text-neutral-500">Duplo-clique para abrir</p>
+        </div>
+      }
+      <span class="absolute left-2 top-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300 pointer-events-none">VP 5</span>
+      @if (state.vp[4].loadedImage) {
+        <p class="absolute left-2 top-7 pointer-events-none truncate max-w-[55%] rounded bg-black/30 px-1.5 py-0.5 text-[9px] font-mono text-white/35">{{ state.vp[4].imageName }}</p>
+        <div class="absolute bottom-2 left-2 pointer-events-none space-y-0.5">
+          <span class="rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 tabular-nums">{{ state.zoomPct(4) }}</span>
+          @if (state.vp[4].activePreset) {
+            <p class="rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-pink-300/60">{{ state.vp[4].activePreset }}</p>
+          }
+        </div>
+        <p class="absolute bottom-2 right-2 pointer-events-none rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-white/35 tabular-nums">
+          B{{ state.vp[4].brightness }}% C{{ state.vp[4].contrast }}%
+        </p>
+      }
+    </div>
+
+    <!-- ── VP 5 ─────────────────────────────────────────────────────────────── -->
+    <div #ct5
+      class="relative overflow-hidden rounded-lg bg-neutral-950 select-none transition-[box-shadow]"
+      [class]="cursorClass"
+      [class.ring-2]="dragOverVp === 5"
+      [class.ring-pink-400]="dragOverVp === 5"
+      [class.ring-offset-1]="dragOverVp === 5"
+      [class.ring-offset-neutral-950]="dragOverVp === 5"
+      (mousedown)="onMouseDown($event, 5)"
+      (mousemove)="onMouseMove($event, 5)"
+      (mouseup)="onMouseUp($event, 5)"
+      (mouseleave)="onMouseLeave($event, 5)"
+      (mouseenter)="onMouseEnter(5)"
+      (dblclick)="openFileDialog(5)"
+      (dragover)="onDragOver($event, 5)"
+      (dragleave)="onDragLeave($event, 5)"
+      (drop)="onDrop($event, 5)">
+      <canvas #img5 class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+      <canvas #c5 class="absolute inset-0 w-full h-full"></canvas>
+      @if (dragOverVp === 5) {
+        <div class="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 rounded-lg bg-pink-900/30 pointer-events-none">
+          <lucide-icon [img]="icons.Maximize2" class="h-10 w-10 text-pink-300 opacity-80"></lucide-icon>
+          <p class="text-[11px] font-semibold text-pink-200">Soltar para abrir</p>
+        </div>
+      }
+      @if (!state.vp[5].loadedImage) {
+        <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 pointer-events-none select-none">
+          <div class="rounded-full bg-neutral-800/60 p-4">
+            <lucide-icon [img]="icons.Maximize2" class="text-neutral-500" [size]="28" />
+          </div>
+          <p class="text-[11px] text-neutral-500">Duplo-clique para abrir</p>
+        </div>
+      }
+      <span class="absolute left-2 top-2 rounded bg-black/50 px-1.5 py-0.5 text-[10px] font-semibold text-neutral-300 pointer-events-none">VP 6</span>
+      @if (state.vp[5].loadedImage) {
+        <p class="absolute left-2 top-7 pointer-events-none truncate max-w-[55%] rounded bg-black/30 px-1.5 py-0.5 text-[9px] font-mono text-white/35">{{ state.vp[5].imageName }}</p>
+        <div class="absolute bottom-2 left-2 pointer-events-none space-y-0.5">
+          <span class="rounded bg-black/50 px-1.5 py-0.5 text-[10px] text-neutral-400 tabular-nums">{{ state.zoomPct(5) }}</span>
+          @if (state.vp[5].activePreset) {
+            <p class="rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-pink-300/60">{{ state.vp[5].activePreset }}</p>
+          }
+        </div>
+        <p class="absolute bottom-2 right-2 pointer-events-none rounded bg-black/30 px-1.5 py-0.5 text-[9px] text-white/35 tabular-nums">
+          B{{ state.vp[5].brightness }}% C{{ state.vp[5].contrast }}%
         </p>
       }
     </div>

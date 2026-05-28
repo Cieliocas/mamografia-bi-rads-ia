@@ -5,7 +5,7 @@ import {
   LucideAngularModule,
   Hand, Target, Ruler, ArrowUpRight, Paintbrush,
   Eraser, Trash2, FlipHorizontal2,
-  LayoutTemplate, Columns2, Grid2x2,
+  LayoutTemplate, Columns2, Grid2x2, LayoutGrid,
   RotateCcw, Sun, Contrast
 } from 'lucide-angular';
 
@@ -27,7 +27,7 @@ export class ToolsPanelComponent {
   readonly icons = {
     Hand, Target, Ruler, ArrowUpRight, Paintbrush,
     Eraser, Trash2, FlipHorizontal2,
-    LayoutTemplate, Columns2, Grid2x2,
+    LayoutTemplate, Columns2, Grid2x2, LayoutGrid,
     RotateCcw, Sun, Contrast
   };
 
