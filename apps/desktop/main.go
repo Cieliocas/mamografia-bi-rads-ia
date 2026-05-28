@@ -59,7 +59,7 @@ func main() {
 		runtime.MessageDialog(app.ctx, runtime.MessageDialogOptions{
 			Type:    runtime.InfoDialog,
 			Title:   "AIdentify",
-			Message: "v0.2.0 — Radiology Precision AI\nIA assistida para mamografia BI-RADS\n\n© 2024 ICIT",
+			Message: "v0.1.0 — Radiology Precision AI\nIA assistida para mamografia BI-RADS\n\n© 2024 ICIT",
 		})
 	})
 
@@ -97,7 +97,7 @@ func main() {
 			WindowIsTranslucent:  false,
 			About: &mac.AboutInfo{
 				Title:   "AIdentify",
-				Message: "v0.2.0 — Radiology Precision AI\n© 2024 ICIT",
+				Message: "v0.1.0 — Radiology Precision AI\n© 2024 ICIT",
 			},
 		},
 	})
