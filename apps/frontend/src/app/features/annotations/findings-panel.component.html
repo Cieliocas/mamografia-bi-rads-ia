@@ -262,68 +262,60 @@
           ></textarea>
         </div>
 
-        <!-- Voice note -->
+        <!-- Voice dictation -->
         <div class="space-y-1.5">
-          <label class="text-[10px] uppercase tracking-wider text-on-surface-variant">Nota de voz</label>
+          <label class="text-[10px] uppercase tracking-wider text-on-surface-variant">Ditado por voz</label>
 
-          @if (!state.selectedROI.annotationId) {
-            <p class="text-[10px] text-amber-400/80">Salve as anotações para habilitar o áudio.</p>
-          } @else {
-
-            <!-- Existing audio -->
-            @if ((state.selectedROI.audioDurationMs ?? 0) > 0) {
-              <div class="flex items-center gap-2 rounded border border-white/8 bg-neutral-900/50 px-2 py-1.5">
-                <button
-                  class="rounded p-1 text-pink-300 hover:text-pink-100 transition"
-                  [title]="audioPlaying && audioPlayingId === state.selectedROI.annotationId ? 'Pausar' : 'Reproduzir'"
-                  (click)="togglePlayback(state.selectedROI.annotationId!)">
-                  <lucide-icon [img]="audioPlaying && audioPlayingId === state.selectedROI.annotationId ? icons.Pause : icons.Play" [size]="13" />
-                </button>
-                <span class="flex-1 tabular-nums text-[10px] text-neutral-300">
-                  {{ formatAudioDuration(state.selectedROI.audioDurationMs ?? 0) }}
-                </span>
-                <button class="rounded p-1 text-red-500/60 hover:text-red-400 transition" title="Excluir áudio" (click)="deleteAudio()">
-                  <lucide-icon [img]="icons.XIcon" [size]="11" />
-                </button>
-              </div>
-            }
-
-            <!-- Recording controls -->
-            @if (audioRecording) {
-              <div class="space-y-1.5">
-                <!-- Recording indicator row -->
-                <div class="flex items-center gap-2 rounded border border-red-500/40 bg-red-900/15 px-2 py-1.5">
-                  <span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
-                  <span class="flex-1 tabular-nums text-[10px] text-red-300">● {{ audioRecordingSec }}s</span>
-                  <button
-                    class="rounded border border-red-500/40 bg-red-900/30 px-2 py-0.5 text-[10px] font-semibold text-red-200 hover:bg-red-900/50 transition"
-                    (click)="stopRecording(true)">Parar</button>
-                </div>
-                <!-- Live transcription preview -->
-                @if (finalTranscript || interimTranscript) {
-                  <div class="rounded border border-white/5 bg-neutral-900/50 px-2 py-1.5 text-[10px] leading-relaxed">
-                    @if (finalTranscript) {
-                      <span class="text-neutral-300">{{ finalTranscript }}</span>
-                    }
-                    @if (interimTranscript) {
-                      <span class="text-neutral-500 italic">{{ interimTranscript }}</span>
-                    }
-                  </div>
-                }
-              </div>
-            } @else {
+          <!-- Existing saved audio note (persisted ROIs only) -->
+          @if (state.selectedROI.annotationId && (state.selectedROI.audioDurationMs ?? 0) > 0) {
+            <div class="flex items-center gap-2 rounded border border-white/8 bg-neutral-900/50 px-2 py-1.5">
               <button
-                class="flex w-full items-center justify-center gap-1.5 rounded border border-white/10 bg-neutral-800/40 px-2 py-1.5 text-[11px] font-semibold text-neutral-300 hover:bg-neutral-700/60 transition disabled:opacity-30"
-                [disabled]="audioUploading"
-                (click)="startRecording()">
-                <lucide-icon [img]="icons.Mic" [size]="12" />
-                {{ audioUploading ? 'Enviando…' : ((state.selectedROI.audioDurationMs ?? 0) > 0 ? 'Regravar' : 'Gravar voz') }}
+                class="rounded p-1 text-pink-300 hover:text-pink-100 transition"
+                [title]="audioPlaying && audioPlayingId === state.selectedROI.annotationId ? 'Pausar' : 'Reproduzir'"
+                (click)="togglePlayback(state.selectedROI.annotationId!)">
+                <lucide-icon [img]="audioPlaying && audioPlayingId === state.selectedROI.annotationId ? icons.Pause : icons.Play" [size]="13" />
               </button>
-            }
+              <span class="flex-1 tabular-nums text-[10px] text-neutral-300">
+                {{ formatAudioDuration(state.selectedROI.audioDurationMs ?? 0) }}
+              </span>
+              <button class="rounded p-1 text-red-500/60 hover:text-red-400 transition" title="Excluir áudio" (click)="deleteAudio()">
+                <lucide-icon [img]="icons.XIcon" [size]="11" />
+              </button>
+            </div>
+          }
 
-            @if (audioError) {
-              <p class="text-[10px] text-red-400">{{ audioError }}</p>
+          <!-- Active dictation -->
+          @if (audioRecording) {
+            <div class="space-y-1.5">
+              <div class="flex items-center gap-2 rounded border border-red-500/40 bg-red-900/15 px-2 py-1.5">
+                <span class="h-2 w-2 rounded-full bg-red-500 animate-pulse"></span>
+                <span class="flex-1 tabular-nums text-[10px] text-red-300">● Ditando… {{ audioRecordingSec }}s</span>
+                <button
+                  class="rounded border border-red-500/40 bg-red-900/30 px-2 py-0.5 text-[10px] font-semibold text-red-200 hover:bg-red-900/50 transition"
+                  (click)="stopRecording(true)">Parar</button>
+              </div>
+              <!-- Interim (unstable) text preview; confirmed text already lands in Observações -->
+              @if (interimTranscript) {
+                <div class="rounded border border-white/5 bg-neutral-900/50 px-2 py-1.5 text-[10px] leading-relaxed">
+                  <span class="text-neutral-500 italic">{{ interimTranscript }}</span>
+                </div>
+              }
+            </div>
+          } @else {
+            <button
+              class="flex w-full items-center justify-center gap-1.5 rounded border border-white/10 bg-neutral-800/40 px-2 py-1.5 text-[11px] font-semibold text-neutral-300 hover:bg-neutral-700/60 transition disabled:opacity-30"
+              [disabled]="audioUploading"
+              (click)="startRecording()">
+              <lucide-icon [img]="icons.Mic" [size]="12" />
+              {{ audioUploading ? 'Enviando…' : 'Ditar para descrição' }}
+            </button>
+            @if (!state.selectedROI.annotationId) {
+              <p class="text-[10px] text-on-surface-variant/50">O texto ditado vai para Observações. Salve para anexar também o áudio.</p>
             }
+          }
+
+          @if (audioError) {
+            <p class="text-[10px] text-red-400">{{ audioError }}</p>
           }
         </div>
 
