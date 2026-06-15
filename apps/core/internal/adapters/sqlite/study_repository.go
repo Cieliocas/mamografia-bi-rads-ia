@@ -111,15 +111,16 @@ func NewStudyRepository(db *sql.DB) *StudyRepository {
 func (r *StudyRepository) Save(ctx context.Context, s *entity.Study) error {
 	_, err := r.db.ExecContext(ctx, `
 		INSERT INTO studies (id, patient_id, patient_uuid, study_date, modality, description, file_path,
-		                    birads_global, conclusion, recommendation, signed_by, signed_at,
+		                    birads_global, birads_density, conclusion, recommendation, signed_by, signed_at,
 		                    created_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			patient_id     = excluded.patient_id,
 			patient_uuid   = excluded.patient_uuid,
 			study_date     = excluded.study_date,
 			description    = excluded.description,
 			birads_global  = excluded.birads_global,
+			birads_density = excluded.birads_density,
 			conclusion     = excluded.conclusion,
 			recommendation = excluded.recommendation,
 			signed_by      = excluded.signed_by,
@@ -131,14 +132,14 @@ func (r *StudyRepository) Save(ctx context.Context, s *entity.Study) error {
 		"MG", // mammography modality constant for now
 		"",
 		s.FilePath,
-		s.BiradsGlobal, s.Conclusion, s.Recommendation, s.SignedBy, s.SignedAt,
+		s.BiradsGlobal, s.BiradsDensity, s.Conclusion, s.Recommendation, s.SignedBy, s.SignedAt,
 		s.CreatedAt.Format(time.RFC3339),
 	)
 	return err
 }
 
 const studyCols = `id, patient_id, patient_uuid, study_date, file_path,
-	birads_global, conclusion, recommendation, signed_by, signed_at, created_at`
+	birads_global, birads_density, conclusion, recommendation, signed_by, signed_at, created_at`
 
 func (r *StudyRepository) FindByID(ctx context.Context, id string) (*entity.Study, error) {
 	row := r.db.QueryRowContext(ctx,
@@ -211,9 +212,9 @@ type scanner interface {
 
 func scanStudy(s scanner) (*entity.Study, error) {
 	var study entity.Study
-	var id, patientID, patientUUID, studyDate, filePath, biradsGlobal, conclusion, recommendation, signedBy, signedAt, createdAt string
+	var id, patientID, patientUUID, studyDate, filePath, biradsGlobal, biradsDensity, conclusion, recommendation, signedBy, signedAt, createdAt string
 	if err := s.Scan(&id, &patientID, &patientUUID, &studyDate, &filePath,
-		&biradsGlobal, &conclusion, &recommendation, &signedBy, &signedAt, &createdAt); err != nil {
+		&biradsGlobal, &biradsDensity, &conclusion, &recommendation, &signedBy, &signedAt, &createdAt); err != nil {
 		return nil, err
 	}
 	study.ID = entity.StudyID(id)
@@ -221,6 +222,7 @@ func scanStudy(s scanner) (*entity.Study, error) {
 	study.PatientUUID = patientUUID
 	study.FilePath = filePath
 	study.BiradsGlobal = biradsGlobal
+	study.BiradsDensity = biradsDensity
 	study.Conclusion = conclusion
 	study.Recommendation = recommendation
 	study.SignedBy = signedBy

@@ -43,6 +43,41 @@ func TestStudyRepository_SaveAndFind(t *testing.T) {
 	}
 }
 
+func TestStudyRepository_BiradsDensityRoundTrip(t *testing.T) {
+	repo := openTestDB(t)
+	ctx := context.Background()
+
+	study := &entity.Study{
+		ID:            entity.StudyID("study-density"),
+		PatientID:     "P777",
+		BiradsGlobal:  "4B",
+		BiradsDensity: "C",
+		StudyDate:     time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
+		CreatedAt:     time.Now(),
+	}
+	if err := repo.Save(ctx, study); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := repo.FindByID(ctx, "study-density")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.BiradsDensity != "C" {
+		t.Errorf("BiradsDensity: expected C got %q", got.BiradsDensity)
+	}
+
+	// Updating density via re-save (ON CONFLICT path) must persist too.
+	study.BiradsDensity = "D"
+	if err := repo.Save(ctx, study); err != nil {
+		t.Fatal(err)
+	}
+	got, _ = repo.FindByID(ctx, "study-density")
+	if got.BiradsDensity != "D" {
+		t.Errorf("BiradsDensity after update: expected D got %q", got.BiradsDensity)
+	}
+}
+
 func TestStudyRepository_List(t *testing.T) {
 	repo := openTestDB(t)
 	ctx := context.Background()

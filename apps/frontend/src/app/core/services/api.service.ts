@@ -13,6 +13,7 @@ export interface OpenStudyRequest {
 
 export interface ClinicalFields {
   birads_global?: string;
+  birads_density?: string;
   conclusion?: string;
   recommendation?: string;
   signed_by?: string;
@@ -290,6 +291,7 @@ export class ApiService {
   /** Updates the clinical report fields on a study (BI-RADS, conclusion, …). */
   patchClinical(studyId: string, fields: {
     birads_global?: string;
+    birads_density?: string;
     conclusion?: string;
     recommendation?: string;
     signed_by?: string;

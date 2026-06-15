@@ -7,15 +7,16 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"mammo/apps/core/internal/application/usecase"
+	"mammo/apps/core/internal/domain/valueobject"
 	"mammo/apps/core/internal/ports/outbound"
 )
 
 // StudyHandler handles /api/studies routes.
 type StudyHandler struct {
-	openStudy       *usecase.OpenStudy
+	openStudy         *usecase.OpenStudy
 	annotationsSaver  *usecase.SaveAnnotations
 	annotationsLoader *usecase.LoadAnnotations
-	studyRepo       outbound.StudyRepository
+	studyRepo         outbound.StudyRepository
 }
 
 func NewStudyHandler(
@@ -45,6 +46,7 @@ func (h *StudyHandler) RegisterRoutes(api *gin.RouterGroup) {
 // patchClinical updates the radiologist's report fields on a study.
 type clinicalReq struct {
 	BiradsGlobal   *string `json:"birads_global,omitempty"`
+	BiradsDensity  *string `json:"birads_density,omitempty"`
 	Conclusion     *string `json:"conclusion,omitempty"`
 	Recommendation *string `json:"recommendation,omitempty"`
 	SignedBy       *string `json:"signed_by,omitempty"`
@@ -63,11 +65,31 @@ func (h *StudyHandler) patchClinical(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
-	if req.BiradsGlobal != nil   { study.BiradsGlobal = *req.BiradsGlobal }
-	if req.Conclusion != nil     { study.Conclusion = *req.Conclusion }
-	if req.Recommendation != nil { study.Recommendation = *req.Recommendation }
-	if req.SignedBy != nil       { study.SignedBy = *req.SignedBy }
-	if req.SignedAt != nil       { study.SignedAt = *req.SignedAt }
+	if req.BiradsGlobal != nil {
+		study.BiradsGlobal = *req.BiradsGlobal
+	}
+	if req.BiradsDensity != nil {
+		// Empty string clears the field; otherwise it must be a valid ACR grade A-D.
+		if *req.BiradsDensity != "" {
+			if _, err := valueobject.NewDensity(*req.BiradsDensity); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+				return
+			}
+		}
+		study.BiradsDensity = *req.BiradsDensity
+	}
+	if req.Conclusion != nil {
+		study.Conclusion = *req.Conclusion
+	}
+	if req.Recommendation != nil {
+		study.Recommendation = *req.Recommendation
+	}
+	if req.SignedBy != nil {
+		study.SignedBy = *req.SignedBy
+	}
+	if req.SignedAt != nil {
+		study.SignedAt = *req.SignedAt
+	}
 
 	if err := h.studyRepo.Save(context.Background(), study); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -106,45 +128,67 @@ func (h *StudyHandler) createStudy(c *gin.Context) {
 	}
 	if m := out.Metadata; m != nil {
 		// Basic (already existed)
-		resp["modality"]       = m.Modality
-		resp["description"]    = m.Description
-		resp["window_center"]  = m.WindowCenter
-		resp["window_width"]   = m.WindowWidth
-		resp["bits_stored"]    = m.BitsStored
-		resp["frame_count"]    = m.FrameCount
-		if m.PixelSpacing > 0 { resp["pixel_spacing"] = m.PixelSpacing }
-		if m.Photometric != "" { resp["photometric"] = m.Photometric }
+		resp["modality"] = m.Modality
+		resp["description"] = m.Description
+		resp["window_center"] = m.WindowCenter
+		resp["window_width"] = m.WindowWidth
+		resp["bits_stored"] = m.BitsStored
+		resp["frame_count"] = m.FrameCount
+		if m.PixelSpacing > 0 {
+			resp["pixel_spacing"] = m.PixelSpacing
+		}
+		if m.Photometric != "" {
+			resp["photometric"] = m.Photometric
+		}
 
 		// ── Full DICOM panel fields ──────────────────────────────────────────
 		// Patient
-		setIfNonEmpty(resp, "patient_name",       m.PatientName)
-		setIfNonEmpty(resp, "patient_birth_date",  m.PatientBirthDate)
-		setIfNonEmpty(resp, "patient_sex",         m.PatientSex)
+		setIfNonEmpty(resp, "patient_name", m.PatientName)
+		setIfNonEmpty(resp, "patient_birth_date", m.PatientBirthDate)
+		setIfNonEmpty(resp, "patient_sex", m.PatientSex)
 		// Study
-		setIfNonEmpty(resp, "study_description",   m.StudyDescription)
-		setIfNonEmpty(resp, "accession_number",    m.AccessionNumber)
-		setIfNonEmpty(resp, "study_instance_uid",  m.StudyInstanceUID)
+		setIfNonEmpty(resp, "study_description", m.StudyDescription)
+		setIfNonEmpty(resp, "accession_number", m.AccessionNumber)
+		setIfNonEmpty(resp, "study_instance_uid", m.StudyInstanceUID)
 		// Series
-		setIfNonEmpty(resp, "series_number",       m.SeriesNumber)
-		setIfNonEmpty(resp, "laterality",          m.Laterality)
-		setIfNonEmpty(resp, "view_position",       m.ViewPosition)
-		setIfNonEmpty(resp, "body_part_examined",  m.BodyPartExamined)
+		setIfNonEmpty(resp, "series_number", m.SeriesNumber)
+		setIfNonEmpty(resp, "laterality", m.Laterality)
+		setIfNonEmpty(resp, "view_position", m.ViewPosition)
+		setIfNonEmpty(resp, "body_part_examined", m.BodyPartExamined)
 		// Equipment
-		setIfNonEmpty(resp, "manufacturer",        m.Manufacturer)
-		setIfNonEmpty(resp, "manufacturer_model",  m.ManufacturerModel)
-		setIfNonEmpty(resp, "institution_name",    m.InstitutionName)
-		setIfNonEmpty(resp, "station_name",        m.StationName)
+		setIfNonEmpty(resp, "manufacturer", m.Manufacturer)
+		setIfNonEmpty(resp, "manufacturer_model", m.ManufacturerModel)
+		setIfNonEmpty(resp, "institution_name", m.InstitutionName)
+		setIfNonEmpty(resp, "station_name", m.StationName)
 		// Acquisition
-		if m.KVP > 0              { resp["kvp"] = m.KVP }
-		if m.ExposureTime > 0     { resp["exposure_time_ms"] = m.ExposureTime }
-		if m.TubeCurrent > 0      { resp["tube_current_ma"] = m.TubeCurrent }
-		if m.Exposure > 0         { resp["exposure_mas"] = m.Exposure }
-		if m.CompressionForce > 0 { resp["compression_force_n"] = m.CompressionForce }
-		if m.ImagerPixelSpacingRow > 0 { resp["imager_pixel_spacing"] = m.ImagerPixelSpacingRow }
+		if m.KVP > 0 {
+			resp["kvp"] = m.KVP
+		}
+		if m.ExposureTime > 0 {
+			resp["exposure_time_ms"] = m.ExposureTime
+		}
+		if m.TubeCurrent > 0 {
+			resp["tube_current_ma"] = m.TubeCurrent
+		}
+		if m.Exposure > 0 {
+			resp["exposure_mas"] = m.Exposure
+		}
+		if m.CompressionForce > 0 {
+			resp["compression_force_n"] = m.CompressionForce
+		}
+		if m.ImagerPixelSpacingRow > 0 {
+			resp["imager_pixel_spacing"] = m.ImagerPixelSpacingRow
+		}
 		// Image dims
-		if m.BitsAllocated > 0 { resp["bits_allocated"] = m.BitsAllocated }
-		if m.Rows > 0          { resp["rows"] = m.Rows }
-		if m.Columns > 0       { resp["columns"] = m.Columns }
+		if m.BitsAllocated > 0 {
+			resp["bits_allocated"] = m.BitsAllocated
+		}
+		if m.Rows > 0 {
+			resp["rows"] = m.Rows
+		}
+		if m.Columns > 0 {
+			resp["columns"] = m.Columns
+		}
 	}
 	c.JSON(http.StatusCreated, resp)
 }
@@ -178,6 +222,7 @@ func (h *StudyHandler) getStudy(c *gin.Context) {
 		"patient_uuid":   s.PatientUUID,
 		"study_date":     s.StudyDate,
 		"birads_global":  s.BiradsGlobal,
+		"birads_density": s.BiradsDensity,
 		"conclusion":     s.Conclusion,
 		"recommendation": s.Recommendation,
 		"signed_by":      s.SignedBy,
