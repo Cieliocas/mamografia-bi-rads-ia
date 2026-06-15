@@ -87,6 +87,36 @@
         }
       </section>
 
+      <!-- ── Densidade mamária (ACR A-D) ──────────────────────────────────────── -->
+      <section>
+        <p class="mb-2 text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">Densidade mamária (ACR)</p>
+
+        <!-- Density chips -->
+        <div class="flex flex-wrap gap-1.5 mb-2">
+          @for (chip of densityChips; track chip) {
+            <button
+              (click)="selectDensity(chip)"
+              class="flex-1 rounded px-2.5 py-1 text-[11px] font-bold transition border"
+              [class.border-pink-500\/60]="biradsDensity === chip"
+              [class.bg-pink-900\/25]="biradsDensity === chip"
+              [class.text-pink-200]="biradsDensity === chip"
+              [class.border-white\/8]="biradsDensity !== chip"
+              [class.text-on-surface-variant\/50]="biradsDensity !== chip"
+              [class.hover:bg-white\/5]="biradsDensity !== chip"
+              [title]="densityInfo[chip]">
+              {{ chip }}
+            </button>
+          }
+        </div>
+
+        <!-- Description of selected density -->
+        @if (biradsDensity && densityInfo[biradsDensity]) {
+          <p class="rounded border border-white/5 bg-neutral-900/30 px-2.5 py-1.5 text-[10px] text-on-surface-variant">
+            {{ biradsDensity }} — {{ densityInfo[biradsDensity] }}
+          </p>
+        }
+      </section>
+
       <!-- ── Conclusão ─────────────────────────────────────────────────────── -->
       <section>
         <label class="mb-1.5 block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/60">

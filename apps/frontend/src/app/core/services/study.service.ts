@@ -154,6 +154,7 @@ export class StudyService {
       if (!s) return;
       this.currentClinical.set({
         birads_global:  s.birads_global  ?? '',
+        birads_density: s.birads_density ?? '',
         conclusion:     s.conclusion     ?? '',
         recommendation: s.recommendation ?? '',
         signed_by:      s.signed_by      ?? '',

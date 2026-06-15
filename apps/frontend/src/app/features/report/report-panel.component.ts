@@ -40,10 +40,20 @@ export class ReportPanelComponent implements OnInit, OnDestroy {
 
   // ── Form state ───────────────────────────────────────────────────────────────
   biradsGlobal  = '';
+  biradsDensity = '';
   conclusion    = '';
   recommendation = '';
   signedBy      = '';
   signedAt      = '';
+
+  // ── ACR breast density (BI-RADS 5th edition composition) ─────────────────────
+  readonly densityChips = ['A', 'B', 'C', 'D'];
+  readonly densityInfo: Record<string, string> = {
+    A: 'Mamas quase inteiramente adiposas',
+    B: 'Densidades fibroglandulares dispersas',
+    C: 'Tecido mamário heterogeneamente denso',
+    D: 'Mamas extremamente densas',
+  };
 
   // ── Save state ───────────────────────────────────────────────────────────────
   saving    = false;
@@ -58,6 +68,7 @@ export class ReportPanelComponent implements OnInit, OnDestroy {
       const clinical = this.study.currentClinical();
       if (clinical) {
         this.biradsGlobal   = clinical.birads_global   ?? '';
+        this.biradsDensity  = clinical.birads_density  ?? '';
         this.conclusion     = clinical.conclusion      ?? '';
         this.recommendation = clinical.recommendation  ?? '';
         this.signedBy       = clinical.signed_by       ?? '';
@@ -96,6 +107,7 @@ export class ReportPanelComponent implements OnInit, OnDestroy {
     this.saving = true;
     const fields: ClinicalFields = {
       birads_global:  this.biradsGlobal   || undefined,
+      birads_density: this.biradsDensity  || undefined,
       conclusion:     this.conclusion     || undefined,
       recommendation: this.recommendation || undefined,
       signed_by:      this.signedBy       || undefined,
@@ -135,6 +147,12 @@ export class ReportPanelComponent implements OnInit, OnDestroy {
     this.onFieldChange();
   }
 
+  // ── ACR density picker ──────────────────────────────────────────────────────
+  selectDensity(chip: string) {
+    this.biradsDensity = chip === this.biradsDensity ? '' : chip;
+    this.onFieldChange();
+  }
+
   // ── Export actions ─────────────────────────────────────────────────────────
   openReport() {
     const id = this.study.currentStudyId();
@@ -159,6 +177,7 @@ export class ReportPanelComponent implements OnInit, OnDestroy {
 
   private resetForm() {
     this.biradsGlobal = '';
+    this.biradsDensity = '';
     this.conclusion   = '';
     this.recommendation = '';
     this.signedBy     = '';

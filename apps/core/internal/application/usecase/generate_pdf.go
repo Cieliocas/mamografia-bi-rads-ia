@@ -157,6 +157,7 @@ func buildPDF(study *entity.Study, patient *entity.Patient, anns []*entity.Annot
 
 	// ── BI-RADS global badge ─────────────────────────────────────────────────
 	drawBiradsBadge(pdf, study.BiradsGlobal)
+	drawDensityLine(pdf, study.BiradsDensity)
 
 	pdf.Ln(3)
 
@@ -270,6 +271,34 @@ func drawBiradsBadge(pdf *fpdf.Fpdf, birads string) {
 	pdf.SetTextColor(90, 90, 90)
 	pdf.CellFormat(170, 5, biradsLabel(birads), "", 1, "C", false, 0, "")
 	pdf.SetTextColor(colorText, colorText, colorText)
+}
+
+// drawDensityLine prints the ACR breast density (composition) below the
+// BI-RADS badge, e.g. "Densidade mamária: C — Heterogeneamente densas".
+func drawDensityLine(pdf *fpdf.Fpdf, density string) {
+	if density == "" {
+		return
+	}
+	pdf.Ln(1)
+	pdf.SetFont("Helvetica", "B", 9)
+	pdf.CellFormat(170, 5, "Densidade mamária: "+density+" — "+densityLabel(density), "", 1, "C", false, 0, "")
+	pdf.SetTextColor(colorText, colorText, colorText)
+}
+
+// densityLabel returns the BI-RADS 5th-edition description for an ACR grade.
+func densityLabel(d string) string {
+	switch d {
+	case "A":
+		return "Mamas quase inteiramente adiposas"
+	case "B":
+		return "Densidades fibroglandulares dispersas"
+	case "C":
+		return "Tecido mamário heterogeneamente denso"
+	case "D":
+		return "Mamas extremamente densas"
+	default:
+		return ""
+	}
 }
 
 // drawImageSection embeds the annotated PNG into the PDF, centred and scaled
