@@ -49,6 +49,12 @@ export class FindingsPanelComponent implements OnDestroy {
   finalTranscript = '';
   /** Unstable (interim) text being recognised right now — shown live in UI. */
   interimTranscript = '';
+  /**
+   * Snapshot of the ROI's notes when dictation began. Dictated text is merged
+   * onto this baseline each time a final segment arrives, so live updates are
+   * idempotent and never duplicate previously-committed text.
+   */
+  private notesAtDictationStart = '';
 
   /** Audio element for playback (one shared instance per panel). */
   audioPlayer: HTMLAudioElement | null = null;
@@ -80,81 +86,122 @@ export class FindingsPanelComponent implements OnDestroy {
     this.audioPlayer.play().then(() => { this.audioPlaying = true; }).catch(() => {});
   }
 
+  /**
+   * Starts live voice dictation for the selected ROI.
+   *
+   * The transcribed text flows directly into the ROI's notes (the "Observações"
+   * description block) in real time — no save required.  When the ROI is already
+   * persisted (has an annotationId) the raw audio is ALSO captured via
+   * MediaRecorder and uploaded as a permanent voice note on stop.
+   */
   async startRecording() {
+    const roi = this.state.selectedROI;
+    if (!roi) return;
     this.audioError = '';
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const opts: MediaRecorderOptions = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? { mimeType: 'audio/webm;codecs=opus' }
-        : {};
-      this.mediaRecorder = new MediaRecorder(stream, opts);
-      this.audioChunks = [];
-      this.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) this.audioChunks.push(e.data); };
-      this.mediaRecorder.start(250);
-      this.recordingStart = Date.now();
-      this.audioRecordingSec = 0;
-      this.audioRecording = true;
-      this.recordingTimer = setInterval(() => {
-        this.audioRecordingSec = Math.floor((Date.now() - this.recordingStart) / 1000);
-      }, 500);
 
-      // ── SpeechRecognition for real-time transcription ──────────────────────
-      // WKWebView (macOS) exposes webkitSpeechRecognition; standard browsers
-      // expose SpeechRecognition.  Falls back silently when neither is present.
-      const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
-      if (SR) {
-        this.finalTranscript   = '';
-        this.interimTranscript = '';
-        this.recognition = new SR();
-        this.recognition.lang            = 'pt-BR';
-        this.recognition.continuous      = true;
-        this.recognition.interimResults  = true;
-        this.recognition.onresult = (e: any) => {
-          let interim = '';
-          for (let i = e.resultIndex; i < e.results.length; i++) {
-            const text = e.results[i][0].transcript;
-            if (e.results[i].isFinal) {
-              this.finalTranscript += text + ' ';
-            } else {
-              interim += text;
-            }
-          }
-          this.interimTranscript = interim;
-        };
-        // Restart automatically on non-fatal errors (e.g. silence timeout)
-        this.recognition.onerror = (e: any) => {
-          if (e.error !== 'aborted' && this.audioRecording) {
-            try { this.recognition?.start(); } catch {}
-          }
-        };
-        this.recognition.start();
-      }
-    } catch {
-      this.audioError = 'Microfone não disponível';
+    // SpeechRecognition is the heart of dictation; without it there is no
+    // speech-to-text, so bail early with a clear message.
+    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      this.audioError = 'Ditado por voz indisponível neste sistema';
+      return;
     }
+
+    // ── Optional: capture audio blob for a permanent voice note ──────────────
+    // Only when the ROI is already persisted, since the upload endpoint keys
+    // the file by annotationId (audio_handler requires an existing row).
+    this.audioChunks = [];
+    this.mediaRecorder = null;
+    if (roi.annotationId) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const opts: MediaRecorderOptions = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+          ? { mimeType: 'audio/webm;codecs=opus' }
+          : {};
+        this.mediaRecorder = new MediaRecorder(stream, opts);
+        this.mediaRecorder.ondataavailable = e => { if (e.data.size > 0) this.audioChunks.push(e.data); };
+        this.mediaRecorder.start(250);
+      } catch {
+        // Mic capture failed — dictation can still proceed via SpeechRecognition.
+        this.mediaRecorder = null;
+      }
+    }
+
+    // ── Live speech-to-text → description block ──────────────────────────────
+    this.finalTranscript        = '';
+    this.interimTranscript      = '';
+    this.notesAtDictationStart  = roi.notes ?? '';
+    this.recognition = new SR();
+    this.recognition.lang           = 'pt-BR';
+    this.recognition.continuous     = true;
+    this.recognition.interimResults = true;
+    this.recognition.onresult = (e: any) => {
+      let interim = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const text = e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          this.finalTranscript += text + ' ';
+        } else {
+          interim += text;
+        }
+      }
+      this.interimTranscript = interim;
+      // Commit confirmed text into the description block, live.
+      this.applyDictationToNotes();
+    };
+    // Restart automatically on non-fatal errors (e.g. silence timeout).
+    this.recognition.onerror = (e: any) => {
+      if (e.error !== 'aborted' && this.audioRecording) {
+        try { this.recognition?.start(); } catch {}
+      }
+    };
+    this.recognition.start();
+
+    this.recordingStart   = Date.now();
+    this.audioRecordingSec = 0;
+    this.audioRecording   = true;
+    this.recordingTimer = setInterval(() => {
+      this.audioRecordingSec = Math.floor((Date.now() - this.recordingStart) / 1000);
+    }, 500);
+  }
+
+  /**
+   * Merges the confirmed dictation transcript onto the notes baseline captured
+   * when dictation started. Idempotent: re-running never duplicates text, so it
+   * is safe to call on every SpeechRecognition result.
+   */
+  private applyDictationToNotes() {
+    const roi = this.state.selectedROI;
+    if (!roi) return;
+    const dictated = this.finalTranscript.trim();
+    const base     = this.notesAtDictationStart.trim();
+    roi.notes = base && dictated ? `${base}\n${dictated}` : (dictated || base);
+    this.state.updateROI((i) => this.drawRequest.emit(i));
   }
 
   stopRecording(upload = true) {
     if (this.recordingTimer) { clearInterval(this.recordingTimer); this.recordingTimer = null; }
-    if (!this.mediaRecorder) return;
-    const mr = this.mediaRecorder;
-    this.mediaRecorder = null;
+    if (!this.audioRecording && !this.mediaRecorder && !this.recognition) return;
     this.audioRecording = false;
 
-    // Stop SpeechRecognition before stopping the mic stream so we get the
-    // last 'onresult' callback before the recognition session closes.
+    // Stop SpeechRecognition first so we capture the final 'onresult' callback,
+    // then commit whatever was confirmed into the description block.
     if (this.recognition) {
       try { this.recognition.stop(); } catch {}
       this.recognition = null;
     }
+    this.applyDictationToNotes();
+    this.interimTranscript     = '';
+    const transcript           = this.finalTranscript.trim();
+    this.finalTranscript       = '';
+    this.notesAtDictationStart = '';
 
+    // Stop & optionally upload the audio blob — only when one was captured
+    // (i.e. the ROI was persisted at dictation start).
+    const mr = this.mediaRecorder;
+    this.mediaRecorder = null;
+    if (!mr) return;
     mr.stream.getTracks().forEach(t => t.stop());
-
-    // Capture the accumulated transcript before clearing it
-    const transcript = this.finalTranscript.trim();
-    this.finalTranscript   = '';
-    this.interimTranscript = '';
-
     if (!upload) { this.audioChunks = []; return; }
 
     mr.onstop = () => {
@@ -162,13 +209,7 @@ export class FindingsPanelComponent implements OnDestroy {
       const blob = new Blob(this.audioChunks, { type: mr.mimeType || 'audio/webm' });
       this.audioChunks = [];
       const roi = this.state.selectedROI;
-      if (!roi?.annotationId) { this.audioError = 'Salve as anotações antes de gravar áudio'; return; }
-
-      // Append transcribed text to ROI notes
-      if (transcript) {
-        roi.notes = roi.notes ? `${roi.notes}\n${transcript}` : transcript;
-        this.state.updateROI((i) => this.drawRequest.emit(i));
-      }
+      if (!roi?.annotationId) return; // blob only captured for persisted ROIs
 
       this.audioUploading = true;
       this.api.uploadAnnotationAudio(roi.annotationId, blob, durationMs, transcript || undefined).subscribe(res => {
