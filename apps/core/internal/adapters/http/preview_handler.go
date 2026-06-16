@@ -125,7 +125,7 @@ func (h *PreviewHandler) preview(c *gin.Context) {
 	if frameIdx == 0 {
 		pixels, meta, err = h.reader.ReadDICOM(study.FilePath)
 	} else {
-		pixels, err = h.reader.ReadDICOMFrame(study.FilePath, frameIdx)
+		pixels, meta, err = h.reader.ReadDICOMFrame(study.FilePath, frameIdx)
 	}
 	if err != nil {
 		c.JSON(http.StatusUnprocessableEntity, gin.H{"error": err.Error()})

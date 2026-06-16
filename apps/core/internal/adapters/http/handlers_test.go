@@ -52,15 +52,23 @@ func (m *mockReader) ReadDICOM(path string) (*outbound.Pixels16, *outbound.DICOM
 	return p, meta, nil
 }
 
-func (m *mockReader) ReadDICOMFrame(path string, frameIdx int) (*outbound.Pixels16, error) {
+func (m *mockReader) ReadDICOMFrame(path string, frameIdx int) (*outbound.Pixels16, *outbound.DICOMMetadata, error) {
 	pixels := make([]int16, 4*4)
-	return &outbound.Pixels16{
+	p := &outbound.Pixels16{
 		Data:        pixels,
 		Width:       4,
 		Height:      4,
 		Signed:      false,
 		Photometric: "MONOCHROME2",
-	}, nil
+	}
+	meta := &outbound.DICOMMetadata{
+		WindowCenter: 128,
+		WindowWidth:  256,
+		BitsStored:   8,
+		FrameCount:   4,
+		Photometric:  "MONOCHROME2",
+	}
+	return p, meta, nil
 }
 
 // ─── Mock AIClient ────────────────────────────────────────────────────────────
