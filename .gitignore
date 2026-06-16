@@ -38,6 +38,8 @@ build/*
 !apps/frontend/src/assets/icon-512.png
 *.dcm
 *.dicom
+# Test fixtures (small, committed for codec validation in CI).
+!apps/core/internal/adapters/filesystem/testdata/*.dcm
 
 # --- Modelos de IA ---
 # Regra: apenas o modelo final de inferencia do app e versionado.

@@ -223,13 +223,18 @@ func readFrameInt16(ds dicom.Dataset, path, ts string, frameIdx, bitsAlloc, samp
 			"JPEG Lossless (TS %s): pure-Go decoder failed and DCMTK is not installed ('brew install dcmtk')", ts)
 
 	case tsJPEGLSLossless, tsJPEGLSNear:
+		// JPEG-LS (LOCO-I): used by GE Senographe, Kodak DirectView, etc.
+		// Priority: pure-Go decoder → DCMTK (dcmdjpls) shell-out → error.
+		if data, errD := decodeJPEGLSFrame(ef.Data); errD == nil {
+			return data, nil
+		}
 		if frameIdx == 0 {
 			if pix, err := decompressViaDCMTK(path); err == nil {
 				return pix, nil
 			}
 		}
 		return nil, fmt.Errorf(
-			"JPEG-LS (TS %s) requires DCMTK ('brew install dcmtk')", ts)
+			"JPEG-LS (TS %s): pure-Go decoder failed and DCMTK is not installed ('brew install dcmtk')", ts)
 
 	case tsRLELossless:
 		if rows > 0 && cols > 0 {
