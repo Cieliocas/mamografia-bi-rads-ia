@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import {
   LucideAngularModule,
   Trash2, Copy, Clipboard, Undo2, Redo2,
-  Circle, Square, Columns, RotateCw, Download, Upload, FileText, FileJson,
+  Circle, Square, Columns, RotateCw, Download, Upload, FileText, FileJson, Boxes,
   Mic, MicOff, Play, Pause, X as XIcon
 } from 'lucide-angular';
 
@@ -28,7 +28,7 @@ export class FindingsPanelComponent implements OnDestroy {
   readonly api   = inject(ApiService);
   readonly toast = inject(ToastService);
 
-  readonly icons = { Trash2, Copy, Clipboard, Undo2, Redo2, Circle, Square, Columns, RotateCw, Download, Upload, FileText, FileJson, Mic, MicOff, Play, Pause, XIcon };
+  readonly icons = { Trash2, Copy, Clipboard, Undo2, Redo2, Circle, Square, Columns, RotateCw, Download, Upload, FileText, FileJson, Boxes, Mic, MicOff, Play, Pause, XIcon };
 
   // ── Audio recording ────────────────────────────────────────────────────────
   audioRecording = false;
@@ -262,6 +262,11 @@ export class FindingsPanelComponent implements OnDestroy {
     this.api.downloadExport('csv',  this.exportStudyIds);
     this.showExportModal = false;
     this.toast.info('Download CSV iniciado');
+  }
+  exportCOCO()   {
+    this.api.downloadExport('coco', this.exportStudyIds);
+    this.showExportModal = false;
+    this.toast.info('Download COCO JSON iniciado');
   }
   exportReport() {
     const sid = this.study.currentStudyId();

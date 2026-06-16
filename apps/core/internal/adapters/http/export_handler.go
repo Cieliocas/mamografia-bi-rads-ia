@@ -59,8 +59,16 @@ func (h *ExportHandler) exportDataset(c *gin.Context) {
 		return
 	}
 
-	filename := fmt.Sprintf("mammo-export-%s.%s",
-		time.Now().Format("2006-01-02"), string(format))
+	// COCO is JSON under the hood; give it a .json extension and a distinct
+	// name so it doesn't collide with the flat JSON export.
+	ext := string(format)
+	namePrefix := "mammo-export"
+	if format == usecase.ExportCOCO {
+		ext = "json"
+		namePrefix = "mammo-coco"
+	}
+	filename := fmt.Sprintf("%s-%s.%s",
+		namePrefix, time.Now().Format("2006-01-02"), ext)
 	c.Header("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	c.Data(http.StatusOK, mime, buf.Bytes())
 }
@@ -300,4 +308,3 @@ var reportTpl = template.Must(template.New("report").Funcs(template.FuncMap{
 </body>
 </html>
 `))
-

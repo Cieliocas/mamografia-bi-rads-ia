@@ -84,21 +84,21 @@ func newTestServer(t *testing.T) *gin.Engine {
 	}
 	t.Cleanup(func() { _ = db.Close() })
 
-	studyRepo  := sqlite.NewStudyRepository(db)
-	annotRepo  := sqlite.NewAnnotationRepository(db)
+	studyRepo := sqlite.NewStudyRepository(db)
+	annotRepo := sqlite.NewAnnotationRepository(db)
 	patientRepo := sqlite.NewPatientRepository(db)
 
 	reader := &mockReader{}
 
 	ensurePatient := usecase.NewEnsurePatient(patientRepo)
-	openStudyUC   := usecase.NewOpenStudy(studyRepo, reader, ensurePatient)
-	saveAnnotUC   := usecase.NewSaveAnnotations(annotRepo)
-	loadAnnotUC   := usecase.NewLoadAnnotations(annotRepo)
-	updatePatUC   := usecase.NewUpdatePatient(patientRepo)
-	exportUC      := usecase.NewExportDataset(studyRepo, annotRepo)
-	windowingUC   := usecase.NewApplyWindowing()
+	openStudyUC := usecase.NewOpenStudy(studyRepo, reader, ensurePatient)
+	saveAnnotUC := usecase.NewSaveAnnotations(annotRepo)
+	loadAnnotUC := usecase.NewLoadAnnotations(annotRepo)
+	updatePatUC := usecase.NewUpdatePatient(patientRepo)
+	exportUC := usecase.NewExportDataset(studyRepo, annotRepo, reader)
+	windowingUC := usecase.NewApplyWindowing()
 
-	taskQ       := queue.New(1, 4)
+	taskQ := queue.New(1, 4)
 	inferenceUC := usecase.NewRunInference(&mockAI{}, taskQ)
 
 	// Supervisor is permanently disabled so health routes return "disabled"
@@ -106,17 +106,17 @@ func newTestServer(t *testing.T) *gin.Engine {
 	sup := guardian.New("false", nil, "", "", 0, 0)
 	sup.Disable("test mode")
 
-	pdi      := adapthttp.NewPDIHandler(windowingUC)
-	study    := adapthttp.NewStudyHandler(openStudyUC, saveAnnotUC, loadAnnotUC, studyRepo)
-	infer    := adapthttp.NewInferenceHandler(inferenceUC)
-	export   := adapthttp.NewExportHandler(exportUC, studyRepo, annotRepo)
-	preview  := adapthttp.NewPreviewHandler(studyRepo, annotRepo, reader)
-	backup   := adapthttp.NewBackupHandler(db, ":memory:", "")
-	patient  := adapthttp.NewPatientHandler(patientRepo, studyRepo, updatePatUC)
-	audio    := adapthttp.NewAudioHandler(annotRepo, "")
-	health   := adapthttp.NewHealthHandler(sup, "")
-	fs       := adapthttp.NewFsHandler()
-	pdf      := adapthttp.NewPDFHandler(usecase.NewGeneratePDF(studyRepo, annotRepo, patientRepo, reader))
+	pdi := adapthttp.NewPDIHandler(windowingUC)
+	study := adapthttp.NewStudyHandler(openStudyUC, saveAnnotUC, loadAnnotUC, studyRepo)
+	infer := adapthttp.NewInferenceHandler(inferenceUC)
+	export := adapthttp.NewExportHandler(exportUC, studyRepo, annotRepo)
+	preview := adapthttp.NewPreviewHandler(studyRepo, annotRepo, reader)
+	backup := adapthttp.NewBackupHandler(db, ":memory:", "")
+	patient := adapthttp.NewPatientHandler(patientRepo, studyRepo, updatePatUC)
+	audio := adapthttp.NewAudioHandler(annotRepo, "")
+	health := adapthttp.NewHealthHandler(sup, "")
+	fs := adapthttp.NewFsHandler()
+	pdf := adapthttp.NewPDFHandler(usecase.NewGeneratePDF(studyRepo, annotRepo, patientRepo, reader))
 
 	return adapthttp.NewRouter(pdi, study, infer, export, preview, backup, patient, audio, health, fs, pdf)
 }
