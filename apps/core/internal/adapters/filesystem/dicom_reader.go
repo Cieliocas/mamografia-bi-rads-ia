@@ -22,17 +22,17 @@ import (
 
 // Transfer Syntax UIDs commonly seen in mammography systems.
 const (
-	tsImplicitLE       = "1.2.840.10008.1.2"
-	tsExplicitLE       = "1.2.840.10008.1.2.1"
-	tsJPEGBaseline     = "1.2.840.10008.1.2.4.50" // JPEG Baseline (lossy 8-bit)
-	tsJPEGExtended     = "1.2.840.10008.1.2.4.51" // JPEG Extended (lossy 12-bit)
-	tsJPEGLosslessDef  = "1.2.840.10008.1.2.4.70" // JPEG Lossless (Process 14 SV1) — most common in MG
-	tsJPEGLossless     = "1.2.840.10008.1.2.4.57" // JPEG Lossless (Process 14)
-	tsJPEGLSLossless   = "1.2.840.10008.1.2.4.80" // JPEG-LS Lossless
-	tsJPEGLSNear       = "1.2.840.10008.1.2.4.81" // JPEG-LS Near-lossless
-	tsRLELossless      = "1.2.840.10008.1.2.5"    // RLE Lossless
-	tsJPEG2000Loss     = "1.2.840.10008.1.2.4.90" // JPEG 2000 Lossless
-	tsJPEG2000Lossy    = "1.2.840.10008.1.2.4.91" // JPEG 2000 Lossy
+	tsImplicitLE      = "1.2.840.10008.1.2"
+	tsExplicitLE      = "1.2.840.10008.1.2.1"
+	tsJPEGBaseline    = "1.2.840.10008.1.2.4.50" // JPEG Baseline (lossy 8-bit)
+	tsJPEGExtended    = "1.2.840.10008.1.2.4.51" // JPEG Extended (lossy 12-bit)
+	tsJPEGLosslessDef = "1.2.840.10008.1.2.4.70" // JPEG Lossless (Process 14 SV1) — most common in MG
+	tsJPEGLossless    = "1.2.840.10008.1.2.4.57" // JPEG Lossless (Process 14)
+	tsJPEGLSLossless  = "1.2.840.10008.1.2.4.80" // JPEG-LS Lossless
+	tsJPEGLSNear      = "1.2.840.10008.1.2.4.81" // JPEG-LS Near-lossless
+	tsRLELossless     = "1.2.840.10008.1.2.5"    // RLE Lossless
+	tsJPEG2000Loss    = "1.2.840.10008.1.2.4.90" // JPEG 2000 Lossless
+	tsJPEG2000Lossy   = "1.2.840.10008.1.2.4.91" // JPEG 2000 Lossy
 )
 
 // DICOMReader parses real DICOM files using github.com/suyashkumar/dicom.
@@ -45,12 +45,11 @@ type DICOMReader struct{}
 
 func NewDICOMReader() *DICOMReader { return &DICOMReader{} }
 
-func (r *DICOMReader) ReadDICOM(path string) (*outbound.Pixels16, *outbound.DICOMMetadata, error) {
-	ds, err := dicom.ParseFile(path, nil)
-	if err != nil {
-		return nil, nil, fmt.Errorf("dicom_reader: parse %q: %w", path, err)
-	}
-
+// buildMetadata extracts the DICOM header fields from an already-parsed
+// dataset. It is shared by ReadDICOM and ReadDICOMFrame so that every frame —
+// not just frame 0 — carries the windowing and VOI LUT needed to render
+// correctly (important for multi-frame DICOMs such as tomosynthesis/cine).
+func buildMetadata(ds dicom.Dataset, path string) *outbound.DICOMMetadata {
 	meta := &outbound.DICOMMetadata{
 		// Patient
 		PatientName:      firstString(ds, tag.PatientName, ""),
@@ -117,6 +116,17 @@ func (r *DICOMReader) ReadDICOM(path string) (*outbound.Pixels16, *outbound.DICO
 		meta.FrameCount = 1
 	}
 
+	return meta
+}
+
+func (r *DICOMReader) ReadDICOM(path string) (*outbound.Pixels16, *outbound.DICOMMetadata, error) {
+	ds, err := dicom.ParseFile(path, nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("dicom_reader: parse %q: %w", path, err)
+	}
+
+	meta := buildMetadata(ds, path)
+
 	ts := strings.TrimSpace(firstString(ds, tag.TransferSyntaxUID, ""))
 
 	bitsAlloc := meta.BitsAllocated
@@ -130,31 +140,30 @@ func (r *DICOMReader) ReadDICOM(path string) (*outbound.Pixels16, *outbound.DICO
 	if err != nil {
 		return nil, nil, fmt.Errorf("dicom_reader: pixels in %q (TS=%s): %w", path, ts, err)
 	}
-	pixels.Signed       = pixelRepr == 1
-	pixels.Photometric  = meta.Photometric
+	pixels.Signed = pixelRepr == 1
+	pixels.Photometric = meta.Photometric
 	return pixels, meta, nil
 }
 
 // ReadDICOMFrame reads a specific frame (0-indexed) from a DICOM file.
-func (r *DICOMReader) ReadDICOMFrame(path string, frameIdx int) (*outbound.Pixels16, error) {
+// It returns the full header metadata too so callers (e.g. the preview handler)
+// can apply the VOI LUT and windowing to every frame, not only frame 0.
+func (r *DICOMReader) ReadDICOMFrame(path string, frameIdx int) (*outbound.Pixels16, *outbound.DICOMMetadata, error) {
 	ds, err := dicom.ParseFile(path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("dicom_reader: parse %q: %w", path, err)
+		return nil, nil, fmt.Errorf("dicom_reader: parse %q: %w", path, err)
 	}
+	meta := buildMetadata(ds, path)
 	ts := strings.TrimSpace(firstString(ds, tag.TransferSyntaxUID, ""))
-	bitsAlloc, _ := firstInt(ds, tag.BitsAllocated)
 	samplesPerPx, _ := firstInt(ds, tag.SamplesPerPixel)
-	rows, _ := firstInt(ds, tag.Rows)
-	cols, _ := firstInt(ds, tag.Columns)
 	pixelRepr, _ := firstInt(ds, tag.PixelRepresentation)
-	photometric := firstString(ds, tag.PhotometricInterpretation, "")
-	pixels, err := readFrameInt16(ds, path, ts, frameIdx, bitsAlloc, samplesPerPx, rows, cols)
+	pixels, err := readFrameInt16(ds, path, ts, frameIdx, meta.BitsAllocated, samplesPerPx, meta.Rows, meta.Columns)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	pixels.Signed      = pixelRepr == 1
-	pixels.Photometric = photometric
-	return pixels, nil
+	pixels.Signed = pixelRepr == 1
+	pixels.Photometric = meta.Photometric
+	return pixels, meta, nil
 }
 
 func countFrames(ds dicom.Dataset) int {
@@ -352,13 +361,19 @@ func nativeToPixels16(nd frame.INativeFrame) (*outbound.Pixels16, error) {
 	data := make([]int16, 0, rows*cols)
 	switch s := raw.(type) {
 	case []uint16:
-		for _, v := range s { data = append(data, int16(v)) }
+		for _, v := range s {
+			data = append(data, int16(v))
+		}
 	case []int16:
 		data = append(data, s...)
 	case []uint8:
-		for _, v := range s { data = append(data, int16(v)) }
+		for _, v := range s {
+			data = append(data, int16(v))
+		}
 	case []int:
-		for _, v := range s { data = append(data, int16(v)) }
+		for _, v := range s {
+			data = append(data, int16(v))
+		}
 	default:
 		return nil, fmt.Errorf("unsupported pixel slice type %T", raw)
 	}
@@ -544,7 +559,9 @@ func firstFloat(ds dicom.Dataset, t tag.Tag) (float64, bool) {
 	}
 	switch v := el.Value.GetValue().(type) {
 	case []float64:
-		if len(v) > 0 { return v[0], true }
+		if len(v) > 0 {
+			return v[0], true
+		}
 	case []string:
 		if len(v) > 0 {
 			if f, err := strconv.ParseFloat(strings.TrimSpace(v[0]), 64); err == nil {
@@ -552,7 +569,9 @@ func firstFloat(ds dicom.Dataset, t tag.Tag) (float64, bool) {
 			}
 		}
 	case []int:
-		if len(v) > 0 { return float64(v[0]), true }
+		if len(v) > 0 {
+			return float64(v[0]), true
+		}
 	}
 	return 0, false
 }

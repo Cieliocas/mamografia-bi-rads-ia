@@ -41,3 +41,26 @@ func TestDICOMReader_ReadDICOM_RealFile(t *testing.T) {
 		t.Error("PatientID is empty (expected at least fallback)")
 	}
 }
+
+// TestDICOMReader_ReadDICOMFrame_ReturnsMetadata guards the multi-frame fix:
+// ReadDICOMFrame must return the header metadata (not nil) so every frame can
+// be rendered with the correct VOI LUT / windowing, not just frame 0.
+func TestDICOMReader_ReadDICOMFrame_ReturnsMetadata(t *testing.T) {
+	path := findSampleDICOM(t)
+	r := NewDICOMReader()
+	pixels, meta, err := r.ReadDICOMFrame(path, 0)
+	if err != nil {
+		t.Fatalf("ReadDICOMFrame(%s, 0): %v", path, err)
+	}
+	if meta == nil {
+		t.Fatal("ReadDICOMFrame returned nil metadata")
+	}
+	if pixels.Width <= 0 || pixels.Height <= 0 {
+		t.Errorf("invalid dims %dx%d", pixels.Width, pixels.Height)
+	}
+	// Dimensions reported in metadata must match the decoded pixel buffer.
+	if meta.Columns != pixels.Width || meta.Rows != pixels.Height {
+		t.Errorf("meta dims %dx%d != pixel dims %dx%d",
+			meta.Columns, meta.Rows, pixels.Width, pixels.Height)
+	}
+}
