@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	aiclient    "mammo/apps/core/internal/adapters/ai_client"
+	aiclient "mammo/apps/core/internal/adapters/ai_client"
 	"mammo/apps/core/internal/adapters/filesystem"
 	httpadapter "mammo/apps/core/internal/adapters/http"
 	"mammo/apps/core/internal/adapters/sqlite"
@@ -105,7 +105,7 @@ func main() {
 	studyRepo := sqlite.NewStudyRepository(db)
 	annotRepo := sqlite.NewAnnotationRepository(db)
 	patientRepo := sqlite.NewPatientRepository(db)
-	aiClient  := aiclient.New(cfg.AISidecarURL, cfg.AISharedToken)
+	aiClient := aiclient.New(cfg.AISidecarURL, cfg.AISharedToken)
 	dicomReader := filesystem.NewDICOMReader()
 
 	ensurePatient := usecase.NewEnsurePatient(patientRepo)
@@ -121,7 +121,7 @@ func main() {
 		),
 		httpadapter.NewInferenceHandler(usecase.NewRunInference(aiClient, taskQ)),
 		httpadapter.NewExportHandler(
-			usecase.NewExportDataset(studyRepo, annotRepo),
+			usecase.NewExportDataset(studyRepo, annotRepo, dicomReader),
 			studyRepo,
 			annotRepo,
 		),

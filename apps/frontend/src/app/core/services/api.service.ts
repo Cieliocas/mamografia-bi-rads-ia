@@ -264,7 +264,7 @@ export class ApiService {
 
   // ── export ────────────────────────────────────────────────────────────────
   /** Triggers a download of JSON or CSV export via the browser. */
-  downloadExport(format: 'json' | 'csv', studyIds?: string[]) {
+  downloadExport(format: 'json' | 'csv' | 'coco', studyIds?: string[]) {
     const ids = studyIds?.length ? `&study_ids=${studyIds.join(',')}` : '';
     const url = `${this.base}/api/export?format=${format}${ids}`;
     const a = document.createElement('a');
