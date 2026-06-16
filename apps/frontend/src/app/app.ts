@@ -171,7 +171,7 @@ export class App implements OnInit, OnDestroy {
     else if (e.key === 'e' && !e.shiftKey)   this.state.setTool('erase-roi');
     else if (e.key === 'E' && e.shiftKey)    this.state.setTool('erase-ruler');
     else if (e.key === 'i' || e.key === 'I') this.state.toggleInvert((i) => this.viewerRef!.draw(i));
-    // Grid layout shortcuts: 1=1x1, 2=1x2, 4=2x2
+    // Grid layout shortcuts: 1=1x1, 2=1x2, 4=2x2, 6=2x3
     else if (!inField && e.key === '1' && !this.state.selectedROI) {
       e.preventDefault(); this.state.setGrid('1x1', (i) => this.viewerRef!.draw(i));
     }
@@ -180,6 +180,9 @@ export class App implements OnInit, OnDestroy {
     }
     else if (!inField && e.key === '4' && !this.state.selectedROI) {
       e.preventDefault(); this.state.setGrid('2x2', (i) => this.viewerRef!.draw(i));
+    }
+    else if (!inField && e.key === '6' && !this.state.selectedROI) {
+      e.preventDefault(); this.state.setGrid('2x3', (i) => this.viewerRef!.draw(i));
     }
     // Zoom
     else if (!inField && (e.key === '+' || e.key === '=')) {

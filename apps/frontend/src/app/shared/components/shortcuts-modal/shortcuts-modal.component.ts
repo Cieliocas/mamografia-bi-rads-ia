@@ -52,6 +52,7 @@ export class ShortcutsModalComponent {
         { keys: ['1'],        description: '1×1 — viewport único' },
         { keys: ['2'],        description: '1×2 — lado a lado' },
         { keys: ['4'],        description: '2×2 — grade 4 painéis' },
+        { keys: ['6'],        description: '2×3 — grade 6 painéis' },
       ]
     },
     {
