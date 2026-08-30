@@ -74,6 +74,25 @@ export function roiGeometryToBBox(r: { x: number; y: number; rx: number; ry: num
   return { x: r.x - r.rx, y: r.y - r.ry, w: r.rx * 2, h: r.ry * 2 };
 }
 
+/**
+ * True when a ROI accepted from the model no longer matches what it suggested.
+ *
+ * This is what separates `ai_accepted` from `ai_edited`, and it is the whole
+ * reason the original box is kept: a correction says where the model was wrong,
+ * which a fresh annotation never does.
+ *
+ * The tolerance absorbs float noise from the centre/radius round-trip — a
+ * sub-pixel difference is not a radiologist's correction.
+ */
+export function geometryDiffers(r: ROI, tolerancePx = 0.5): boolean {
+  if (!r.aiBbox) return false;
+  const cur = roiGeometryToBBox(r);
+  return Math.abs(cur.x - r.aiBbox.x) > tolerancePx
+      || Math.abs(cur.y - r.aiBbox.y) > tolerancePx
+      || Math.abs(cur.w - r.aiBbox.w) > tolerancePx
+      || Math.abs(cur.h - r.aiBbox.h) > tolerancePx;
+}
+
 /** True when the finding carries a drawable region. */
 export function hasRegion(f: AiFinding): boolean {
   return !!f.bbox && f.bbox.w > 0 && f.bbox.h > 0;

@@ -1,7 +1,7 @@
 import {
-  bboxToRoiGeometry, roiGeometryToBBox, hasRegion, mkVP,
+  bboxToRoiGeometry, roiGeometryToBBox, hasRegion, mkVP, geometryDiffers,
 } from './types';
-import type { AiFinding, BBox } from './types';
+import type { AiFinding, BBox, ROI } from './types';
 
 /**
  * Geometry conversion between the sidecar's boxes and the viewer's ROIs.
@@ -49,4 +49,37 @@ describe('hasRegion', () => {
 
 describe('mkVP', () => {
   it('nasce sem sugestões de IA', () => expect(mkVP().aiFindings).toEqual([]));
+});
+
+
+/**
+ * Telling `ai_accepted` from `ai_edited` is the whole reason the model's
+ * original box is kept. Get this wrong and every correction is filed as a plain
+ * acceptance — the retraining set loses exactly the information it exists for.
+ */
+describe('geometryDiffers', () => {
+  const roi = (over: Partial<ROI>): ROI => ({
+    id: 1, x: 120, y: 230, rx: 20, ry: 30, shape: 'rect',
+    birads: null, label: '', notes: '', isSelected: false, ...over,
+  });
+
+  it('sem sugestão de origem, nada difere', () => {
+    expect(geometryDiffers(roi({}))).toBe(false);
+  });
+
+  it('aceita sem mexer — não difere', () => {
+    expect(geometryDiffers(roi({ aiBbox: { x: 100, y: 200, w: 40, h: 60 } }))).toBe(false);
+  });
+
+  it('ROI movida — difere', () => {
+    expect(geometryDiffers(roi({ x: 160, aiBbox: { x: 100, y: 200, w: 40, h: 60 } }))).toBe(true);
+  });
+
+  it('ROI redimensionada — difere', () => {
+    expect(geometryDiffers(roi({ rx: 35, aiBbox: { x: 100, y: 200, w: 40, h: 60 } }))).toBe(true);
+  });
+
+  it('ruído sub-pixel do arredondamento não conta como correção', () => {
+    expect(geometryDiffers(roi({ x: 120.2, aiBbox: { x: 100, y: 200, w: 40, h: 60 } }))).toBe(false);
+  });
 });

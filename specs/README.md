@@ -32,7 +32,7 @@ roteiro de escrita, o "como" já está no próprio `spec.md` (seções *Protocol
 | 000 | [Constituição](000-constitution.md) | Princípios e escopo travado | — | ✅ vigente |
 | 001 | [Integração do sidecar ONNX](001-integracao-sidecar-onnx/) | Inferência real substitui o mock | D1 · 31/08 | ✅ [verificada](001-integracao-sidecar-onnx/verificacao.md) |
 | 002 | [Ciclo semiautomático](002-ciclo-semiautomatico/) | Sugestão desenhada + aceitar/editar/rejeitar | D2–D3 · 01–02/09 | ✅ [verificada](002-ciclo-semiautomatico/verificacao.md) |
-| 003 | [Proveniência e export](003-proveniencia-e-export/) | Origem da anotação gravada e exportável | D3–D4 · 02–03/09 | ⬜ |
+| 003 | [Proveniência e export](003-proveniencia-e-export/) | Origem da anotação gravada e exportável | D3–D4 · 02–03/09 | ✅ [verificada](003-proveniencia-e-export/verificacao.md) |
 | 004 | [Avaliação técnica](004-avaliacao-tecnica/) | Números e figuras do relatório | D4 · 03/09 | ⬜ |
 | 005 | [Relatório final](005-relatorio-final/) | Entregável PIBITI + saneamento dos docs | D5–D6 · 04–05/09 | ⬜ |
 
@@ -54,8 +54,9 @@ Levantamento que originou estas specs:
 - ~~Os achados de IA são exibidos como texto, sem ação possível~~ — **resolvido na
   Spec 002** (30/08): caixas tracejadas sobre a imagem, aceitar/editar/rejeitar e
   os avisos clínicos obrigatórios.
-- `entity.Annotation` **não tem proveniência**: uma anotação aceita da IA e uma
-  desenhada do zero são indistinguíveis no banco. É a Spec 003.
+- ~~`entity.Annotation` não tem proveniência~~ — **resolvido na Spec 003** (30/08):
+  migração 007, o par (sugerido, corrigido) persistido, e o export COCO separando
+  rejeições como *hard negatives*.
 - `docs/ARCHITECTURE.md`, `CHANGELOG.md` e todo o `relatorios/` contradizem o
   código. Saneamento na Spec 005.
 

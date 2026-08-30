@@ -54,12 +54,24 @@ func (uc *ExportDataset) Execute(ctx context.Context, in ExportDatasetInput, w i
 		return "application/json", uc.writeCOCO(ctx, studies, w)
 	}
 
+	// Provenance travels with every row: without it, an annotation accepted
+	// from the model and one drawn from scratch are indistinguishable, and the
+	// export is useless as a retraining signal.
 	type record struct {
 		StudyID    string `json:"study_id"`
 		PatientID  string `json:"patient_id"`
 		AnnotID    string `json:"annotation_id"`
 		Kind       string `json:"kind"`
 		X, Y, W, H float64
+
+		Source       string  `json:"source"`
+		ModelID      string  `json:"model_id,omitempty"`
+		AIConfidence float64 `json:"ai_confidence,omitempty"`
+		AIKind       string  `json:"ai_kind,omitempty"`
+		AIBirads     string  `json:"ai_birads,omitempty"`
+		// Geometry the model proposed, before human correction. Compare against
+		// X/Y/W/H to recover what the radiologist actually changed.
+		AIX, AIY, AIW, AIH float64
 	}
 
 	var rows []record
@@ -70,15 +82,23 @@ func (uc *ExportDataset) Execute(ctx context.Context, in ExportDatasetInput, w i
 		}
 		for _, a := range anns {
 			r := record{
-				StudyID:   string(s.ID),
-				PatientID: s.PatientID,
-				AnnotID:   string(a.ID),
-				Kind:      string(a.Kind),
+				StudyID:      string(s.ID),
+				PatientID:    s.PatientID,
+				AnnotID:      string(a.ID),
+				Kind:         string(a.Kind),
+				Source:       string(a.Source.Normalize()),
+				ModelID:      a.ModelID,
+				AIConfidence: a.AIConfidence,
+				AIKind:       a.AIKind,
+				AIBirads:     a.AIBirads,
 			}
 			if a.BBox != nil {
 				r.X, r.Y, r.W, r.H = a.BBox.X, a.BBox.Y, a.BBox.Width, a.BBox.Height
 			} else if a.Point != nil {
 				r.X, r.Y = a.Point.X, a.Point.Y
+			}
+			if a.AIBBox != nil {
+				r.AIX, r.AIY, r.AIW, r.AIH = a.AIBBox.X, a.AIBBox.Y, a.AIBBox.Width, a.AIBBox.Height
 			}
 			rows = append(rows, r)
 		}
@@ -126,6 +146,12 @@ type cocoDataset struct {
 	Images      []cocoImage      `json:"images"`
 	Annotations []cocoAnnotation `json:"annotations"`
 	Categories  []cocoCategory   `json:"categories"`
+	// AIRejected holds suggestions the radiologist discarded. They are kept out
+	// of Annotations on purpose: a rejected box is not ground truth, and feeding
+	// it back as a label would poison the very training it is meant to improve.
+	// As a labelled false positive it is still worth as much as a correction,
+	// so it travels in its own key for pipelines that can use hard negatives.
+	AIRejected []cocoRejected `json:"ai_rejected,omitempty"`
 }
 
 type cocoInfo struct {
@@ -147,6 +173,26 @@ type cocoAnnotation struct {
 	BBox       [4]float64 `json:"bbox"` // [x, y, w, h] top-left origin
 	Area       float64    `json:"area"`
 	IsCrowd    int        `json:"iscrowd"`
+
+	// Provenance. COCO consumers ignore unknown keys, so these ride along
+	// without breaking the format.
+	Source       string  `json:"source"`
+	ModelID      string  `json:"model_id,omitempty"`
+	AIConfidence float64 `json:"ai_confidence,omitempty"`
+	AIKind       string  `json:"ai_kind,omitempty"`
+	// AIBBox is the box the model proposed. Present only on AI-derived
+	// annotations; differs from BBox exactly when the radiologist corrected it.
+	AIBBox *[4]float64 `json:"ai_bbox,omitempty"`
+}
+
+// cocoRejected is a suggestion the radiologist discarded: a labelled false
+// positive, carrying only the model's own box.
+type cocoRejected struct {
+	ImageID      int        `json:"image_id"`
+	BBox         [4]float64 `json:"bbox"`
+	ModelID      string     `json:"model_id,omitempty"`
+	AIConfidence float64    `json:"ai_confidence,omitempty"`
+	AIKind       string     `json:"ai_kind,omitempty"`
 }
 
 type cocoCategory struct {
@@ -231,19 +277,45 @@ func (uc *ExportDataset) writeCOCO(ctx context.Context, studies []*entity.Study,
 			return fmt.Errorf("load annotations for %s: %w", s.ID, err)
 		}
 		for _, a := range anns {
+			source := a.Source.Normalize()
+
+			// A rejected suggestion carries no human geometry — the radiologist
+			// asserted nothing. It leaves as a hard negative, never as a label.
+			if source == entity.SourceAIRejected {
+				if a.AIBBox == nil {
+					continue
+				}
+				ds.AIRejected = append(ds.AIRejected, cocoRejected{
+					ImageID:      imgID,
+					BBox:         [4]float64{a.AIBBox.X, a.AIBBox.Y, a.AIBBox.Width, a.AIBBox.Height},
+					ModelID:      a.ModelID,
+					AIConfidence: a.AIConfidence,
+					AIKind:       a.AIKind,
+				})
+				continue
+			}
+
 			// COCO object detection is bounding-box based; skip point-only
 			// annotations that have no box.
 			if a.BBox == nil {
 				continue
 			}
-			ds.Annotations = append(ds.Annotations, cocoAnnotation{
-				ID:         annID,
-				ImageID:    imgID,
-				CategoryID: biradsCategoryID(a.Label),
-				BBox:       [4]float64{a.BBox.X, a.BBox.Y, a.BBox.Width, a.BBox.Height},
-				Area:       a.BBox.Width * a.BBox.Height,
-				IsCrowd:    0,
-			})
+			ann := cocoAnnotation{
+				ID:           annID,
+				ImageID:      imgID,
+				CategoryID:   biradsCategoryID(a.Label),
+				BBox:         [4]float64{a.BBox.X, a.BBox.Y, a.BBox.Width, a.BBox.Height},
+				Area:         a.BBox.Width * a.BBox.Height,
+				IsCrowd:      0,
+				Source:       string(source),
+				ModelID:      a.ModelID,
+				AIConfidence: a.AIConfidence,
+				AIKind:       a.AIKind,
+			}
+			if a.AIBBox != nil {
+				ann.AIBBox = &[4]float64{a.AIBBox.X, a.AIBBox.Y, a.AIBBox.Width, a.AIBBox.Height}
+			}
+			ds.Annotations = append(ds.Annotations, ann)
 			annID++
 		}
 	}
@@ -253,22 +325,34 @@ func (uc *ExportDataset) writeCOCO(ctx context.Context, studies []*entity.Study,
 	return enc.Encode(ds)
 }
 
+// cell renders one CSV value. Fields dropped by omitempty come back missing from
+// the decoded map, and fmt.Sprint would turn those into the literal "<nil>" —
+// a string every consumer would then have to special-case. Empty is correct.
+func cell(r map[string]interface{}, key string) string {
+	v, ok := r[key]
+	if !ok || v == nil {
+		return ""
+	}
+	return fmt.Sprint(v)
+}
+
 func writeCSV(w io.Writer, rows interface{}) error {
 	cw := csv.NewWriter(w)
-	_ = cw.Write([]string{"study_id", "patient_id", "annotation_id", "kind", "x", "y", "w", "h"})
+	_ = cw.Write([]string{
+		"study_id", "patient_id", "annotation_id", "kind", "x", "y", "w", "h",
+		"source", "model_id", "ai_confidence", "ai_kind", "ai_birads",
+		"ai_x", "ai_y", "ai_w", "ai_h",
+	})
 	b, _ := json.Marshal(rows)
 	var raw []map[string]interface{}
 	_ = json.Unmarshal(b, &raw)
 	for _, r := range raw {
 		_ = cw.Write([]string{
-			fmt.Sprint(r["study_id"]),
-			fmt.Sprint(r["patient_id"]),
-			fmt.Sprint(r["annotation_id"]),
-			fmt.Sprint(r["kind"]),
-			fmt.Sprint(r["X"]),
-			fmt.Sprint(r["Y"]),
-			fmt.Sprint(r["W"]),
-			fmt.Sprint(r["H"]),
+			cell(r, "study_id"), cell(r, "patient_id"), cell(r, "annotation_id"), cell(r, "kind"),
+			cell(r, "X"), cell(r, "Y"), cell(r, "W"), cell(r, "H"),
+			cell(r, "source"), cell(r, "model_id"), cell(r, "ai_confidence"),
+			cell(r, "ai_kind"), cell(r, "ai_birads"),
+			cell(r, "AIX"), cell(r, "AIY"), cell(r, "AIW"), cell(r, "AIH"),
 		})
 	}
 	cw.Flush()

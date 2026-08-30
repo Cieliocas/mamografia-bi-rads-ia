@@ -479,6 +479,9 @@ export class FindingsPanelComponent implements OnDestroy {
   rejectFinding(f: AiFinding) {
     if (f.status !== 'pending') return;
     f.status = 'rejected';
+    // A rejection is data, not just a UI dismissal — announce the change so
+    // autosave writes it down before the viewport can be cleared.
+    this.state.annotationsChanged$.next(this.state.activeVp);
     this.draw(this.state.activeVp);
   }
 
@@ -493,7 +496,7 @@ export class FindingsPanelComponent implements OnDestroy {
     });
   }
   persist() {
-    this.study.saveAnnotations(this.state.rois, ok => {
+    this.study.saveAnnotations(this.state.activeVPData, ok => {
       if (ok) this.toast.success('Anotações salvas');
       else    this.toast.error('Falha ao salvar anotações');
     });

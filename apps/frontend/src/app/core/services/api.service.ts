@@ -2,7 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { ROI } from '../../shared/models/types';
+import { ROI, geometryDiffers } from '../../shared/models/types';
+import type { AiFinding, AnnotationSource, BBox } from '../../shared/models/types';
 import { ToastService } from './toast.service';
 
 // ─── DTOs (mirror Go DTOs in apps/core/internal/application/usecase) ──────────
@@ -110,6 +111,15 @@ export interface AnnotationDTO {
   notes?: string;
   audio_duration_ms?: number;
   audio_transcript?: string;
+
+  // ── Provenance ─────────────────────────────────────────────────────────────
+  source?: AnnotationSource;
+  model_id?: string;
+  ai_confidence?: number;
+  ai_kind?: string;
+  ai_birads?: string;
+  /** Box the model proposed, before any human correction. */
+  ai_bbox?: BBox;
 }
 
 export interface SaveAnnotationsRequest {
@@ -230,7 +240,14 @@ export class ApiService {
   }
 
   // ── annotations ───────────────────────────────────────────────────────────
-  saveAnnotations(studyId: string, rois: ROI[]): Observable<boolean> {
+  /**
+   * Persists the radiologist's marks plus the suggestions they discarded.
+   *
+   * Rejections are sent as annotations of their own: a false positive is worth
+   * as much for retraining as a correction, and it exists nowhere else once the
+   * viewport is cleared. They carry the model's box and no human geometry.
+   */
+  saveAnnotations(studyId: string, rois: ROI[], rejected: AiFinding[] = []): Observable<boolean> {
     const annotations: AnnotationDTO[] = rois.map(r => ({
       ...(r.annotationId ? { id: r.annotationId } : {}),
       kind: r.shape === 'rect' ? 'rect' : 'ellipse',
@@ -240,7 +257,31 @@ export class ApiService {
       h: r.ry * 2,
       ...(r.label ? { label: r.label } : {}),
       ...(r.notes ? { notes: r.notes } : {}),
+      // A ROI accepted from the model and then moved is an edit, not a plain
+      // acceptance — the difference is the whole point of keeping ai_bbox.
+      ...(r.source ? { source: geometryDiffers(r) ? 'ai_edited' as const : r.source } : {}),
+      ...(r.modelId ? { model_id: r.modelId } : {}),
+      ...(r.aiConfidence != null ? { ai_confidence: r.aiConfidence } : {}),
+      ...(r.aiKind ? { ai_kind: r.aiKind } : {}),
+      ...(r.aiBirads ? { ai_birads: r.aiBirads } : {}),
+      ...(r.aiBbox ? { ai_bbox: r.aiBbox } : {}),
     }));
+
+    for (const f of rejected) {
+      if (!f.bbox) continue;
+      annotations.push({
+        id: f.id,
+        kind: 'rect',
+        // No human geometry: the radiologist asserted nothing here.
+        x: 0, y: 0, w: 0, h: 0,
+        source: 'ai_rejected',
+        model_id: f.modelId,
+        ai_confidence: f.confidence,
+        ai_kind: f.kind,
+        ai_birads: f.birads,
+        ai_bbox: f.bbox,
+      });
+    }
     return this.http.post(`${this.base}/api/studies/${studyId}/annotations`, {
       annotations
     } as SaveAnnotationsRequest).pipe(

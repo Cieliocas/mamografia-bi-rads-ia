@@ -368,7 +368,12 @@ export class StudyService {
       // Step 4 — restore annotations from backend.
       if (entry.studyId && onAnnotations) {
         this.api.getAnnotations(entry.studyId).subscribe(res => {
-          const rois: Partial<ROI>[] = (res.annotations ?? []).map((a, i) => {
+          const rois: Partial<ROI>[] = (res.annotations ?? [])
+            // A rejected suggestion is stored as an annotation so it survives
+            // for retraining, but it is not a marking: it has no human geometry
+            // and must never come back onto the image as a ROI.
+            .filter(a => a.source !== 'ai_rejected')
+            .map((a, i) => {
             // Backend returns entity.Annotation with bbox nested as {x,y,w,h}.
             const bx = a.bbox?.x ?? a.x ?? 0;
             const by = a.bbox?.y ?? a.y ?? 0;
@@ -387,6 +392,14 @@ export class StudyService {
               notes: a.notes ?? '',
               isSelected: false,
               audioDurationMs: a.audio_duration_ms ?? 0,
+              // Provenance survives the round-trip, so a re-save does not
+              // downgrade an AI-derived annotation back to "manual".
+              source: a.source,
+              modelId: a.model_id,
+              aiConfidence: a.ai_confidence,
+              aiKind: a.ai_kind,
+              aiBirads: a.ai_birads,
+              aiBbox: a.ai_bbox,
             };
           });
           onAnnotations(rois);
@@ -431,10 +444,18 @@ export class StudyService {
     });
   }
 
-  /** Persists current ROIs as annotations on the active study. */
-  saveAnnotations(rois: VP['rois'], onDone?: (ok: boolean) => void) {
+  /**
+   * Persists the viewport's annotations: the radiologist's marks plus the
+   * suggestions they rejected.
+   *
+   * Takes the whole viewport rather than just the ROIs because a rejection is
+   * an annotation too — it lives in `aiFindings`, and it is lost the moment the
+   * viewport is cleared if nobody writes it down.
+   */
+  saveAnnotations(vp: VP, onDone?: (ok: boolean) => void) {
     const studyId = this.currentStudyId();
     if (!studyId) { onDone?.(false); return; }
-    this.api.saveAnnotations(studyId, rois).subscribe(ok => onDone?.(ok));
+    const rejected = (vp.aiFindings ?? []).filter(f => f.status === 'rejected');
+    this.api.saveAnnotations(studyId, vp.rois, rejected).subscribe(ok => onDone?.(ok));
   }
 }

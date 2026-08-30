@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { StudyService } from './study.service';
+import { mkVP } from '../../shared/models/types';
 import { ToastService } from './toast.service';
 
 describe('StudyService', () => {
@@ -86,7 +87,7 @@ describe('StudyService', () => {
         isSelected: false, audioDurationMs: 0 } as any,
     ];
 
-    service.saveAnnotations(rois, () => {});
+    service.saveAnnotations({ ...mkVP(), rois } as any, () => {});
 
     const req = http.expectOne(r => r.url.includes('/api/studies/study-abc/annotations'));
     expect(req.request.method).toBe('POST');
