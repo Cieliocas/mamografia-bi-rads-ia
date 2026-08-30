@@ -36,6 +36,8 @@ build/*
 !apps/frontend/src/favicon.ico
 !apps/frontend/src/assets/icon-192.png
 !apps/frontend/src/assets/icon-512.png
+# Figuras das specs: renderizadas a partir de DICOM, sem identificadores.
+!specs/**/dados/*.png
 *.dcm
 *.dicom
 # Test fixtures (small, committed for codec validation in CI).

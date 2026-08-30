@@ -255,6 +255,10 @@ func (uc *ExportDataset) writeCOCO(ctx context.Context, studies []*entity.Study,
 	ds := cocoDataset{
 		Info:       cocoInfo{Description: "AIdentify mammography BI-RADS dataset", Version: "1.0"},
 		Categories: cocoCategories(),
+		// Non-nil so an export with no annotations serialises as [] rather than
+		// null: COCO consumers iterate this key and choke on null.
+		Images:      []cocoImage{},
+		Annotations: []cocoAnnotation{},
 	}
 
 	annID := 1

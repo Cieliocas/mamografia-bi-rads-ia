@@ -1,0 +1,7 @@
+imagem,tipo,width,height,abrir_ms,render_ms,preview_bytes,inferencia_media_ms,inferencia_desvio_ms,inferencia_min_ms,inferencia_max_ms,model_id,n_achados,n_com_caixa,n_assessment,p_maligno,gate_acionado,kinds
+R-CC,MG real,2800,3518,96,221,1087684,566,47,521,640,cascade-hybrid-yolo11n-onnx,1,0,1,0.01,False,assessment
+L-CC,MG real,2800,3518,105,208,1031768,516,2,513,518,cascade-hybrid-yolo11n-onnx,1,0,1,0.034,False,assessment
+R-MLO,MG real,2800,3518,91,245,1486724,523,6,514,534,cascade-hybrid-yolo11n-onnx,1,0,1,0.004,False,assessment
+L-MLO,MG real,2800,3518,110,234,1354322,532,11,514,544,cascade-hybrid-yolo11n-onnx,1,0,1,0.012,False,assessment
+JPEG-LS a,fixture comprimido,168,168,3,1,247,522,5,512,525,cascade-hybrid-yolo11n-onnx,1,0,1,0.016,False,assessment
+JPEG-LS b,fixture comprimido,168,168,2,2,247,535,3,529,539,cascade-hybrid-yolo11n-onnx,1,0,1,0.016,False,assessment
