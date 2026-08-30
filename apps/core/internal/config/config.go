@@ -24,6 +24,7 @@ type Config struct {
 	GuardianBackoffMs int
 	GuardianMaxFails  int
 	AIEngineDisabled  bool
+	AIModelBackend    string // "cascade" (padrao) | "mock" — backend do sidecar
 }
 
 func Load() Config {
@@ -39,6 +40,7 @@ func Load() Config {
 		AISidecarWorkDir:  env("AI_ENGINE_WORKDIR", ""),
 		AISidecarScript:   env("AI_ENGINE_SCRIPT", "app/main.py"),
 		AISidecarPython:   env("AI_ENGINE_PYTHON", "python3"),
+		AIModelBackend:    env("MODEL_BACKEND", "cascade"),
 		SQLitePath:        env("SQLITE_PATH", filepath.Join(defaultDataRoot, "mammo.db")),
 		LocalDataRoot:     env("MAMMO_LOCAL_ROOT", defaultDataRoot),
 		GuardianBackoffMs: envInt("AI_GUARDIAN_BACKOFF_MS", 2000),

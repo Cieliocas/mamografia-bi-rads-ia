@@ -69,6 +69,7 @@ func main() {
 		cfg.AISidecarURL+"/health",
 		time.Duration(cfg.GuardianBackoffMs)*time.Millisecond,
 		cfg.GuardianMaxFails)
+	supervisor.SetEnv("MODEL_BACKEND=" + cfg.AIModelBackend)
 	switch {
 	case cfg.AIEngineDisabled:
 		supervisor.Disable("AI_ENGINE_DISABLED=1")

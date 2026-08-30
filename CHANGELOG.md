@@ -6,13 +6,56 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ---
 
+## [Não publicado]
+
+### Adicionado
+
+- **Inferência real por cascata ONNX** (spec 001). O sidecar deixa de responder
+  achados sintéticos e passa a executar dois modelos de verdade, offline:
+  classificador de malignidade (INbreast-Hybrid, Shen et al. 2019) como *gate*,
+  seguido do detector YOLOv11n (TOMPEI-CMMD) quando `P(maligno) ≥ 0,11`.
+  Servido por ONNX Runtime — **TensorFlow deixa de ser dependência de runtime**.
+  Modelos e sidecar são autoria de Micaías Carvalho Vieira.
+- **Sidecar reestruturado** em `app/{config,schemas,security}`, `app/routers/` e
+  `app/inference/` (registry + backends `cascade`/`mock`), com 24 testes.
+- **`MODEL_BACKEND` propagado pelo Go Core**: o guardian sobe o sidecar em
+  `cascade` por padrão (`guardian.SetEnv`), com fallback automático para `mock`
+  quando os `.onnx` não estão instalados.
+- **Terceiro tipo de achado — `assessment`**: avaliação nível-imagem, sem caixa,
+  devolvida quando o gate fecha. `confidence` carrega `P(maligno)`.
+- **`models/CHECKSUMS.txt`** versionado, para rastrear a identidade dos pesos que
+  o repositório não versiona.
+
+### Corrigido
+
+- **Resposta silenciosamente errada em DICOM comprimido.** O sidecar não
+  descomprimia JPEG-LS / JPEG Lossless (faltavam os plugins do pydicom) e
+  substituía a imagem por um frame preto 512×512 — a cascata então devolvia um
+  veredito "benigno" confiante sobre uma imagem que ninguém leu. Agora os codecs
+  (`pylibjpeg`, `pylibjpeg-libjpeg`, `pyjpegls`) fazem parte do runtime, e
+  `/predict` responde **422** quando não consegue decodificar com um modelo real
+  carregado. O frame de fallback só permanece em modo mock, do qual dev e CI
+  dependem.
+- Erro de inferência do Go Core passa a incluir a mensagem do sidecar, em vez de
+  apenas o código HTTP.
+- `docs/ARCHITECTURE.md` corrigido: descrevia TensorFlow/Keras com U-Net e
+  Angular 18, nada disso correspondendo ao código.
+
+### Notas
+
+> ⚠️ Modelos de pesquisa, **não validados clinicamente**. `birads` é heurístico.
+> O gate tem sensibilidade ≈ 0,69 no CMMD: **ausência de caixa não significa
+> ausência de lesão**. Detector fraco fora do domínio CMMD.
+
+---
+
 ## [0.1.0] — 2026-05-27
 
 ### Added
 
 #### Core backend (Go)
 - **DICOM viewer**: servidor Go (Gin) renderiza arquivos DICOM para PNG com aplicação de janelamento WW/WC, suporte a múltiplos frames e pré-visualização em cache.
-- **Inferência AI**: integração com sidecar Python (YOLOv8) para detecção automática de achados mamográficos; resultado retornado como lista de `FindingDTO` com caixa delimitadora e classificação BI-RADS.
+- **Inferência AI**: contrato completo com o sidecar Python (`POST /predict`, proxy autenticado, fila, guardian) e exibição dos achados na UI. Nesta versão o sidecar respondia com **achados sintéticos (mock)** — a inferência real chegou depois (ver *Não publicado*).
 - **Gestão de estudos**: API REST (`POST /api/studies`, `GET /api/studies`) para criação, listagem e associação de estudos a pacientes.
 - **Anotações**: endpoints para salvar (`POST`) e recuperar (`GET`) anotações ROI (elipse/retângulo) com rótulo, BI-RADS, notas e duração de nota de voz.
 - **Pacientes**: CRUD completo de pacientes com `PATCH /api/patients/:id`.

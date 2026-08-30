@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"sync"
@@ -26,6 +27,7 @@ type Supervisor struct {
 	maxFails       int
 	disabled       bool
 	disabledReason string
+	extraEnv       []string
 }
 
 // New creates a Supervisor. maxFails is the number of consecutive
@@ -85,6 +87,9 @@ func (s *Supervisor) Start(ctx context.Context) error {
 
 	cmd := exec.CommandContext(ctx, s.bin, s.args...)
 	cmd.Dir = s.workDir
+	if len(s.extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), s.extraEnv...)
+	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	if err := cmd.Start(); err != nil {
@@ -98,6 +103,15 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	}(cmd)
 
 	return nil
+}
+
+// SetEnv adds variables to the sidecar process environment, on top of the
+// inherited one. Takes effect on the next (re)start, so the guardian's restart
+// loop keeps the same configuration. Format: "KEY=value".
+func (s *Supervisor) SetEnv(vars ...string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.extraEnv = append(s.extraEnv, vars...)
 }
 
 func (s *Supervisor) EnsureHealthy(ctx context.Context) error {
