@@ -70,6 +70,10 @@ export class StudyService {
   currentFilePath = signal<string | null>(null);
   /** Latest inference response — shown in the findings panel. */
   latestFindings = signal<FindingDTO[]>([]);
+  /** True while an inference request is in flight (2-3s on CPU). */
+  inferenceRunning = signal<boolean>(false);
+  /** model_id of the last inference — distinguishes real cascade from mock. */
+  lastModelId = signal<string>('');
   /** Go Core connectivity state — surfaced in status bar. */
   backendOnline = signal<boolean>(false);
   /** AI sidecar state: 'ready' | 'down' | 'disabled' | 'unknown'. */
@@ -392,13 +396,38 @@ export class StudyService {
     img.src = entry.dataUrl;
   }
 
-  /** Triggers POST /api/tasks/predict and stores the results. */
-  runInference() {
+  /**
+   * Triggers POST /api/tasks/predict and hands the suggestions to `vp`.
+   *
+   * Suggestions belong to the viewport, not to the service, so that opening
+   * another image clears them with the rest of that viewport's state.
+   */
+  runInference(vp?: VP, onDone?: (ok: boolean) => void) {
     const path = this.currentFilePath();
-    if (!path) return;
+    if (!path || this.inferenceRunning()) { onDone?.(false); return; }
     const studyId = this.currentStudyId() ?? undefined;
+    this.inferenceRunning.set(true);
     this.api.runInference(path, studyId).subscribe(resp => {
-      this.latestFindings.set(resp?.findings ?? []);
+      this.inferenceRunning.set(false);
+      // The API layer swallows HTTP errors into null; the caller owns the
+      // user-facing message (the panel raises a toast).
+      if (!resp) { onDone?.(false); return; }
+      this.latestFindings.set(resp.findings ?? []);
+      this.lastModelId.set(resp.model_id ?? '');
+      if (vp) {
+        vp.aiFindings = (resp.findings ?? []).map((f, i) => ({
+          id:         f.id || `ai-${Date.now()}-${i}`,
+          kind:       f.kind || 'finding',
+          birads:     f.birads ?? '',
+          confidence: f.confidence ?? 0,
+          // Zero-area boxes mean an image-level assessment: no region to draw.
+          bbox:       f.bbox && f.bbox.w > 0 && f.bbox.h > 0 ? f.bbox : undefined,
+          notes:      f.notes ?? '',
+          modelId:    resp.model_id ?? '',
+          status:     'pending' as const,
+        }));
+      }
+      onDone?.(true);
     });
   }
 

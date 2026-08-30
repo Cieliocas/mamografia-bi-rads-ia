@@ -65,10 +65,10 @@
       <div class="flex gap-2">
         <button
           class="flex-1 rounded border border-pink-500/30 bg-pink-900/20 px-2 py-1.5 text-[11px] font-semibold text-pink-200 transition hover:bg-pink-900/40 disabled:opacity-30"
-          [disabled]="study.aiEngineState() !== 'ready' || !study.currentFilePath()"
+          [disabled]="study.aiEngineState() !== 'ready' || !study.currentFilePath() || study.inferenceRunning()"
           [title]="study.aiEngineState() === 'ready' ? 'Rodar inferência da IA na imagem atual' : 'IA não disponível'"
           (click)="runInference()">
-          Rodar IA
+          {{ study.inferenceRunning() ? 'Analisando…' : 'Rodar IA' }}
         </button>
         <button
           class="flex-1 rounded border border-white/10 bg-neutral-800/40 px-2 py-1.5 text-[11px] font-semibold text-neutral-300 transition hover:bg-neutral-700/60 disabled:opacity-30"
@@ -77,25 +77,102 @@
           Salvar
         </button>
       </div>
-      @if (study.latestFindings().length) {
-        <div class="space-y-1 pt-1">
-          <p class="text-[10px] uppercase text-on-surface-variant">Achados IA</p>
-          @for (f of study.latestFindings(); track $index) {
-            <div class="rounded border border-white/5 bg-neutral-950/40 px-2 py-1 text-[11px]">
+      @if (pendingFindings.length) {
+        <div class="space-y-1.5 pt-1">
+
+          <!-- Aviso permanente: apoio, não diagnóstico (RF-10). Sem botão de fechar. -->
+          <div class="rounded border border-amber-500/30 bg-amber-950/30 px-2 py-1.5">
+            <p class="text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+              Sugestão de IA — apoio, não diagnóstico
+            </p>
+            <p class="mt-0.5 text-[10px] leading-snug text-amber-200/70">
+              Modelos de pesquisa, não validados clinicamente. O BI-RADS é estimativa
+              heurística. Toda decisão exige avaliação do radiologista.
+            </p>
+          </div>
+
+          <!-- Gate fechado: ausência de caixa não é ausência de lesão (RF-11). -->
+          @if (onlyAssessments) {
+            <div class="rounded border border-rose-500/30 bg-rose-950/25 px-2 py-1.5">
+              <p class="text-[10px] leading-snug text-rose-200">
+                A IA não localizou regiões nesta imagem.
+                <span class="font-semibold">A ausência de marcação não indica ausência de lesão</span> —
+                o classificador não sinaliza cerca de 31% dos casos malignos.
+              </p>
+            </div>
+          }
+
+          <!-- Inferência roda no primeiro frame (RF-13). -->
+          @if (multiFrameWarning) {
+            <p class="rounded bg-neutral-950/40 px-2 py-1 text-[10px] text-neutral-400">
+              Exame com {{ study.currentFrameCount() }} frames — a inferência analisou o primeiro.
+            </p>
+          }
+
+          <div class="flex items-center justify-between pt-0.5">
+            <p class="text-[10px] uppercase tracking-widest text-on-surface-variant">Achados IA</p>
+            @if (study.lastModelId()) {
+              <span class="text-[9px] text-neutral-500" [title]="'model_id: ' + study.lastModelId()">
+                {{ study.lastModelId() }}
+              </span>
+            }
+          </div>
+
+          <!-- Achados com região: acionáveis. -->
+          @for (f of locatedFindings; track f.id) {
+            <div class="rounded border bg-neutral-950/40 px-2 py-1.5"
+                 [style.border-color]="aiColor + '55'">
               <div class="flex items-center justify-between">
-                <span class="font-semibold" [style.color]="biradsColor(f.birads ?? null)">
-                  {{ f.kind || 'finding' }}
-                  @if (f.birads) { <span class="ml-1 text-[10px]">BI-RADS {{ f.birads }}</span> }
+                <span class="text-[11px] font-semibold" [style.color]="aiColor">
+                  {{ f.kind }}
+                  @if (f.birads) {
+                    <span class="ml-1 font-normal text-[10px] text-neutral-400">
+                      BI-RADS {{ f.birads }} <span class="text-neutral-500">(estimado)</span>
+                    </span>
+                  }
                 </span>
-                @if (f.confidence != null) {
-                  <span class="tabular-nums text-[10px] text-neutral-400">
-                    {{ (f.confidence * 100).toFixed(0) }}%
-                  </span>
-                }
+                <span class="tabular-nums text-[10px] text-neutral-400">
+                  {{ (f.confidence * 100).toFixed(0) }}%
+                </span>
               </div>
               @if (f.notes) {
-                <p class="text-[10px] text-neutral-500">{{ f.notes }}</p>
+                <p class="mt-0.5 text-[10px] leading-snug text-neutral-500">{{ f.notes }}</p>
               }
+              <div class="mt-1.5 flex gap-1">
+                <button
+                  class="flex-1 rounded border border-emerald-500/30 bg-emerald-900/20 px-1.5 py-1 text-[10px] font-semibold text-emerald-200 transition hover:bg-emerald-900/40"
+                  title="Converter a sugestão em anotação editável"
+                  (click)="acceptFinding(f)">Aceitar</button>
+                <button
+                  class="flex-1 rounded border border-white/10 bg-neutral-800/40 px-1.5 py-1 text-[10px] font-semibold text-neutral-300 transition hover:bg-neutral-700/60"
+                  title="Aceitar e ajustar a marcação"
+                  (click)="editFinding(f)">Editar</button>
+                <button
+                  class="flex-1 rounded border border-white/10 bg-neutral-800/40 px-1.5 py-1 text-[10px] font-semibold text-neutral-400 transition hover:bg-neutral-700/60"
+                  title="Descartar a sugestão"
+                  (click)="rejectFinding(f)">Rejeitar</button>
+              </div>
+            </div>
+          }
+
+          <!-- Avaliação nível-imagem: sem caixa, portanto sem ações de marcação. -->
+          @for (f of assessmentFindings; track f.id) {
+            <div class="rounded border border-white/8 bg-neutral-950/40 px-2 py-1.5">
+              <div class="flex items-center justify-between">
+                <span class="text-[11px] font-semibold text-neutral-300">Avaliação da imagem</span>
+                <span class="tabular-nums text-[10px] text-neutral-400">
+                  P={{ f.confidence.toFixed(3) }}
+                </span>
+              </div>
+              <p class="mt-0.5 text-[10px] text-neutral-500">
+                Sem localização — BI-RADS {{ f.birads }} <span class="text-neutral-600">(estimado)</span>
+              </p>
+              @if (f.notes) {
+                <p class="mt-0.5 text-[10px] leading-snug text-neutral-600">{{ f.notes }}</p>
+              }
+              <button
+                class="mt-1.5 w-full rounded border border-white/10 bg-neutral-800/40 px-1.5 py-1 text-[10px] font-semibold text-neutral-400 transition hover:bg-neutral-700/60"
+                (click)="rejectFinding(f)">Dispensar</button>
             </div>
           }
         </div>
