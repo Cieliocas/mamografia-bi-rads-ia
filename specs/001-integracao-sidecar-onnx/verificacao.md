@@ -82,3 +82,72 @@ Correção em duas partes:
 - `docs/ARCHITECTURE.md`, `CHANGELOG.md`, `README.md` e `apps/ai-engine/README.md`
   refletem a realidade do código (constituição, regra 2).
 - TensorFlow deixou de ser dependência de runtime.
+
+---
+
+## Adendo — 30/08, primeiras mamografias reais
+
+Chegou um exame real (export de CD, Siemens Mammomat Inspiration): **4 incidências
+MG de 3518×2800, 12 bits, MONOCHROME2, Explicit VR Little Endian (não comprimidas)**
+— RCC, LCC, RMLO e LMLO de uma paciente.
+
+### Concordância com o laudo
+
+| Incidência | `kind` | P(maligno) | BI-RADS da IA |
+|---|---|---:|---|
+| R-CC | assessment | 0,010 | 2 |
+| L-CC | assessment | 0,034 | 2 |
+| R-MLO | assessment | 0,004 | 2 |
+| L-MLO | assessment | 0,012 | 2 |
+
+O laudo do radiologista conclui: *achados benignos*, *sem nódulos, calcificações
+suspeitas ou distorções arquiteturais*,
+**"Classificação final ACR BI-RADS® : Categoria 2"**.
+
+**A IA classificou BI-RADS 2 nas quatro incidências — concordância com o laudo.**
+
+Ressalvas que precisam acompanhar este número em qualquer uso:
+
+1. **n = 1 paciente, 4 imagens.** Não é evidência estatística de nada.
+2. **É um caso negativo.** Concordar num exame benigno **não testa sensibilidade**,
+   que é justamente a fraqueza do gate (≈ 0,69 no CMMD). O gate fechar aqui é o
+   caso fácil; o caso difícil — malignidade que o gate não sinaliza — não foi
+   exercitado por falta de exame positivo.
+3. A faixa BI-RADS coincide por construção: `P < 0,10 → "2"` no mapeamento
+   heurístico. Não é um classificador BI-RADS.
+
+### Latência em mamografia real
+
+3518×2800, cascata completa, n=5: **0,54–0,75 s** (0,54 · 0,54 · 0,55 · 0,66 · 0,75).
+Confirma o RNF-01 com dado real, não sintético.
+
+### Correção derivada: DICOM sem extensão não aparecia no app
+
+O exame real expôs um defeito de usabilidade que os fixtures escondiam. O listador
+filtrava por extensão (`.dcm/.png/.jpg/.jpeg`), e export de CD e dump de PACS
+nomeiam imagens como `<incidência>`, **sem extensão nenhuma** — os quatro arquivos
+eram invisíveis no painel.
+
+Renomear os arquivos seria a correção errada: mutila dado clínico original e quebra
+o índice `DICOMDIR`, que referencia os nomes. A correção certa é detectar pelo
+magic `DICM` no offset 128, como manda o PS3.10.
+
+- `fs_handler.go` passa a expor `is_image`, por extensão ou por magic.
+- `DICOMDIR` é excluído explicitamente: carrega o mesmo magic, mas é índice, não imagem.
+- `.dicom` entrou no allowlist de extensões, que não o continha.
+- O `imageExts` do Go era código morto (quem filtrava era o frontend) — agora é usado.
+- Coberto por `TestFsListDetectsExtensionlessDICOM`.
+
+Verificado na API ao vivo: `<incidência>`–`<incidência>` → `is_image: true`;
+`VERSION`, `LOCKFILE`, `DICOMDIR` → `false`.
+
+> **Pendente:** confirmação pela UI ficou de fora — o painel de arquivos não tem
+> navegação para diretório-pai (só histórico), e o preview em navegador não acessa
+> o seletor nativo de pasta. No app Wails real o caminho é "Abrir pasta".
+
+### Dados sensíveis
+
+O exame é de **paciente real e identificável** (iniciais no diretório, laudo em PDF
+com dados pessoais). Fica **fora do repositório** e fora de qualquer figura do
+relatório sem anonimização — pixels e cabeçalhos DICOM (nome, ID, data de
+nascimento, instituição). Ver constituição P1 e Spec 005 RF-05.

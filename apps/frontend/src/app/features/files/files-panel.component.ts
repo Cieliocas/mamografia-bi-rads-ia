@@ -16,9 +16,11 @@ export interface FsEntry {
   size: number;
   mtime: string;
   ext?: string;
+  /** Set by the Go Core: openable by the viewer, by extension or DICM magic. */
+  is_image?: boolean;
 }
 
-const IMAGE_EXTS = new Set(['.dcm', '.png', '.jpg', '.jpeg']);
+const IMAGE_EXTS = new Set(['.dcm', '.dicom', '.png', '.jpg', '.jpeg']);
 
 @Component({
   selector: 'app-files-panel',
@@ -56,7 +58,11 @@ export class FilesPanelComponent {
   });
 
   isImage(e: FsEntry): boolean {
-    return e.type === 'file' && IMAGE_EXTS.has((e.ext ?? '').toLowerCase());
+    if (e.type !== 'file') return false;
+    // The Go Core sniffs the DICM magic for extensionless files — CD exports and
+    // PACS dumps name mammograms like "<incidência>", with no extension at all.
+    // Extension stays as the fallback for older cores that omit the flag.
+    return e.is_image ?? IMAGE_EXTS.has((e.ext ?? '').toLowerCase());
   }
 
   /** Load a directory, pushing current to history stack. */
