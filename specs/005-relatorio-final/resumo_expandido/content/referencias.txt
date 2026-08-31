@@ -1,0 +1,4 @@
+AMERICAN COLLEGE OF RADIOLOGY. ACR BI-RADS Atlas: Breast Imaging Reporting and Data System. 5. ed. Reston: ACR, 2013.
+NEMA. DICOM Standard. 2024. Disponível em: https://www.dicomstandard.org. Acesso em: ago. 2026.
+RICHARDSON, L.; RUBY, S. RESTful Web Services. Sebastopol: O'Reilly Media, 2007.
+SICKLES, E. A.; D'ORSI, C. J.; BASSETT, L. W. et al. ACR BI-RADS Mammography. In: ACR BI-RADS ATLAS: Breast Imaging Reporting and Data System. 5. ed. Reston: ACR, 2013.
