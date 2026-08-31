@@ -1,15 +1,18 @@
-# Planos de Evolução
+# Planos de Evolução — documento histórico
 
-Planos de refatoração e evolução estrutural do AIdentify Desktop, numerados pela ordem recomendada de execução.
+> **Superado.** A metodologia vigente do projeto é o desenvolvimento orientado a
+> especificação, em [`specs/`](../../specs/README.md). Comece pela
+> [constituição](../../specs/000-constitution.md).
 
-| # | Plano | Estimativa | Status |
-|---|---|---|---|
-| 01 | [Clean Architecture no Go Core](01-clean-architecture-go-core.md) | ~6–7h | Pendente |
-| 02 | [Reestruturação do Layout](02-reestruturacao-layout.md) | ~3–4h | Pendente |
+Os planos 01–03 desta pasta foram executados entre abril e maio de 2026 e estão
+concluídos. Ficam aqui como registro das decisões estruturais que levaram ao
+layout atual do monorepo.
 
-## Convenção
+| # | Plano | Estado |
+|---|---|---|
+| 01 | [Clean Architecture no Go Core](01-clean-architecture-go-core.md) | ✅ concluído |
+| 02 | [Reestruturação do Layout](02-reestruturacao-layout.md) | ✅ concluído |
+| 03 | [UI Feature-Sliced](03-ui-feature-sliced.md) | ✅ concluído |
 
-- Cada plano é autocontido: objetivo, estado atual, estado alvo, passos, riscos, estimativa, critérios de aceitação.
-- Passos são commits mergeáveis individualmente — permite pausar e retomar sem quebrar a branch.
-- Planos são executados na ordem numerada para reduzir conflitos de merge.
-- Planos concluídos ganham um registro em `relatorios/STATUS_ATUAL.md`.
+A evolução posterior (planos P a AE) foi conduzida direto em PRs, sem documento
+de plano versionado — prática que a adoção do SDD encerra.

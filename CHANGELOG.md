@@ -37,9 +37,33 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
   carregado. O frame de fallback só permanece em modo mock, do qual dev e CI
   dependem.
 - Erro de inferência do Go Core passa a incluir a mensagem do sidecar, em vez de
-  apenas o código HTTP.
+  apenas o código HTTP; a falha deixa de ser engolida em silêncio na interface.
+- Export CSV emitia a string literal `<nil>` em células vazias, e o COCO
+  serializava `"annotations": null` num export sem anotações.
 - `docs/ARCHITECTURE.md` corrigido: descrevia TensorFlow/Keras com U-Net e
   Angular 18, nada disso correspondendo ao código.
+
+- **Ciclo de anotação semiautomática** (spec 002). As sugestões da IA deixam de
+  ser lista de texto: são desenhadas sobre a imagem como caixas tracejadas — em
+  cor fora da paleta BI-RADS, para nunca serem confundidas com marcação validada
+  — e podem ser **aceitas, editadas ou rejeitadas**. Aceitar converte a sugestão
+  em ROI editável e persistível.
+- **Avisos clínicos obrigatórios**, não dispensáveis: "apoio, não diagnóstico";
+  aviso explícito de que a ausência de marcação não indica ausência de lesão
+  quando o gate fecha; BI-RADS da IA rotulado "(estimado)"; nota de que a
+  inferência analisou o primeiro frame em exames multi-frame.
+- **Proveniência da anotação** (spec 003, migração `007`). Toda anotação registra
+  sua origem — `manual`, `ai_accepted`, `ai_edited`, `ai_rejected` — com o modelo,
+  a confiança e **a geometria original sugerida antes da correção humana**. É o
+  par (sugerido, corrigido) que torna o dado utilizável para retreino.
+- **Export com proveniência** em JSON, CSV e COCO. Rejeições saem em chave
+  própria `ai_rejected`, e não em `annotations`: um falso positivo não pode virar
+  rótulo de treino.
+- **Detecção de DICOM sem extensão** pelo magic `DICM` (PS3.10). Export de CD e
+  dump de PACS nomeiam imagens como `<incidência>`, sem extensão — antes ficavam
+  invisíveis no navegador de arquivos.
+- **Avaliação técnica** (spec 004): bateria reexecutável e resultados medidos
+  sobre mamografias reais em `specs/004-avaliacao-tecnica/`.
 
 ### Notas
 
