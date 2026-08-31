@@ -5,118 +5,161 @@ const {
   ImageRun, PageBreak, Footer, PageNumber, LevelFormat, convertInchesToTwip,
 } = require('docx');
 
-const FIG = '~/Developer/ICIT/mamografia-bi-rads-ia/specs/004-avaliacao-tecnica/dados';
-const W = 9360;                        // largura útil (A4 com margens de 1")
-const GREY = 'F2F2F2';
+// ─────────────────────────────────────────────────────────────────────────────
+// Formatação conforme ANEXO III do Edital PIBITI 2026-2027 (CPESI/PROPESQI/UFPI)
+//   b.3  fonte 10 pt, justificado          b.9   entrelinhas simples
+//   b.4  Arial em todo o documento         b.10  paginação no rodapé, à direita
+//   b.5  margens de 2 cm                   b.11  espaço vazio junto a ilustrações
+//   b.6  recuo de 1ª linha de 1,25 cm      b.12  "Tabela N:" à esquerda, sem negrito
+//   b.7  controle de órfãs/viúvas          b.13  ilustrações indicam a fonte
+//   b.8  0 pt antes e depois
+// ─────────────────────────────────────────────────────────────────────────────
+const SZ      = 20;    // 10 pt em meio-pontos
+const MARGEM  = 1134;  // 2 cm em twips
+const RECUO   = 709;   // 1,25 cm em twips
+const SIMPLES = 240;   // entrelinhas simples
+const W       = 9070;  // largura útil: A4 (11906) menos 2 cm de cada margem
+const GREY    = 'F2F2F2';
 
-// ── helpers ──────────────────────────────────────────────────────────────────
-const P = (text, o = {}) => new Paragraph({
-  alignment: o.align || AlignmentType.JUSTIFIED,
-  spacing: { after: o.after ?? 160, line: o.line ?? 276 },
-  indent: o.indent === false ? undefined : { firstLine: convertInchesToTwip(0.5) },
-  children: [new TextRun({ text, size: o.size || 22, italics: o.italics, bold: o.bold })],
+const base = { before: 0, after: 0, line: SIMPLES };
+
+// Parágrafo de corpo, com recuo de primeira linha.
+const P = (text) => new Paragraph({
+  alignment: AlignmentType.JUSTIFIED, spacing: base, widowControl: true,
+  indent: { firstLine: RECUO },
+  children: [new TextRun({ text, size: SZ })],
 });
 
+// Parágrafo sem recuo (frases de abertura de lista, por exemplo).
 const Plain = (text, o = {}) => new Paragraph({
-  alignment: o.align || AlignmentType.JUSTIFIED,
-  spacing: { after: o.after ?? 160, line: 276 },
-  children: [new TextRun({ text, size: o.size || 22, bold: o.bold, italics: o.italics })],
+  alignment: o.align || AlignmentType.JUSTIFIED, spacing: base, widowControl: true,
+  children: [new TextRun({ text, size: SZ, bold: o.bold, italics: o.italics })],
 });
 
-// Parágrafo com trechos em negrito: rich('normal ', ['negrito', true], ' fim')
+// Parágrafo com trechos destacados: rich('normal ', ['negrito', true], ['itálico', 'i'])
 const rich = (...parts) => new Paragraph({
-  alignment: AlignmentType.JUSTIFIED,
-  spacing: { after: 160, line: 276 },
-  indent: { firstLine: convertInchesToTwip(0.5) },
+  alignment: AlignmentType.JUSTIFIED, spacing: base, widowControl: true,
+  indent: { firstLine: RECUO },
   children: parts.map(p => Array.isArray(p)
-    ? new TextRun({ text: p[0], bold: p[1] === true, italics: p[1] === 'i', size: 22 })
-    : new TextRun({ text: p, size: 22 })),
+    ? new TextRun({ text: p[0], bold: p[1] === true, italics: p[1] === 'i', size: SZ })
+    : new TextRun({ text: p, size: SZ })),
 });
 
-const H = (text, level) => new Paragraph({
-  heading: level,
-  spacing: { before: 300, after: 160 },
-  children: [new TextRun({ text, bold: true, size: level === HeadingLevel.HEADING_1 ? 26 : 23 })],
-});
+const vazio = () => new Paragraph({ spacing: base, children: [new TextRun({ text: '', size: SZ })] });
+
+// b.3/b.4: títulos em Arial 10, negrito; b: alinhamento à esquerda.
+// b.8 é literal (0 antes, 0 depois), então a separação vem de um parágrafo vazio.
+const H = (text, level) => [
+  vazio(),
+  new Paragraph({
+    heading: level, alignment: AlignmentType.LEFT, widowControl: true,
+    spacing: base,
+    children: [new TextRun({ text, bold: true, size: SZ })],
+  }),
+];
 
 const cell = (text, o = {}) => new TableCell({
   width: { size: o.w, type: WidthType.DXA },
   shading: o.head ? { type: ShadingType.CLEAR, fill: GREY } : undefined,
-  margins: { top: 60, bottom: 60, left: 90, right: 90 },
+  margins: { top: 40, bottom: 40, left: 80, right: 80 },
   children: [new Paragraph({
-    alignment: o.align || AlignmentType.LEFT,
-    spacing: { after: 0 },
-    children: [new TextRun({ text, bold: o.head || o.bold, size: o.size || 19 })],
+    alignment: o.align || AlignmentType.LEFT, spacing: base,
+    children: [new TextRun({ text, bold: o.head || o.bold, size: SZ })],
   })],
 });
 
-const table = (widths, rows, opts = {}) => new Table({
-  columnWidths: widths,
-  width: { size: widths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
-  rows: rows.map((r, i) => new TableRow({
-    tableHeader: i === 0 && !opts.noHead,
-    children: r.map((c, j) => cell(String(c), {
-      w: widths[j], head: i === 0 && !opts.noHead,
-      align: (opts.right || []).includes(j) ? AlignmentType.RIGHT : AlignmentType.LEFT,
+// b.11: um espaço vazio antes da ilustração.
+const table = (widths, rows, opts = {}) => [
+  vazio(),
+  new Table({
+    columnWidths: widths,
+    width: { size: widths.reduce((a, b) => a + b, 0), type: WidthType.DXA },
+    rows: rows.map((r, i) => new TableRow({
+      tableHeader: i === 0 && !opts.noHead,
+      children: r.map((c, j) => cell(String(c), {
+        w: widths[j], head: i === 0 && !opts.noHead,
+        align: (opts.right || []).includes(j) ? AlignmentType.RIGHT : AlignmentType.LEFT,
+      })),
     })),
-  })),
-});
+  }),
+];
 
-const caption = (text) => new Paragraph({
-  alignment: AlignmentType.CENTER,
-  spacing: { before: 80, after: 240 },
-  children: [new TextRun({ text, size: 18, italics: true })],
-});
+const figure = (file, widthPx, heightPx) => [
+  vazio(),
+  new Paragraph({
+    alignment: AlignmentType.CENTER, spacing: base,
+    children: [new ImageRun({
+      type: 'png', data: fs.readFileSync(`${FIG}/${file}`),
+      transformation: { width: widthPx, height: heightPx },
+    })],
+  }),
+];
 
-const figure = (file, widthPx, heightPx) => new Paragraph({
-  alignment: AlignmentType.CENTER,
-  spacing: { before: 200, after: 40 },
-  children: [new ImageRun({
-    type: 'png', data: fs.readFileSync(`${FIG}/${file}`),
-    transformation: { width: widthPx, height: heightPx },
-  })],
-});
+// b.12: numeração arábica separada por dois-pontos, à esquerda, sem negrito.
+// b.13: a ilustração indica a fonte.  b.11: espaço vazio depois.
+const caption = (text, fonte = 'Elaborado pelo autor.') => [
+  new Paragraph({
+    alignment: AlignmentType.LEFT, spacing: base, widowControl: true,
+    children: [new TextRun({ text, size: SZ })],
+  }),
+  new Paragraph({
+    alignment: AlignmentType.LEFT, spacing: base, widowControl: true,
+    children: [new TextRun({ text: `Fonte: ${fonte}`, size: SZ })],
+  }),
+  vazio(),
+];
 
 const quote = (text) => new Paragraph({
-  spacing: { before: 120, after: 200, line: 260 },
-  indent: { left: convertInchesToTwip(0.5), right: convertInchesToTwip(0.3) },
-  border: { left: { style: BorderStyle.SINGLE, size: 12, color: '999999', space: 12 } },
-  children: [new TextRun({ text, size: 20, italics: true })],
+  spacing: base, widowControl: true,
+  indent: { left: RECUO, right: 340 },
+  children: [new TextRun({ text, size: SZ, italics: true })],
 });
 
+// NBR 6023: entrada alinhada à esquerda, sem recuo deslocado.
 const ref = (text) => new Paragraph({
-  spacing: { after: 140, line: 260 },
-  indent: { left: convertInchesToTwip(0.5), hanging: convertInchesToTwip(0.5) },
-  children: [new TextRun({ text, size: 21 })],
+  alignment: AlignmentType.JUSTIFIED, spacing: base, widowControl: true,
+  children: [new TextRun({ text, size: SZ })],
 });
 
 const bullet = (text) => new Paragraph({
   numbering: { reference: 'marcadores', level: 0 },
-  spacing: { after: 100, line: 270 },
-  children: [new TextRun({ text, size: 22 })],
+  alignment: AlignmentType.JUSTIFIED, spacing: base, widowControl: true,
+  children: [new TextRun({ text, size: SZ })],
 });
 
-// ── documento ────────────────────────────────────────────────────────────────
+const FIG = '~/Developer/ICIT/mamografia-bi-rads-ia/specs/004-avaliacao-tecnica/dados';
+
 const doc = new Document({
   creator: 'Franciélio Evangelista dos Santos Castro',
   title: 'Relatório Final PIBITI/CNPq — Ferramenta de Anotação Semi-Automática de Achados Radiológicos em Mamografias',
+  styles: {
+    default: {
+      document: {
+        run: { font: 'Arial', size: SZ },
+        paragraph: { spacing: base, alignment: AlignmentType.JUSTIFIED, widowControl: true },
+      },
+      heading1: { run: { font: 'Arial', size: SZ, bold: true, color: '000000' }, paragraph: { spacing: base } },
+      heading2: { run: { font: 'Arial', size: SZ, bold: true, color: '000000' }, paragraph: { spacing: base } },
+      heading3: { run: { font: 'Arial', size: SZ, bold: true, color: '000000' }, paragraph: { spacing: base } },
+    },
+  },
   numbering: {
     config: [{
       reference: 'marcadores',
       levels: [{
         level: 0, format: LevelFormat.BULLET, text: '•',
         alignment: AlignmentType.LEFT,
-        style: { paragraph: { indent: { left: convertInchesToTwip(0.55), hanging: convertInchesToTwip(0.22) } } },
+        style: { paragraph: { indent: { left: RECUO + 220, hanging: 220 } } },
       }],
     }],
   },
   sections: [{
-    properties: { page: { margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 } } },
+    properties: { page: { margin: { top: MARGEM, bottom: MARGEM, left: MARGEM, right: MARGEM } } },
     footers: {
       default: new Footer({
         children: [new Paragraph({
-          alignment: AlignmentType.CENTER,
-          children: [new TextRun({ children: [PageNumber.CURRENT], size: 18 })],
+          alignment: AlignmentType.RIGHT, spacing: base,
+          children: [new TextRun({ children: [PageNumber.CURRENT], size: SZ, font: 'Arial' })],
         })],
       }),
     },
@@ -124,18 +167,19 @@ const doc = new Document({
 
 // ══════════════════════════ CABEÇALHO ══════════════════════════
 new Paragraph({
-  alignment: AlignmentType.CENTER, spacing: { after: 60 },
-  children: [new TextRun({ text: 'RELATÓRIO DE ATIVIDADES – PROGRAMA DE INICIAÇÃO EM DESENVOLVIMENTO', bold: true, size: 22 })],
+  alignment: AlignmentType.CENTER, spacing: base,
+  children: [new TextRun({ text: 'RELATÓRIO DE ATIVIDADES – PROGRAMA DE INICIAÇÃO EM DESENVOLVIMENTO', bold: true, size: SZ })],
 }),
 new Paragraph({
-  alignment: AlignmentType.CENTER, spacing: { after: 400 },
-  children: [new TextRun({ text: 'TECNOLÓGICO E INOVAÇÃO – PIBITI/CNPq – UFPI', bold: true, size: 22 })],
+  alignment: AlignmentType.CENTER, spacing: base,
+  children: [new TextRun({ text: 'TECNOLÓGICO E INOVAÇÃO – PIBITI/CNPq – UFPI', bold: true, size: SZ })],
 }),
+vazio(),
 
 H('PARTE I – IDENTIFICAÇÃO', HeadingLevel.HEADING_1),
 table([2600, 6760], [
   ['Tipo do Relatório:', '(   ) Parcial      ( X ) Final'],
-  ['Programa:', '( X ) PIBITI/CNPq      (   ) PIBITI/UFPI      (   ) ITV/UFPI'],
+  ['Programa:', '( X ) PIBITI/CNPq     (   ) PIBITI/UFPI     (   ) PIBITI/Setor Produtivo     (   ) ITV/UFPI'],
   ['Título do Plano de Trabalho:', 'Ferramenta de Anotação Semi-Automática de Achados Radiológicos em Mamografias com Suporte à Terminologia BI-RADS'],
   ['Nome do Orientador(a):', 'André Castelo Branco Soares'],
   ['Nome do Orientando(a):', 'Franciélio Evangelista dos Santos Castro'],
@@ -187,7 +231,7 @@ table([2100, 2500, 4760], [
   ['Orquestração', 'Go 1.25 + Gin', 'Leitura e renderização DICOM, guardião do processo de IA, proxy autenticado, persistência SQLite'],
   ['Inferência', 'Python + FastAPI + ONNX Runtime', 'Cascata de dois modelos: classificador de malignidade e detector de lesões'],
 ], { }),
-caption('Tabela 1 — Arquitetura de três camadas da ferramenta.'),
+caption('Tabela 1: Arquitetura de três camadas da ferramenta.'),
 
 rich('A comunicação entre as camadas ocorre exclusivamente em ', ['127.0.0.1', 'i'],
   ' (loopback), autenticada por token compartilhado gerado em tempo de execução. Nenhum dado clínico deixa o dispositivo, em conformidade com a Lei Geral de Proteção de Dados (Lei 13.709/2018, Art. 11), que classifica imagens médicas como dado pessoal sensível de saúde.'),
@@ -208,7 +252,7 @@ P('A avaliação da ferramenta integrada seguiu protocolo documentado e reexecut
 // >>> CONTINUA
 
 // ══════════════════════════ 4. RESULTADOS ══════════════════════════
-H('4. Resultados e Discussão', HeadingLevel.HEADING_2),
+H('4. Resultados e discussão', HeadingLevel.HEADING_2),
 
 H('4.1. A ferramenta entregue', HeadingLevel.HEADING_3),
 
@@ -239,7 +283,8 @@ table([2400, 3400, 3560], [
   ['Classificador (gate)', 'Híbrido baseado em patch classifier (SHEN et al., 2019)', 'INbreast'],
   ['Detector', 'YOLOv11n (Ultralytics)', 'TOMPEI-CMMD — vistas MLO, classes massa e calcificação'],
 ]),
-caption('Tabela 2 — Modelos integrados. Treinamento, avaliação e conversão de autoria de Micaías Carvalho Vieira.'),
+caption('Tabela 2: Modelos de inteligência artificial integrados à ferramenta.',
+  'Elaborado pelo autor. Treinamento, avaliação e conversão dos modelos de autoria de Micaías Carvalho Vieira.'),
 
 rich('O desempenho reportado pelo autor dos modelos, no conjunto de validação particionado por paciente do TOMPEI-CMMD, foi de ',
   ['mAP@50 = 0,626 e mAP@50-95 = 0,315', true],
@@ -256,7 +301,8 @@ rich('O objetivo declarado no plano de trabalho — anotação ',['semi-automát
   ' — exige que a sugestão do modelo seja apresentada sobre a imagem e submetida à decisão do especialista. Esse ciclo foi implementado no período: os achados com localização são desenhados no visualizador como caixas tracejadas, em cor deliberadamente fora da paleta usada para as categorias BI-RADS, de modo que uma sugestão automática nunca seja visualmente confundida com uma marcação já validada. Cada sugestão oferece três ações: aceitar, editar ou rejeitar.'),
 
 figure('fig_ciclo_semiautomatico.png', 600, 383),
-caption('Figura 1 — Ciclo de anotação semi-automática. (a) sugestão pendente, em traço tracejado; (b) sugestão aceita e corrigida pelo anotador, com a caixa original do modelo preservada em cinza. Figura ilustrativa: as caixas foram posicionadas para demonstrar o fluxo, pois a cascata não produziu detecções neste exame.'),
+caption('Figura 1: Ciclo de anotação semi-automática. (a) sugestão pendente, em traço tracejado; (b) sugestão aceita e corrigida pelo anotador, com a caixa original do modelo preservada em cinza. Figura ilustrativa — as caixas foram posicionadas para demonstrar o fluxo, pois a cascata não produziu detecções neste exame.',
+  'Elaborado pelo autor, a partir de exame utilizado na avaliação (imagem desidentificada).'),
 
 P('Aceitar converte a sugestão em região de interesse editável e persistível, com categoria e rótulo pré-preenchidos. Editar executa a mesma conversão e já seleciona a região para ajuste. Rejeitar descarta a sugestão da tela — mas não do registro, conforme descrito na Seção 4.5.'),
 
@@ -277,7 +323,8 @@ table([2900, 1700, 1700, 3060], [
   ['Inferência da cascata', '534 ms', '516–566 ms', 'CPU, cinco repetições por imagem'],
   ['Inicialização até prontidão', '810 ms', '—', 'inclui carga de 124 MB de artefatos'],
 ], { right: [1, 2] }),
-caption('Tabela 3 — Desempenho sobre mamografias de 2800 × 3518 pixels.'),
+caption('Tabela 3: Desempenho da aplicação sobre mamografias de 2800 × 3518 pixels.',
+  'Dados da pesquisa (cinco repetições por imagem, execução em CPU).'),
 
 rich('O ciclo completo de abrir, exibir e analisar uma imagem de 9,8 megapixels fecha em ',
   ['menos de um segundo', true],
@@ -288,7 +335,8 @@ P('O consumo de memória do serviço de inferência parte de 346 MB após a inic
 P('Quanto ao comportamento da cascata, o estágio classificador não foi acionado em nenhuma das quatro incidências, com probabilidade de malignidade estimada entre 0,004 e 0,034, resultando em categoria BI-RADS heurística 2 em todas as vistas.'),
 
 figure('fig_gate_fechado.png', 300, 377),
-caption('Figura 2 — Avaliação em nível de imagem quando o classificador não aciona o detector, com o aviso obrigatório de que a ausência de marcação não indica ausência de lesão.'),
+caption('Figura 2: Avaliação em nível de imagem quando o classificador não aciona o detector, com o aviso de que a ausência de marcação não indica ausência de lesão.',
+  'Dados da pesquisa (resultado real da inferência sobre exame utilizado na avaliação; imagem desidentificada).'),
 
 rich('O laudo radiológico do exame conclui: ', ['achados benignos', 'i'], ', ',
   ['sem nódulos, calcificações suspeitas ou distorções arquiteturais', 'i'], ' e ',
@@ -321,7 +369,7 @@ table([2200, 3400, 3760], [
   ['ai_edited', 'Sugestão corrigida pelo radiologista', 'Indica onde o modelo errou — o sinal mais informativo'],
   ['ai_rejected', 'Sugestão descartada', 'Falso positivo rotulado (exemplo negativo difícil)'],
 ]),
-caption('Tabela 4 — Proveniência registrada em cada anotação.'),
+caption('Tabela 4: Proveniência registrada em cada anotação.'),
 
 rich('Em todos os casos derivados de sugestão, ', ['a geometria originalmente proposta pelo modelo é preservada', true],
   ' junto à geometria corrigida. É esse par que constitui o sinal de treinamento: uma correção informa não apenas a localização da lesão, mas o erro cometido pelo modelo — informação que uma anotação feita do zero não carrega.'),
@@ -338,7 +386,7 @@ table([2600, 3200, 3560], [
   ['Inferência', 'U-Net (segmentação), TensorFlow/Keras', 'Cascata classificador + detector, ONNX Runtime'],
   ['Métrica-alvo', 'val_dice_coef (CBIS-DDSM)', 'mAP@50 / mAP@50-95 (TOMPEI-CMMD)'],
 ]),
-caption('Tabela 5 — Revisões de decisão técnica ao longo do período.'),
+caption('Tabela 5: Revisões de decisão técnica ao longo do período de execução.'),
 
 P('A migração da interface de Electron para Wails decorre do modelo de execução: enquanto o Electron embarca um navegador completo em cada aplicação, o Wails utiliza a WebView nativa do sistema operacional. O resultado, medido nesta implementação, é um núcleo residente de 12 MB — margem de memória relevante quando o restante do sistema precisa manipular imagens médicas de alta resolução e manter dois modelos carregados.'),
 
@@ -391,18 +439,16 @@ table([4400, 2600, 2360], [
   ['Desenvolvimento cooperado com plano de iniciação científica de Micaías Carvalho Vieira (modelos de IA)', 'UFPI – Teresina, PI', 'Jun. – Ago. 2026'],
 ]),
 
-new Paragraph({ spacing: { before: 700 }, alignment: AlignmentType.CENTER,
-  children: [new TextRun({ text: 'Teresina, ____ de ______________ de 2026.', size: 22 })] }),
-new Paragraph({ spacing: { before: 700 }, alignment: AlignmentType.CENTER,
-  children: [new TextRun({ text: '_______________________________________', size: 22 })] }),
-new Paragraph({ alignment: AlignmentType.CENTER,
-  children: [new TextRun({ text: 'Franciélio Evangelista dos Santos Castro — Orientando', size: 20 })] }),
-new Paragraph({ spacing: { before: 500 }, alignment: AlignmentType.CENTER,
-  children: [new TextRun({ text: '_______________________________________', size: 22 })] }),
-new Paragraph({ alignment: AlignmentType.CENTER,
-  children: [new TextRun({ text: 'André Castelo Branco Soares — Orientador', size: 20 })] }),
+vazio(), vazio(),
+Plain('Teresina, ____ de ______________ de 2026.', { align: AlignmentType.CENTER }),
+vazio(), vazio(),
+Plain('_______________________________________', { align: AlignmentType.CENTER }),
+Plain('Franciélio Evangelista dos Santos Castro — Orientando', { align: AlignmentType.CENTER }),
+vazio(), vazio(),
+Plain('_______________________________________', { align: AlignmentType.CENTER }),
+Plain('André Castelo Branco Soares — Orientador', { align: AlignmentType.CENTER }),
 
-    ],
+    ].flat(),
   }],
 });
 

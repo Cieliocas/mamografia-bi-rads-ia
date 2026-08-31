@@ -32,6 +32,37 @@ Os arquivos de `relatorios/` e `NEXT_SESSION.md` **não são versionados** (cons
 `.gitignore`), logo nunca foram públicos — enganavam apenas localmente. Optou-se
 por tarjá-los em vez de apagá-los: são registro de trabalho do orientando.
 
+## Conformidade com o Anexo III do Edital PIBITI 2026-2027
+
+Documento oficial: `Edital_PIBITI_2026-2027_assinado`, Anexo III — Modelo de
+Relatório Parcial e Final, seção "Da formatação do documento".
+
+| Item | Exigência | Estado |
+|---|---|---|
+| a | Três partes: I – Identificação, II – Relato técnico-científico, III – Demais atividades | ✅ |
+| b | Seis seções numeradas com os títulos exatos, alinhadas à esquerda | ✅ |
+| b.1 | Subseções numeradas conforme a seção | ✅ 3.1–3.3, 4.1–4.6 |
+| b.2 | Referências pela ABNT NBR 10520 e 6023 | ✅ 10 entradas |
+| b.3 | Fonte tamanho 10, justificado | ✅ |
+| b.4 | Arial em todo o documento | ✅ |
+| b.5 | Margens de 2 cm | ✅ |
+| b.6 | Recuo de primeira linha de 1,25 cm | ✅ |
+| b.7 | Controle de linhas órfãs/viúvas ativado | ✅ |
+| b.8 | Espaçamento 0 pt antes e 0 pt depois | ✅ |
+| b.9 | Entrelinhas simples | ✅ |
+| b.10 | Paginação arábica, no rodapé, à direita | ✅ |
+| b.11 | Um espaço vazio entre texto e ilustração/tabela | ✅ |
+| b.12 | Título de ilustração/tabela: numeração arábica com dois-pontos, à esquerda, sem negrito | ✅ |
+| b.13 | Ilustração/tabela indicam a fonte | ✅ 7 de 7 |
+| c | Máximo sugerido de 10 páginas | ⚠️ **não verificável nesta máquina** |
+| d | Formato doc/docx | ✅ .docx |
+| e | PDF final ≤ 2 MB para anexação no SIGAA | ⬜ conversão a cargo do orientando |
+
+A primeira versão gerada **violava onze desses itens** — usava Calibri 11, margens
+de 2,54 cm, entrelinhas de 1,15, espaçamento de 8 pt depois, paginação centralizada
+e legendas centralizadas em itálico com travessão, sem indicação de fonte. Todos
+corrigidos no gerador, de modo que a conformidade é reproduzível e não manual.
+
 ## Verificação do documento
 
 Feita **estruturalmente**, não visualmente: não há LibreOffice nem pandoc nesta
@@ -45,8 +76,10 @@ O que foi verificado:
   correto no Word e no Google Docs);
 - texto extraído íntegro, sem caracteres corrompidos, com acentuação correta.
 
-> **Pendente de conferência visual pelo orientando** antes do envio: paginação,
-> quebras de página e posicionamento das figuras.
+> **Pendente de conferência visual pelo orientando** antes do envio: número de
+> páginas (o edital sugere no máximo 10), quebras de página e posicionamento das
+> figuras. Se exceder 10 páginas, a alavanca mais simples é reduzir as dimensões
+> das figuras no gerador — a Figura 1 ocupa cerca de 16 cm de largura.
 
 ## Decisões de conteúdo registradas
 
