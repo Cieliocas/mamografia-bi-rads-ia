@@ -2,9 +2,13 @@ const fs = require('fs');
 const {
   Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType,
   Table, TableRow, TableCell, WidthType, ShadingType, BorderStyle,
-  ImageRun, PageBreak, Footer, PageNumber, LevelFormat, convertInchesToTwip,
+  PageBreak, Footer, PageNumber, LevelFormat, convertInchesToTwip,
 } = require('docx');
 
+// O relatório NÃO contém imagens de exame. As mamografias utilizadas na avaliação
+// são de paciente identificável e cobertas por sigilo; o que elas ilustrariam está
+// descrito em texto. Ver specs/005-relatorio-final/verificacao.md.
+//
 // ─────────────────────────────────────────────────────────────────────────────
 // Formatação conforme ANEXO III do Edital PIBITI 2026-2027 (CPESI/PROPESQI/UFPI)
 //   b.3  fonte 10 pt, justificado          b.9   entrelinhas simples
@@ -49,14 +53,11 @@ const vazio = () => new Paragraph({ spacing: base, children: [new TextRun({ text
 
 // b.3/b.4: títulos em Arial 10, negrito; b: alinhamento à esquerda.
 // b.8 é literal (0 antes, 0 depois), então a separação vem de um parágrafo vazio.
-const H = (text, level) => [
-  vazio(),
-  new Paragraph({
-    heading: level, alignment: AlignmentType.LEFT, widowControl: true,
-    spacing: base,
-    children: [new TextRun({ text, bold: true, size: SZ })],
-  }),
-];
+const H = (text, level) => new Paragraph({
+  heading: level, alignment: AlignmentType.LEFT, widowControl: true,
+  spacing: { before: 120, after: 60, line: SIMPLES },
+  children: [new TextRun({ text, bold: true, size: SZ })],
+});
 
 const cell = (text, o = {}) => new TableCell({
   width: { size: o.w, type: WidthType.DXA },
@@ -81,17 +82,6 @@ const table = (widths, rows, opts = {}) => [
         align: (opts.right || []).includes(j) ? AlignmentType.RIGHT : AlignmentType.LEFT,
       })),
     })),
-  }),
-];
-
-const figure = (file, widthPx, heightPx) => [
-  vazio(),
-  new Paragraph({
-    alignment: AlignmentType.CENTER, spacing: base,
-    children: [new ImageRun({
-      type: 'png', data: fs.readFileSync(`${FIG}/${file}`),
-      transformation: { width: widthPx, height: heightPx },
-    })],
   }),
 ];
 
@@ -127,8 +117,6 @@ const bullet = (text) => new Paragraph({
   children: [new TextRun({ text, size: SZ })],
 });
 
-const FIG = '~/Developer/ICIT/mamografia-bi-rads-ia/specs/004-avaliacao-tecnica/dados';
-
 const doc = new Document({
   creator: 'Franciélio Evangelista dos Santos Castro',
   title: 'Relatório Final PIBITI/CNPq — Ferramenta de Anotação Semi-Automática de Achados Radiológicos em Mamografias',
@@ -138,9 +126,12 @@ const doc = new Document({
         run: { font: 'Arial', size: SZ },
         paragraph: { spacing: base, alignment: AlignmentType.JUSTIFIED, widowControl: true },
       },
-      heading1: { run: { font: 'Arial', size: SZ, bold: true, color: '000000' }, paragraph: { spacing: base } },
-      heading2: { run: { font: 'Arial', size: SZ, bold: true, color: '000000' }, paragraph: { spacing: base } },
-      heading3: { run: { font: 'Arial', size: SZ, bold: true, color: '000000' }, paragraph: { spacing: base } },
+      heading1: { run: { font: 'Arial', size: SZ, bold: true, color: '000000' },
+                  paragraph: { spacing: { before: 120, after: 60, line: SIMPLES } } },
+      heading2: { run: { font: 'Arial', size: SZ, bold: true, color: '000000' },
+                  paragraph: { spacing: { before: 120, after: 60, line: SIMPLES } } },
+      heading3: { run: { font: 'Arial', size: SZ, bold: true, color: '000000' },
+                  paragraph: { spacing: { before: 120, after: 60, line: SIMPLES } } },
     },
   },
   numbering: {
@@ -300,11 +291,9 @@ H('4.3. Ciclo de anotação semi-automática', HeadingLevel.HEADING_3),
 rich('O objetivo declarado no plano de trabalho — anotação ',['semi-automática', 'i'],
   ' — exige que a sugestão do modelo seja apresentada sobre a imagem e submetida à decisão do especialista. Esse ciclo foi implementado no período: os achados com localização são desenhados no visualizador como caixas tracejadas, em cor deliberadamente fora da paleta usada para as categorias BI-RADS, de modo que uma sugestão automática nunca seja visualmente confundida com uma marcação já validada. Cada sugestão oferece três ações: aceitar, editar ou rejeitar.'),
 
-figure('fig_ciclo_semiautomatico.png', 600, 383),
-caption('Figura 1: Ciclo de anotação semi-automática. (a) sugestão pendente, em traço tracejado; (b) sugestão aceita e corrigida pelo anotador, com a caixa original do modelo preservada em cinza. Figura ilustrativa — as caixas foram posicionadas para demonstrar o fluxo, pois a cascata não produziu detecções neste exame.',
-  'Elaborado pelo autor, a partir de exame utilizado na avaliação (imagem desidentificada).'),
-
 P('Aceitar converte a sugestão em região de interesse editável e persistível, com categoria e rótulo pré-preenchidos. Editar executa a mesma conversão e já seleciona a região para ajuste. Rejeitar descarta a sugestão da tela — mas não do registro, conforme descrito na Seção 4.5.'),
+
+P('A distinção visual entre os dois estados é deliberada e verificável na aplicação: enquanto pendente, a sugestão é desenhada em traço tracejado e em cor reservada exclusivamente à inteligência artificial; uma vez aceita, passa a traço contínuo na cor correspondente à categoria BI-RADS atribuída, sinalizando ao anotador que aquela marcação deixou de ser sugestão automática e passou a ser registro validado. Quando a sugestão é corrigida, a caixa originalmente proposta pelo modelo permanece registrada, ainda que não exibida.'),
 
 rich('A interface exibe, de forma permanente e não dispensável enquanto houver sugestões na tela, o aviso de que se trata de ',
   ['apoio e não de diagnóstico', true],
@@ -332,11 +321,7 @@ rich('O ciclo completo de abrir, exibir e analisar uma imagem de 9,8 megapixels 
 
 P('O consumo de memória do serviço de inferência parte de 346 MB após a inicialização, sobe para aproximadamente 1,6 GB na primeira inferência e permanece estável nesse patamar ao longo de vinte execuções sucessivas, caracterizando alocação de área de trabalho reaproveitada pelo ONNX Runtime, e não vazamento. O núcleo em Go mantém-se em 12 MB — resultado coerente com a escolha do arcabouço Wails, que utiliza a WebView nativa do sistema operacional em vez de embarcar um navegador completo. O patamar de 1,6 GB é, ainda assim, restrição de implantação a ser considerada em estações de trabalho modestas.'),
 
-P('Quanto ao comportamento da cascata, o estágio classificador não foi acionado em nenhuma das quatro incidências, com probabilidade de malignidade estimada entre 0,004 e 0,034, resultando em categoria BI-RADS heurística 2 em todas as vistas.'),
-
-figure('fig_gate_fechado.png', 300, 377),
-caption('Figura 2: Avaliação em nível de imagem quando o classificador não aciona o detector, com o aviso de que a ausência de marcação não indica ausência de lesão.',
-  'Dados da pesquisa (resultado real da inferência sobre exame utilizado na avaliação; imagem desidentificada).'),
+P('Quanto ao comportamento da cascata, o estágio classificador não foi acionado em nenhuma das quatro incidências, com probabilidade de malignidade estimada entre 0,004 e 0,034, resultando em categoria BI-RADS heurística 2 em todas as vistas. Nessa condição, a interface apresenta uma avaliação em nível de imagem, sem qualquer marcação sobre a mamografia, acompanhada do aviso de que a ausência de marcação não indica ausência de lesão.'),
 
 rich('O laudo radiológico do exame conclui: ', ['achados benignos', 'i'], ', ',
   ['sem nódulos, calcificações suspeitas ou distorções arquiteturais', 'i'], ' e ',

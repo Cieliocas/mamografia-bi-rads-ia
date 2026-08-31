@@ -10,7 +10,7 @@
 
 | # | Critério | Resultado |
 |---|---|---|
-| CA-01 | Relatório completo no modelo oficial, Partes I–III | ✅ 18 seções, 7 tabelas, 2 figuras, ~4.100 palavras |
+| CA-01 | Relatório completo no modelo oficial, Partes I–III | ✅ 18 seções, 7 tabelas, sem figuras, ~4.170 palavras |
 | CA-02 | Correções narrativas aplicadas | ✅ Seção 4.6, com tabela comparativa parcial × final |
 | CA-03 | `docs/ARCHITECTURE.md` e `CHANGELOG.md` corrigidos | ✅ ARCHITECTURE na Spec 001; CHANGELOG estendido com specs 002–004 |
 | CA-04 | `relatorios/` desatualizados arquivados ou marcados | ✅ Tarja de documento histórico |
@@ -53,7 +53,7 @@ Relatório Parcial e Final, seção "Da formatação do documento".
 | b.10 | Paginação arábica, no rodapé, à direita | ✅ |
 | b.11 | Um espaço vazio entre texto e ilustração/tabela | ✅ |
 | b.12 | Título de ilustração/tabela: numeração arábica com dois-pontos, à esquerda, sem negrito | ✅ |
-| b.13 | Ilustração/tabela indicam a fonte | ✅ 7 de 7 |
+| b.13 | Ilustração/tabela indicam a fonte | ✅ 5 de 5 tabelas (não há ilustrações) |
 | c | Máximo sugerido de 10 páginas | ⚠️ **não verificável nesta máquina** |
 | d | Formato doc/docx | ✅ .docx |
 | e | PDF final ≤ 2 MB para anexação no SIGAA | ⬜ conversão a cargo do orientando |
@@ -77,21 +77,18 @@ O que foi verificado:
 - texto extraído íntegro, sem caracteres corrompidos, com acentuação correta.
 
 > **Pendente de conferência visual pelo orientando** antes do envio: número de
-> páginas (o edital sugere no máximo 10), quebras de página e posicionamento das
-> figuras. Se exceder 10 páginas, a alavanca mais simples é reduzir as dimensões
-> das figuras no gerador — a Figura 1 ocupa cerca de 16 cm de largura.
+> páginas (o edital sugere no máximo 10) e quebras de página. Sem as figuras, a
+> estimativa é confortavelmente inferior ao limite.
 
 ## Decisões de conteúdo registradas
 
-**As duas figuras são de mamografia real, sem identificadores.** Foram renderizadas
-a partir do DICOM (pixels e anotações desenhadas apenas), nunca capturadas da
-interface — a tela do aplicativo exibe o `PatientID`. A Figura 1 leva tarja de
-**ilustrativa** no próprio corpo da imagem, porque a cascata não detectou achados
-neste exame; apresentá-la sem a tarja sugeriria uma detecção que não houve.
+**O relatório não contém imagens.** As mamografias utilizadas na avaliação são de
+paciente identificável e estão cobertas por sigilo; o plano de trabalho trata da
+ferramenta, não do caso clínico. O que as figuras ilustrariam foi reescrito como
+descrição textual nas Seções 4.3 e 4.4, sem perda de conteúdo argumentativo.
 
-> **Confirmar com o orientador** se o uso da imagem do exame no relatório requer
-> documentação de consentimento ou aprovação ética. A imagem está desidentificada,
-> mas a decisão é institucional, não técnica.
+Consequência colateral favorável: o arquivo caiu de 688 KB para 23 KB, folgando
+o limite de 2 MB do PDF exigido pelo item (e) do edital.
 
 **A seção 4.6 narra as revisões de decisão** (Electron→Wails, U-Net→cascata) com
 justificativa técnica, em vez de omiti-las. O relatório parcial descreve decisões
