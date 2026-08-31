@@ -121,6 +121,14 @@ const doc = new Document({
   creator: 'Franciélio Evangelista dos Santos Castro',
   title: 'Relatório Final PIBITI/CNPq — Ferramenta de Anotação Semi-Automática de Achados Radiológicos em Mamografias',
   styles: {
+    // `default.document` do docx-js só emite <w:docDefaults> — não cria um
+    // estilo com w:styleId="Normal". Os headings abaixo (via default.heading*)
+    // são gerados com <w:basedOn w:val="Normal"/> apontando para um estilo que
+    // não existe no styles.xml. Em alguns visualizadores (não no Word desktop,
+    // que tem "Normal" embutido), a ausência da base faz o parágrafo herdar do
+    // primeiro estilo da lista — "Title", que é negrito — e o documento inteiro
+    // aparece em negrito. Correção: declarar "Normal" explicitamente, ANTES dos
+    // headings, para que basedOn resolva para um estilo real.
     default: {
       document: {
         run: { font: 'Arial', size: SZ },
@@ -133,6 +141,15 @@ const doc = new Document({
       heading3: { run: { font: 'Arial', size: SZ, bold: true, color: '000000' },
                   paragraph: { spacing: { before: 120, after: 60, line: SIMPLES } } },
     },
+    paragraphStyles: [
+      {
+        id: 'Normal',
+        name: 'Normal',
+        quickFormat: true,
+        run: { font: 'Arial', size: SZ },
+        paragraph: { spacing: base, alignment: AlignmentType.JUSTIFIED, widowControl: true },
+      },
+    ],
   },
   numbering: {
     config: [{
