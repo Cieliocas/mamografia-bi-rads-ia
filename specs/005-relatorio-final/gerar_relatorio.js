@@ -131,7 +131,9 @@ const doc = new Document({
     // headings, para que basedOn resolva para um estilo real.
     default: {
       document: {
-        run: { font: 'Arial', size: SZ },
+        // bold/italics desligados explicitamente: sem isso, o desligamento fica
+        // implícito e qualquer herança indevida de estilo liga o negrito.
+        run: { font: 'Arial', size: SZ, bold: false, italics: false },
         paragraph: { spacing: base, alignment: AlignmentType.JUSTIFIED, widowControl: true },
       },
       heading1: { run: { font: 'Arial', size: SZ, bold: true, color: '000000' },
@@ -146,7 +148,7 @@ const doc = new Document({
         id: 'Normal',
         name: 'Normal',
         quickFormat: true,
-        run: { font: 'Arial', size: SZ },
+        run: { font: 'Arial', size: SZ, bold: false, italics: false, color: '000000' },
         paragraph: { spacing: base, alignment: AlignmentType.JUSTIFIED, widowControl: true },
       },
     ],
