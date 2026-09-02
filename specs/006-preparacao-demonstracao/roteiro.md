@@ -18,8 +18,14 @@ profissional. A aplicação sinaliza isso na tela, mas a conversa já terá sido
 contaminada.
 
 ```bash
-bash tools/run_desktop_dev.sh
+bash tools/run_demo.sh
 ```
+
+Abre o **aplicativo empacotado** (`AIdentify.app`) já apontado para os modelos
+reais, e recusa abrir se a verificação falhar. Só imprime "Pronto" com
+`ai_model: real`.
+
+Alternativa, em modo de desenvolvimento: `bash tools/run_desktop_dev.sh`.
 
 Confira na barra inferior: **não** pode haver o aviso `▲ IA SIMULADA`.
 
