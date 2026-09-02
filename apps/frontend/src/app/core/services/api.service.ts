@@ -157,6 +157,12 @@ export interface WindowingResponse {
   pixels: number[];
 }
 
+/** Estado do modelo por trás do serviço de IA.
+ *  'real'      pesos carregados — os achados vêm dos modelos
+ *  'simulated' o serviço responde, mas do backend mock — achados sintéticos
+ *  'none'      serviço fora do ar ou desabilitado */
+export type AiModelState = 'real' | 'simulated' | 'none';
+
 export interface HealthStatus {
   status: string;
   error?: string;
@@ -164,8 +170,11 @@ export interface HealthStatus {
   state?: string;
   /** Set by /readyz: "up" if Go core is reachable. */
   go_core?: string;
-  /** Set by /readyz: "ready" | "down" | "disabled". */
+  /** Set by /readyz: "ready" | "down" | "disabled" — estado do SERVIÇO. */
   ai_engine?: 'ready' | 'down' | 'disabled';
+  /** Set by /readyz: estado do MODELO. Um serviço "ready" pode estar
+   *  respondendo do backend mock, com achados sintéticos. */
+  ai_model?: AiModelState;
   /** Human-readable reason when ai_engine === "disabled". */
   ai_engine_reason?: string;
   /** Set by /healthz: "ok" | "corrupted". */

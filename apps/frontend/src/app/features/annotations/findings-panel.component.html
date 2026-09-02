@@ -33,11 +33,12 @@
       <div class="flex items-center justify-between">
         <p class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">IA</p>
         <span class="text-[10px] tabular-nums"
-          [class.text-emerald-400]="study.aiEngineState() === 'ready'"
-          [class.text-amber-400]="study.aiEngineState() === 'disabled'"
+          [class.text-emerald-400]="study.aiEngineState() === 'ready' && !study.aiSimulated()"
+          [class.text-amber-400]="study.aiEngineState() === 'disabled' || study.aiSimulated()"
           [class.text-red-400]="study.aiEngineState() === 'down'"
           [class.text-neutral-500]="study.aiEngineState() === 'unknown'">
           {{
+            study.aiSimulated()                  ? '▲ SIMULADA' :
             study.aiEngineState() === 'ready'    ? '● disponível' :
             study.aiEngineState() === 'disabled' ? '◌ desativada'  :
             study.aiEngineState() === 'down'     ? '○ indisponível' :
@@ -45,6 +46,21 @@
           }}
         </span>
       </div>
+      <!-- Modo simulado: o serviço está no ar, mas nenhum modelo foi carregado.
+           Os achados são sintéticos. Sem este alerta, a tela é indistinguível
+           de uma inferência real (spec 006, RF-01). -->
+      @if (study.aiSimulated()) {
+        <div class="rounded border-2 border-amber-500/60 bg-amber-950/40 px-2 py-1.5">
+          <p class="text-[10px] font-bold uppercase tracking-wide text-amber-300">
+            ▲ Modo simulado — sem modelo carregado
+          </p>
+          <p class="mt-0.5 text-[10px] leading-snug text-amber-200/80">
+            Os achados exibidos são <span class="font-semibold">sintéticos</span> e
+            não provêm de modelo treinado. Servem apenas para desenvolvimento da
+            interface. <span class="font-semibold">Não use para avaliação clínica.</span>
+          </p>
+        </div>
+      }
       @if (study.aiEngineState() === 'disabled' && study.aiEngineReason()) {
         <p class="truncate text-[10px] text-neutral-500" [title]="study.aiEngineReason()">
           {{ study.aiEngineReason() }}
@@ -79,6 +95,14 @@
       </div>
       @if (pendingFindings.length) {
         <div class="space-y-1.5 pt-1">
+
+          @if (study.aiSimulated()) {
+            <div class="rounded border-2 border-amber-500/60 bg-amber-950/50 px-2 py-1.5">
+              <p class="text-[10px] font-bold uppercase tracking-wide text-amber-300">
+                ▲ Achados sintéticos — nenhum modelo carregado
+              </p>
+            </div>
+          }
 
           <!-- Aviso permanente: apoio, não diagnóstico (RF-10). Sem botão de fechar. -->
           <div class="rounded border border-amber-500/30 bg-amber-950/30 px-2 py-1.5">

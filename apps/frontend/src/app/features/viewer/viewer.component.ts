@@ -13,7 +13,7 @@ import { ViewerStateService } from '../../core/services/viewer-state.service';
 import { StudyService } from '../../core/services/study.service';
 import {
   VP, ROI, RulerLine, BrushStroke, Ix,
-  biradsColor, rgba, d2, clone, hasRegion, AI_SUGGESTION_COLOR
+  biradsColor, rgba, d2, clone, hasRegion, AI_SUGGESTION_COLOR, SIMULATED_COLOR
 } from '../../shared/models/types';
 
 @Component({
@@ -352,8 +352,9 @@ export class ViewerComponent implements AfterViewInit {
       const w  = b.w * vp.zoom;
       const h  = b.h * vp.zoom;
 
-      ctx.strokeStyle = AI_SUGGESTION_COLOR;
-      ctx.fillStyle   = rgba(AI_SUGGESTION_COLOR, 0.08);
+      const cor = this.study.aiSimulated() ? SIMULATED_COLOR : AI_SUGGESTION_COLOR;
+      ctx.strokeStyle = cor;
+      ctx.fillStyle   = rgba(cor, 0.08);
       ctx.lineWidth   = 1.8;
       ctx.setLineDash([6, 4]);
       ctx.beginPath();
@@ -361,10 +362,30 @@ export class ViewerComponent implements AfterViewInit {
       ctx.fill(); ctx.stroke();
       ctx.setLineDash([]);
 
-      const label = `IA · ${f.kind}${f.confidence ? ` ${Math.round(f.confidence * 100)}%` : ''}`;
+      // Em modo simulado a caixa precisa se denunciar na própria imagem: uma
+      // captura de tela dessa tela, fora de contexto, não pode passar por
+      // resultado de modelo (spec 006, RF-01).
+      const simulado = this.study.aiSimulated();
+      if (simulado) {
+        ctx.save();
+        ctx.strokeStyle = SIMULATED_COLOR;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 3]);
+        for (let d = -h; d < w; d += 12) {
+          ctx.beginPath();
+          ctx.moveTo(Math.max(tl.x, tl.x + d), tl.y + Math.max(0, -d));
+          ctx.lineTo(Math.min(tl.x + w, tl.x + d + h), tl.y + Math.min(h, w - d));
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      const label = simulado
+        ? `SIMULADO · ${f.kind}`
+        : `IA · ${f.kind}${f.confidence ? ` ${Math.round(f.confidence * 100)}%` : ''}`;
       ctx.font = `bold ${Math.max(9, Math.min(12, 11 * vp.zoom))}px Inter,sans-serif`;
       ctx.textAlign = 'left';
-      ctx.fillStyle = AI_SUGGESTION_COLOR;
+      ctx.fillStyle = cor;
       ctx.fillText(label, tl.x, tl.y - 4);
     });
     ctx.restore();

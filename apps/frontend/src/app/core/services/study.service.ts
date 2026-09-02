@@ -1,6 +1,6 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { VP, ROI } from '../../shared/models/types';
-import { ApiService, ClinicalFields, FindingDTO, OpenStudyResponse, PatientDTO, StudyListItem } from './api.service';
+import { ApiService, AiModelState, ClinicalFields, FindingDTO, OpenStudyResponse, PatientDTO, StudyListItem } from './api.service';
 
 export interface StudyMetadata {
   // Image display
@@ -78,6 +78,17 @@ export class StudyService {
   backendOnline = signal<boolean>(false);
   /** AI sidecar state: 'ready' | 'down' | 'disabled' | 'unknown'. */
   aiEngineState = signal<'ready' | 'down' | 'disabled' | 'unknown'>('unknown');
+  /**
+   * Estado do MODELO, que é diferente do estado do serviço.
+   *
+   * O serviço pode estar perfeitamente no ar servindo achados sintéticos do
+   * backend mock. Tratar isso como "IA disponível" faz a ferramenta apresentar
+   * resultados fabricados como se fossem do modelo — o pior modo de falha
+   * possível numa demonstração clínica.
+   */
+  aiModelState = signal<AiModelState>('none');
+  /** Atalho: há achados na tela que NÃO vieram de um modelo treinado. */
+  aiSimulated = computed(() => this.aiModelState() === 'simulated');
   /** Reason text when AI is disabled (auto-disabled or via env var). */
   aiEngineReason = signal<string>('');
   /** Studies persisted on the backend (shown in History tab). */
@@ -148,6 +159,8 @@ export class StudyService {
     this.api.ready().subscribe(s => {
       const ai = s.ai_engine ?? 'unknown';
       this.aiEngineState.set(ai === 'ready' || ai === 'down' || ai === 'disabled' ? ai : 'unknown');
+      const m = s.ai_model;
+      this.aiModelState.set(m === 'real' || m === 'simulated' ? m : 'none');
       this.aiEngineReason.set(s.ai_engine_reason ?? '');
     });
   }

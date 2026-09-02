@@ -5,25 +5,25 @@ demonstração; as P1 decidem se a demonstração pode sair desta máquina.
 
 ---
 
-## P0 — Honestidade da demonstração 🔴
+## P0 — Honestidade da demonstração ✅ concluído
 
 ### T1. Distinguir modelo carregado de serviço no ar
-- [ ] `ai_client` passa a expor `model_loaded` do `/health` do serviço
-- [ ] `/readyz` do Go Core ganha campo próprio (ex.: `ai_model: real | mock | none`)
-- [ ] `startup/status` idem, para a splash não liberar prometendo o que não há
+- [x] `ai_client` passa a expor `model_loaded` do `/health` do serviço
+- [x] `/readyz` do Go Core ganha campo próprio (ex.: `ai_model: real | mock | none`)
+- [x] `startup/status` idem, para a splash não liberar prometendo o que não há
 
 ### T2. Tornar o modo simulado visível na interface
-- [ ] `StudyService` deriva um sinal `aiSimulated` de `model_id` e do novo campo
-- [ ] Barra de estado: "IA simulada" em cor de advertência, no lugar de "IA disponível"
-- [ ] Painel de achados: faixa não dispensável, acima dos cartões, declarando que
+- [x] `StudyService` deriva um sinal `aiSimulated` de `model_id` e do novo campo
+- [x] Barra de estado: "IA simulada" em cor de advertência, no lugar de "IA disponível"
+- [x] Painel de achados: faixa não dispensável, acima dos cartões, declarando que
       os achados são sintéticos e não provêm de modelo treinado
-- [ ] Visualizador: caixas em modo simulado recebem hachura ou rótulo "SIMULADO"
-- [ ] Teste de frontend cobrindo o sinal e a exibição da faixa
+- [x] Visualizador: caixas em modo simulado recebem hachura ou rótulo "SIMULADO"
+- [x] Teste de frontend cobrindo o sinal e a exibição da faixa
 
 ### T3. Verificação prévia de demonstração
-- [ ] `tools/check_demo.sh` — confere `.onnx` presentes e com checksum correto,
+- [x] `tools/check_demo.sh` — confere `.onnx` presentes e com checksum correto,
       venv com onnxruntime, Go Core compilado, e imprime PRONTO ou o que falta
-- [ ] Executado antes de cada demonstração
+- [x] Executado antes de cada demonstração
 
 ## P1 — Demonstração fora desta máquina 🔴
 

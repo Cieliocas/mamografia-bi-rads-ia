@@ -43,10 +43,16 @@ func (h *HealthHandler) liveness(c *gin.Context) {
 // whether to enable IA-related controls. Returns 200 even when AI is down or
 // disabled — those are valid runtime states for the no-model release.
 func (h *HealthHandler) readiness(c *gin.Context) {
+	engine := h.aiEngineState()
 	body := gin.H{
 		"status":    "ready",
 		"go_core":   "up",
-		"ai_engine": h.aiEngineState(),
+		"ai_engine": engine,
+		// ai_model is deliberately separate from ai_engine: the sidecar can be
+		// perfectly healthy while serving synthetic findings from its mock
+		// backend. Collapsing the two into "ready" is how a demonstration ends
+		// up presenting fabricated results as model output.
+		"ai_model": h.aiModelState(engine),
 	}
 	if reason := h.supervisor.DisabledReason(); reason != "" {
 		body["ai_engine_reason"] = reason
@@ -72,7 +78,36 @@ func (h *HealthHandler) startupStatus(c *gin.Context) {
 		})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"state": "ready", "message": "AI engine online"})
+	if !h.supervisor.ModelLoaded() {
+		// Still "ready" — the app is usable and this is a valid runtime state —
+		// but the caller must be able to tell that no real model is behind it.
+		c.JSON(http.StatusOK, gin.H{
+			"state":    "ready",
+			"message":  "AI engine online (modo simulado — sem modelo carregado)",
+			"ai_model": "simulated",
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{
+		"state":    "ready",
+		"message":  "AI engine online",
+		"ai_model": "real",
+	})
+}
+
+// aiModelState returns one of:
+//
+//	"real"      real weights are loaded; findings come from the models
+//	"simulated" the sidecar answers, but from the mock backend — findings are synthetic
+//	"none"      the sidecar is down or disabled; there are no findings at all
+func (h *HealthHandler) aiModelState(engineState string) string {
+	if engineState != "ready" {
+		return "none"
+	}
+	if h.supervisor.ModelLoaded() {
+		return "real"
+	}
+	return "simulated"
 }
 
 // aiEngineState returns one of "ready", "down", "disabled".

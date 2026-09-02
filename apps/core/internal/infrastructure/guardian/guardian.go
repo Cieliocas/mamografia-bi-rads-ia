@@ -2,8 +2,10 @@ package guardian
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
@@ -28,6 +30,12 @@ type Supervisor struct {
 	disabled       bool
 	disabledReason string
 	extraEnv       []string
+	// modelLoaded mirrors the sidecar's own `model_loaded` flag, refreshed on
+	// every health check. "Service is up" and "a real model answered" are
+	// different facts: the sidecar stays up and healthy while serving synthetic
+	// findings from its mock backend, and conflating the two lets a
+	// demonstration show fabricated results as if they came from the model.
+	modelLoaded bool
 }
 
 // New creates a Supervisor. maxFails is the number of consecutive
@@ -163,13 +171,42 @@ func (s *Supervisor) recordFailure(cause error) {
 func (s *Supervisor) HealthCheck() error {
 	resp, err := s.httpClient.Get(s.healthURL)
 	if err != nil {
+		s.setModelLoaded(false)
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		s.setModelLoaded(false)
+		return fmt.Errorf("health check status: %d", resp.StatusCode)
+	}
+
+	// The body carries {"status","uptime_sec","model_loaded"}. A body that does
+	// not parse means the service answered but we cannot vouch for the model,
+	// so treat the model as absent rather than assume it is there.
+	var body struct {
+		ModelLoaded bool `json:"model_loaded"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&body); err != nil {
+		s.setModelLoaded(false)
 		return nil
 	}
-	return fmt.Errorf("health check status: %d", resp.StatusCode)
+	s.setModelLoaded(body.ModelLoaded)
+	return nil
+}
+
+func (s *Supervisor) setModelLoaded(v bool) {
+	s.mu.Lock()
+	s.modelLoaded = v
+	s.mu.Unlock()
+}
+
+// ModelLoaded reports whether the last health check saw real model weights
+// loaded. False means the sidecar is answering from its mock backend — the
+// findings are synthetic.
+func (s *Supervisor) ModelLoaded() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.modelLoaded
 }
 
 func (s *Supervisor) Restart(ctx context.Context) error {

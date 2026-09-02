@@ -102,6 +102,11 @@ export function hasRegion(f: AiFinding): boolean {
  *  so a suggestion never reads as a validated marking. */
 export const AI_SUGGESTION_COLOR = '#22d3ee';
 
+/** Cor das caixas em modo simulado — âmbar de advertência, para que a marcação
+ *  se denuncie na própria imagem e não possa ser confundida, mesmo numa captura
+ *  de tela isolada, com saída de um modelo treinado. */
+export const SIMULATED_COLOR = '#f59e0b';
+
 export interface RulerLine {
   id: number; x1: number; y1: number; x2: number; y2: number;
   isSelected: boolean;
