@@ -89,6 +89,8 @@ export class StudyService {
   aiModelState = signal<AiModelState>('none');
   /** Atalho: há achados na tela que NÃO vieram de um modelo treinado. */
   aiSimulated = computed(() => this.aiModelState() === 'simulated');
+  /** Motivo concreto da ausência de modelo — é o que torna o alerta acionável. */
+  aiModelReason = signal<string>('');
   /** Reason text when AI is disabled (auto-disabled or via env var). */
   aiEngineReason = signal<string>('');
   /** Studies persisted on the backend (shown in History tab). */
@@ -161,6 +163,7 @@ export class StudyService {
       this.aiEngineState.set(ai === 'ready' || ai === 'down' || ai === 'disabled' ? ai : 'unknown');
       const m = s.ai_model;
       this.aiModelState.set(m === 'real' || m === 'simulated' ? m : 'none');
+      this.aiModelReason.set(s.ai_model_reason ?? '');
       this.aiEngineReason.set(s.ai_engine_reason ?? '');
     });
   }

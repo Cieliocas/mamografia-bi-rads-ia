@@ -25,7 +25,7 @@ demonstração; as P1 decidem se a demonstração pode sair desta máquina.
       venv com onnxruntime, Go Core compilado, e imprime PRONTO ou o que falta
 - [x] Executado antes de cada demonstração
 
-## P1 — Demonstração fora desta máquina 🔴
+## P1 — Demonstração fora desta máquina ✅ concluído
 
 ### T4. Decidir a estratégia de distribuição
 Duas saídas; escolher uma antes de codar:
@@ -37,9 +37,9 @@ Duas saídas; escolher uma antes de codar:
 
 Para a demonstração desta semana, **(b) basta**. (a) fica declarado como trabalho futuro.
 
-- [ ] T4.1 Implementar a verificação de pré-requisitos no arranque
-- [ ] T4.2 Tela ou faixa explicando o que instalar, sem jargão de terminal
-- [ ] T4.3 `build_release.sh` documenta explicitamente o que NÃO empacota
+- [x] T4.1 Implementar a verificação de pré-requisitos no arranque
+- [x] T4.2 Faixa com o motivo concreto (modelo ausente, onnxruntime ausente, backend errado)
+- [x] T4.3 `build_release.sh` documenta explicitamente o que NÃO empacota
 
 ## P2 — Usabilidade da demonstração 🟡
 

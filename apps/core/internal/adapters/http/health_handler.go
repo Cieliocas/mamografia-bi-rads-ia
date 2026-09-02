@@ -54,6 +54,9 @@ func (h *HealthHandler) readiness(c *gin.Context) {
 		// up presenting fabricated results as model output.
 		"ai_model": h.aiModelState(engine),
 	}
+	if reason := h.supervisor.ModelReason(); reason != "" {
+		body["ai_model_reason"] = reason
+	}
 	if reason := h.supervisor.DisabledReason(); reason != "" {
 		body["ai_engine_reason"] = reason
 	}

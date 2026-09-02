@@ -175,6 +175,8 @@ export interface HealthStatus {
   /** Set by /readyz: estado do MODELO. Um serviço "ready" pode estar
    *  respondendo do backend mock, com achados sintéticos. */
   ai_model?: AiModelState;
+  /** Por que não há modelo real, quando ai_model !== 'real'. */
+  ai_model_reason?: string;
   /** Human-readable reason when ai_engine === "disabled". */
   ai_engine_reason?: string;
   /** Set by /healthz: "ok" | "corrupted". */

@@ -14,6 +14,11 @@ class MockBackend:
     model_id = "unet-mammo-mock-v1"
     is_loaded = False
 
+    def __init__(self, reason: str = "Nenhum modelo carregado.") -> None:
+        #: Por que não há modelo real. Chega até a interface, para que quem
+        #: opera saiba o que corrigir em vez de só ver "modo simulado".
+        self.reason = reason
+
     def infer(self, image: np.ndarray) -> list[FindingItem]:
         h, w = image.shape[:2]
         return [

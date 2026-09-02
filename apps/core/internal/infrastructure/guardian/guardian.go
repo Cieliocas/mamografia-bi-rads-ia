@@ -36,6 +36,9 @@ type Supervisor struct {
 	// findings from its mock backend, and conflating the two lets a
 	// demonstration show fabricated results as if they came from the model.
 	modelLoaded bool
+	// modelReason explains why no real model is loaded, as reported by the
+	// sidecar. Empty when a model is loaded.
+	modelReason string
 }
 
 // New creates a Supervisor. maxFails is the number of consecutive
@@ -171,12 +174,12 @@ func (s *Supervisor) recordFailure(cause error) {
 func (s *Supervisor) HealthCheck() error {
 	resp, err := s.httpClient.Get(s.healthURL)
 	if err != nil {
-		s.setModelLoaded(false)
+		s.setModelLoaded(false, "Serviço de IA não respondeu.")
 		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		s.setModelLoaded(false)
+		s.setModelLoaded(false, fmt.Sprintf("Serviço de IA respondeu com status %d.", resp.StatusCode))
 		return fmt.Errorf("health check status: %d", resp.StatusCode)
 	}
 
@@ -184,20 +187,33 @@ func (s *Supervisor) HealthCheck() error {
 	// not parse means the service answered but we cannot vouch for the model,
 	// so treat the model as absent rather than assume it is there.
 	var body struct {
-		ModelLoaded bool `json:"model_loaded"`
+		ModelLoaded bool   `json:"model_loaded"`
+		Reason      string `json:"reason"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&body); err != nil {
-		s.setModelLoaded(false)
+		s.setModelLoaded(false, "Resposta de saúde do serviço de IA ilegível.")
 		return nil
 	}
-	s.setModelLoaded(body.ModelLoaded)
+	s.setModelLoaded(body.ModelLoaded, body.Reason)
 	return nil
 }
 
-func (s *Supervisor) setModelLoaded(v bool) {
+func (s *Supervisor) setModelLoaded(v bool, reason string) {
 	s.mu.Lock()
 	s.modelLoaded = v
+	if v {
+		s.modelReason = ""
+	} else {
+		s.modelReason = reason
+	}
 	s.mu.Unlock()
+}
+
+// ModelReason explains why no real model is loaded. Empty when one is.
+func (s *Supervisor) ModelReason() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.modelReason
 }
 
 // ModelLoaded reports whether the last health check saw real model weights
