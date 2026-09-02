@@ -65,6 +65,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - **Avaliação técnica** (spec 004): bateria reexecutável e resultados medidos
   sobre mamografias reais em `specs/004-avaliacao-tecnica/`.
 
+- **Exportação pseudonimizada por padrão**: o `patient_id` sai como pseudônimo
+  estável e não reversível derivado do PatientID do DICOM. Para exportar
+  identificado é preciso pedir explicitamente (`?identified=true`).
+- **Modo simulado inequívoco**: quando nenhum modelo real está carregado, a
+  aplicação o declara na barra de estado, no painel e nas próprias caixas do
+  visualizador, e informa o motivo concreto (`ai_model_reason`).
+- **Navegação de pastas**: trilha clicável e botão de subir um nível, limitados
+  ao `$HOME`.
+- **`tools/check_demo.sh`**: verificação prévia de demonstração.
+
 ### Notas
 
 > ⚠️ Modelos de pesquisa, **não validados clinicamente**. `birads` é heurístico.
@@ -87,7 +97,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - **Relatório HTML**: `GET /api/export/report/:id` retorna laudo HTML auto-imprimível com imagem anotada embutida em Base64.
 - **Shared imaging package** (`internal/imaging`): renderização DICOM desacoplada do handler HTTP para reutilização no gerador de PDF.
 - **Health / Readiness**: `GET /healthz` e `GET /readyz` com estado do banco e do sidecar AI.
-- **Backup SQLite**: `POST /api/export/backup` gera snapshot do banco; `POST /api/import/restore` restaura a partir de backup.
+- **Backup SQLite**: `GET /api/backup` transfere um ZIP com o banco e os áudios; `POST /api/restore` restaura a partir dele.
 
 #### Frontend Angular
 - **Visualizador canvas dual**: `imgCanvas` aplica filtros CSS (brilho/contraste/inversão); `overlayCanvas` renderiza ROIs, réguas e traços de pincel.

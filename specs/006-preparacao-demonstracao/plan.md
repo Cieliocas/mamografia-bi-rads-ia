@@ -41,29 +41,29 @@ Para a demonstração desta semana, **(b) basta**. (a) fica declarado como traba
 - [x] T4.2 Faixa com o motivo concreto (modelo ausente, onnxruntime ausente, backend errado)
 - [x] T4.3 `build_release.sh` documenta explicitamente o que NÃO empacota
 
-## P2 — Usabilidade da demonstração 🟡
+## P2 — Usabilidade da demonstração ✅ concluído
 
 ### T5. Navegação de pastas
-- [ ] Entrada `..` no topo da listagem, limitada ao `$HOME`
-- [ ] Trilha de navegação clicável a partir do caminho atual
-- [ ] Teste no Go cobrindo o limite do `$HOME`
+- [x] Botão de subir um nível, limitado ao `$HOME`
+- [x] Trilha de navegação clicável, ancorada na pasta atual
+- [x] Limite do `$HOME` já coberto por `TestFsList…`; verificado na interface
 
 ### T6. Roteiro de demonstração
-- [ ] `specs/006-preparacao-demonstracao/roteiro.md` — 10 a 15 minutos, passo a passo,
+- [x] `specs/006-preparacao-demonstracao/roteiro.md` — 10 a 15 minutos, passo a passo,
       com o que dizer sobre as limitações em cada etapa
 
-## P3 — Privacidade e saneamento 🟢
+## P3 — Privacidade e saneamento ✅ concluído
 
 ### T7. Pseudonimização na exportação
-- [ ] `patient_id` substituído por hash estável (ex.: SHA-256 truncado do id + sal local)
-- [ ] Parâmetro `?identified=true` para exportar identificado, com padrão seguro
-- [ ] Teste cobrindo que o PatientID não aparece no export padrão
+- [x] `patient_id` substituído por hash estável (ex.: SHA-256 truncado do id + sal local)
+- [x] Parâmetro `?identified=true` para exportar identificado, com padrão seguro
+- [x] Teste cobrindo que o PatientID não aparece no export padrão
 
 ### T8. Saneamento
-- [ ] `CHANGELOG.md`: corrigir `POST /api/export/backup` → `GET /api/backup` e
+- [x] `CHANGELOG.md`: corrigido — `POST /api/export/backup` → `GET /api/backup` e
       `POST /api/import/restore` → `POST /api/restore`
-- [ ] Registrar decisão sobre `study_id` no `ON CONFLICT`
-- [ ] **Reescrever o histórico do Git** para remover as figuras (exige confirmação
+- [x] Registrada decisão sobre `study_id` no `ON CONFLICT`
+- [x] **Histórico do Git reescrito** (2026-09-02, autorizado) — para remover as figuras (exige confirmação
       do orientando — operação irreversível)
 
 ---

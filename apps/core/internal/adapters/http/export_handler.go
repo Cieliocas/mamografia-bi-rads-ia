@@ -35,7 +35,9 @@ func (h *ExportHandler) RegisterRoutes(api *gin.RouterGroup) {
 	api.GET("/export/report/:id", h.reportHTML)
 }
 
-// GET /api/export?format=json|csv[&study_ids=id1,id2]
+// GET /api/export?format=json|csv|coco[&study_ids=id1,id2][&identified=true]
+//
+// O PatientID do DICOM sai pseudonimizado, salvo pedido explícito.
 func (h *ExportHandler) exportDataset(c *gin.Context) {
 	format := usecase.ExportFormat(c.DefaultQuery("format", "json"))
 	rawIDs := c.Query("study_ids")
@@ -49,10 +51,15 @@ func (h *ExportHandler) exportDataset(c *gin.Context) {
 		}
 	}
 
+	// Pseudonimizado por padrão. Exportar identificado exige pedir de propósito,
+	// e não é o caminho de menor esforço.
+	identified := c.Query("identified") == "true"
+
 	var buf bytes.Buffer
 	mime, err := h.export.Execute(context.Background(), usecase.ExportDatasetInput{
-		StudyIDs: ids,
-		Format:   format,
+		StudyIDs:   ids,
+		Format:     format,
+		Identified: identified,
 	}, &buf)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})

@@ -30,6 +30,11 @@ func (r *AnnotationRepository) Save(ctx context.Context, studyID string, a *enti
 	// When audio fields are empty (geometry-only save), preserve whatever is
 	// already stored in the row so voice notes survive re-saves. The same
 	// applies to the AI provenance fields — see the ON CONFLICT clause.
+	//
+	// study_id is deliberately NOT in the ON CONFLICT update: an annotation does
+	// not migrate between studies. Ids are UUIDs minted per study, so a
+	// collision across studies would signal a bug upstream, and silently
+	// re-parenting the row would hide it.
 	_, err = r.db.ExecContext(ctx, `
 		INSERT INTO annotations (id, study_id, finding_id, kind, data, label, notes, audio_path, audio_duration_ms, audio_transcript,
 		                         source, model_id, ai_confidence, ai_kind, ai_birads, ai_bbox)

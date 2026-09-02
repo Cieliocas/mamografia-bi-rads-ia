@@ -46,6 +46,15 @@ export class FilesPanelComponent {
   /** History stack for ← navigation. */
   private history: string[] = [];
 
+  /**
+   * Raiz do $HOME, descoberta na primeira listagem sem caminho.
+   *
+   * O Go Core recusa qualquer caminho fora do $HOME (403), então a navegação
+   * para cima precisa parar aí — oferecer um nível acima que o backend vai
+   * rejeitar seria um beco sem saída.
+   */
+  private homePath = signal<string>('');
+
   @Output() openFile      = new EventEmitter<string>();
   @Output() pickFolder    = new EventEmitter<void>();   // triggers Wails dialog
   /** Emitted when an image file is clicked; carries the full ordered series. */
@@ -83,6 +92,36 @@ export class FilesPanelComponent {
 
   refresh() { this.load(this.currentPath()); }
 
+  /** Segmentos clicáveis do caminho atual, do $HOME até a pasta corrente. */
+  readonly breadcrumb = computed<{ nome: string; caminho: string }[]>(() => {
+    const home = this.homePath();
+    const atual = this.currentPath();
+    if (!home || !atual.startsWith(home)) return [];
+
+    const resto = atual.slice(home.length).split('/').filter(Boolean);
+    const trilha = [{ nome: '~', caminho: home }];
+    let acc = home;
+    for (const seg of resto) {
+      acc = `${acc}/${seg}`;
+      trilha.push({ nome: seg, caminho: acc });
+    }
+    return trilha;
+  });
+
+  /** Diretório-pai, ou '' quando já estamos na raiz permitida. */
+  readonly parentPath = computed<string>(() => {
+    const home = this.homePath();
+    const atual = this.currentPath();
+    if (!home || !atual || atual === home || !atual.startsWith(home)) return '';
+    const pai = atual.slice(0, atual.lastIndexOf('/'));
+    return pai.length >= home.length ? pai : home;
+  });
+
+  goUp() {
+    const pai = this.parentPath();
+    if (pai) this.navigate(pai);
+  }
+
   /** Called by app.ts when user picks a folder via Wails dialog. */
   setRoot(path: string) {
     this.history = [];
@@ -98,6 +137,9 @@ export class FilesPanelComponent {
     fetch(url)
       .then(r => r.json())
       .then((data: { path: string; entries: FsEntry[] }) => {
+        // A primeira listagem sem caminho devolve o $HOME resolvido pelo backend:
+        // é a única fonte confiável do limite de navegação.
+        if (!path && !this.homePath()) this.homePath.set(data.path);
         this.currentPath.set(data.path);
         this.entries.set(data.entries ?? []);
         this.loading.set(false);
@@ -111,11 +153,26 @@ export class FilesPanelComponent {
   /** Restore last folder from localStorage on first open. */
   init() {
     const saved = localStorage.getItem('aidentify.lastFolder');
+    // Descobre o $HOME sempre, mesmo restaurando uma pasta profunda — sem isso
+    // a trilha e o botão de subir ficariam indisponíveis justamente no caso em
+    // que são mais necessários.
+    if (!this.homePath()) {
+      fetch('http://127.0.0.1:8088/api/fs/list')
+        .then(r => r.json())
+        .then((d: { path: string }) => this.homePath.set(d.path))
+        .catch(() => { /* a trilha simplesmente não aparece */ });
+    }
     if (saved) {
       this.navigate(saved, false);
     } else {
-      this.load(''); // loads $HOME
+      this.load('');
     }
+  }
+
+  /** Volta à raiz do $HOME. */
+  goHome() {
+    const home = this.homePath();
+    if (home) this.navigate(home);
   }
 
   /**

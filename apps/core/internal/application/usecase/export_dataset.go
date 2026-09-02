@@ -2,7 +2,9 @@ package usecase
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/csv"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -39,6 +41,24 @@ func NewExportDataset(sr outbound.StudyRepository, ar outbound.AnnotationReposit
 type ExportDatasetInput struct {
 	StudyIDs []string     `json:"study_ids"` // empty = all studies
 	Format   ExportFormat `json:"format"`
+	// Identified exports the DICOM PatientID as-is. Default (false) replaces it
+	// with a pseudonym: an export leaving this machine — to a partner, for
+	// retraining — must not carry a patient identifier just because nobody
+	// remembered to ask (LGPD Art. 11; constituição P1).
+	Identified bool `json:"identified"`
+}
+
+// pseudonym derives a stable, non-reversible label for a patient identifier.
+//
+// Stable so the same patient keeps the same label across exports, which is what
+// makes a longitudinal dataset possible at all. Non-reversible because the
+// identifier must not be recoverable from the exported file.
+func pseudonym(patientID string) string {
+	if patientID == "" {
+		return ""
+	}
+	sum := sha256.Sum256([]byte("aidentify-pseudonym-v1|" + patientID))
+	return "P-" + hex.EncodeToString(sum[:6])
 }
 
 // Execute writes the exported data to w and returns the MIME content type.
@@ -81,9 +101,13 @@ func (uc *ExportDataset) Execute(ctx context.Context, in ExportDatasetInput, w i
 			return "", fmt.Errorf("load annotations for %s: %w", s.ID, err)
 		}
 		for _, a := range anns {
+			patientID := s.PatientID
+			if !in.Identified {
+				patientID = pseudonym(patientID)
+			}
 			r := record{
 				StudyID:      string(s.ID),
-				PatientID:    s.PatientID,
+				PatientID:    patientID,
 				AnnotID:      string(a.ID),
 				Kind:         string(a.Kind),
 				Source:       string(a.Source.Normalize()),
