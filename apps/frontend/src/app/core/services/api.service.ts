@@ -323,12 +323,33 @@ export class ApiService {
     a.href = url; a.download = ''; a.click();
   }
 
-  /** Downloads the laudo as a PDF (with embedded annotated image). */
-  openReport(studyId: string) {
+  /**
+   * Exporta o laudo em PDF.
+   *
+   * No aplicativo (Wails), abre o diálogo nativo de destino e grava onde o
+   * usuário escolher. Um `<a download>` na WebView não pergunta o destino e
+   * ainda abre o PDF dentro da janela do aplicativo, sem barra de navegação —
+   * o usuário fica sem voltar nem fechar.
+   *
+   * No navegador não há diálogo nativo; mantém-se o download convencional.
+   *
+   * Devolve o caminho gravado, '' se cancelado, ou 'erro: …'.
+   */
+  async saveReportPDF(studyId: string, sugestao: string): Promise<string> {
+    const wails = (window as any).go?.main?.App;
+    if (wails?.SaveReportPDF) {
+      return await wails.SaveReportPDF(studyId, sugestao);
+    }
     const a = document.createElement('a');
     a.href = `${this.base}/api/studies/${studyId}/pdf`;
-    a.download = `laudo-${studyId.slice(0, 8)}.pdf`;
+    a.download = sugestao;
     a.click();
+    return 'download';
+  }
+
+  /** Revela o arquivo no Finder (apenas no aplicativo). */
+  revealInFinder(path: string) {
+    (window as any).go?.main?.App?.RevealInFinder?.(path);
   }
 
   /**

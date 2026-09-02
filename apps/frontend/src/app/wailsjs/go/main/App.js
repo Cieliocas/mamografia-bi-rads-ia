@@ -9,3 +9,11 @@ export function OpenDirectoryDialog() {
 export function OpenFileDialog() {
   return window['go']['main']['App']['OpenFileDialog']();
 }
+
+export function RevealInFinder(arg1) {
+  return window['go']['main']['App']['RevealInFinder'](arg1);
+}
+
+export function SaveReportPDF(arg1, arg2) {
+  return window['go']['main']['App']['SaveReportPDF'](arg1, arg2);
+}

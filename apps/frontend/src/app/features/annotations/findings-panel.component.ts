@@ -268,10 +268,17 @@ export class FindingsPanelComponent implements OnDestroy {
     this.showExportModal = false;
     this.toast.info('Download COCO JSON iniciado');
   }
-  exportReport() {
+  async exportReport() {
     const sid = this.study.currentStudyId();
-    if (sid) this.api.openReport(sid);
     this.showExportModal = false;
+    if (!sid) { this.toast.error('Nenhum estudo aberto.'); return; }
+    const data = new Date().toISOString().slice(0, 10);
+    const destino = await this.api.saveReportPDF(sid, `laudo-${data}.pdf`);
+    if (destino === '') return;                                     // cancelado
+    if (destino === 'download') { this.toast.info('Download do laudo iniciado'); return; }
+    if (destino.startsWith('erro:')) { this.toast.error(destino.slice(5).trim()); return; }
+    this.toast.success('Laudo salvo');
+    this.api.revealInFinder(destino);
   }
   exportBackup() {
     this.api.downloadBackup();
