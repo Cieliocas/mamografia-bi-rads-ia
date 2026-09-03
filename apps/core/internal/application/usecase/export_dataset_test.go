@@ -51,7 +51,7 @@ func TestCocoCategories(t *testing.T) {
 // carregar o identificador do paciente só porque ninguém lembrou de pedir o
 // contrário. O padrão precisa ser o seguro.
 func TestPseudonym(t *testing.T) {
-	const id = "<PatientID>"
+	const id = "PID-EXEMPLO-001"
 
 	got := pseudonym(id)
 	if got == id {

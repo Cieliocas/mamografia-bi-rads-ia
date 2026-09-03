@@ -12,11 +12,17 @@ import json, statistics, subprocess, sys, time, urllib.request, csv, os
 BASE = "http://127.0.0.1:8088"
 REPS = 5   # repetições de inferência por imagem
 
+# Conjunto de teste. Os caminhos NÃO são versionados com dados reais: aponte
+# MAMMO_TEST_DIR para a pasta do exame antes de executar.
+#
+#   MAMMO_TEST_DIR=/caminho/do/exame python3 bateria.py saida.csv
+TEST_DIR = os.environ.get("MAMMO_TEST_DIR", "")
+
 IMGS = [
-    ("R-CC",  "MG real", "<pasta do exame>/<incidência>"),
-    ("L-CC",  "MG real", "<pasta do exame>/<incidência>"),
-    ("R-MLO", "MG real", "<pasta do exame>/<incidência>"),
-    ("L-MLO", "MG real", "<pasta do exame>/<incidência>"),
+    ("R-CC",   "MG real", os.path.join(TEST_DIR, "R-CC.dcm")),
+    ("L-CC",   "MG real", os.path.join(TEST_DIR, "L-CC.dcm")),
+    ("R-MLO",  "MG real", os.path.join(TEST_DIR, "R-MLO.dcm")),
+    ("L-MLO",  "MG real", os.path.join(TEST_DIR, "L-MLO.dcm")),
     ("JPEG-LS a", "fixture comprimido", os.path.abspath("apps/core/internal/adapters/filesystem/testdata/jpegls_lossless.dcm")),
     ("JPEG-LS b", "fixture comprimido", os.path.abspath("apps/core/internal/adapters/filesystem/testdata/jpegls_reference.dcm")),
 ]
