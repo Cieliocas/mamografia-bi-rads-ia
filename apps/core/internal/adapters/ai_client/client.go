@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -87,6 +88,13 @@ func (c *HTTPClient) Predict(ctx context.Context, imagePath string) (*outbound.F
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		// The sidecar answers 422 when it cannot decode the image (e.g. a
+		// compressed DICOM without the pydicom decompression plugins). Its
+		// detail explains what to do, so surface it instead of a bare status.
+		detail, _ := io.ReadAll(io.LimitReader(resp.Body, 512))
+		if len(detail) > 0 {
+			return nil, fmt.Errorf("ai predict: status %d: %s", resp.StatusCode, string(detail))
+		}
 		return nil, fmt.Errorf("ai predict: status %d", resp.StatusCode)
 	}
 

@@ -178,6 +178,8 @@ export class ViewerStateService {
     if (saveUndo) this.snap(vpIdx);
     const vp = this.vp[vpIdx];
     vp.rois = []; vp.rulers = []; vp.brushStrokes = []; vp.selectedROIId = null;
+    // AI suggestions belong to the image that produced them (RF-05).
+    vp.aiFindings = [];
     if (vpIdx === this.activeVp) this.selectedROI = null;
     this.ix = null;
     drawFn(vpIdx);

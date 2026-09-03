@@ -12,8 +12,8 @@ import { ViewerStateService } from '../../core/services/viewer-state.service';
 import { StudyService } from '../../core/services/study.service';
 import { ApiService } from '../../core/services/api.service';
 import { ToastService } from '../../core/services/toast.service';
-import { biradsColor } from '../../shared/models/types';
-import type { BiRads } from '../../shared/models/types';
+import { biradsColor, hasRegion, bboxToRoiGeometry, AI_SUGGESTION_COLOR } from '../../shared/models/types';
+import type { BiRads, AiFinding, ROI } from '../../shared/models/types';
 
 @Component({
   selector: 'app-findings-panel',
@@ -268,10 +268,17 @@ export class FindingsPanelComponent implements OnDestroy {
     this.showExportModal = false;
     this.toast.info('Download COCO JSON iniciado');
   }
-  exportReport() {
+  async exportReport() {
     const sid = this.study.currentStudyId();
-    if (sid) this.api.openReport(sid);
     this.showExportModal = false;
+    if (!sid) { this.toast.error('Nenhum estudo aberto.'); return; }
+    const data = new Date().toISOString().slice(0, 10);
+    const destino = await this.api.saveReportPDF(sid, `laudo-${data}.pdf`);
+    if (destino === '') return;                                     // cancelado
+    if (destino === 'download') { this.toast.info('Download do laudo iniciado'); return; }
+    if (destino.startsWith('erro:')) { this.toast.error(destino.slice(5).trim()); return; }
+    this.toast.success('Laudo salvo');
+    this.api.revealInFinder(destino);
   }
   exportBackup() {
     this.api.downloadBackup();
@@ -375,10 +382,128 @@ export class FindingsPanelComponent implements OnDestroy {
     });
   }
 
+  // ── AI suggestions ──────────────────────────────────────────────────────────
+
+  /** Outline colour for suggestions — matches the dashed boxes in the viewer. */
+  readonly aiColor = AI_SUGGESTION_COLOR;
+
+  /** Suggestions for the active viewport. */
+  get aiFindings(): AiFinding[] { return this.state.activeVPData.aiFindings ?? []; }
+
+  /** Suggestions still awaiting a decision. */
+  get pendingFindings(): AiFinding[] {
+    return this.aiFindings.filter(f => f.status === 'pending');
+  }
+
+  /** Pending suggestions that carry a drawable region. */
+  get locatedFindings(): AiFinding[] {
+    return this.pendingFindings.filter(f => hasRegion(f));
+  }
+
+  /** Pending image-level assessments — the gate closed, so there is no box. */
+  get assessmentFindings(): AiFinding[] {
+    return this.pendingFindings.filter(f => !hasRegion(f));
+  }
+
+  /**
+   * True when the model returned only image-level assessments.
+   *
+   * The UI must then say plainly that no box does not mean no lesion: the gate
+   * misses roughly 31% of malignant cases, and when it closes the detector is
+   * never even called (spec 002 RF-11).
+   */
+  get onlyAssessments(): boolean {
+    return this.pendingFindings.length > 0 && this.locatedFindings.length === 0;
+  }
+
+  /** Inference runs on the first frame only — say so on multi-frame studies. */
+  get multiFrameWarning(): boolean {
+    return this.study.currentFrameCount() > 1 && this.pendingFindings.length > 0;
+  }
+
+  /**
+   * Turns a suggestion into an editable ROI.
+   *
+   * The sidecar sends the box as top-left corner plus size, in pixels of the
+   * source image; a ROI is centre plus radii. The preview renders at native
+   * resolution, so the mapping is 1:1 — no display scaling to undo here.
+   *
+   * The original geometry is kept on the ROI so that a later correction can be
+   * told apart from a plain acceptance. That pair (suggested, corrected) is the
+   * signal a retraining set is actually made of; spec 003 persists it.
+   */
+  private toROI(f: AiFinding, id: number): ROI {
+    const b = f.bbox!;
+    return {
+      id,
+      ...bboxToRoiGeometry(b),
+      shape: 'rect',
+      birads: (f.birads || null) as BiRads,
+      label: f.kind ? `IA: ${f.kind}` : 'IA',
+      notes: f.notes ?? '',
+      isSelected: false,
+      source: 'ai_accepted',
+      modelId: f.modelId,
+      aiConfidence: f.confidence,
+      aiKind: f.kind,
+      aiBirads: f.birads,
+      aiBbox: { ...b },
+    };
+  }
+
+  /** Accepts a suggestion: it becomes a ROI the radiologist can edit and save. */
+  acceptFinding(f: AiFinding, select = false) {
+    if (!hasRegion(f) || f.status !== 'pending') return;
+    const vpIdx = this.state.activeVp;
+    const vp    = this.state.vp[vpIdx];
+    this.state.snap(vpIdx);
+
+    const roi = this.toROI(f, vp.roiCounter++);
+    if (select) {
+      vp.rois.forEach(r => r.isSelected = false);
+      roi.isSelected = true;
+    }
+    vp.rois.push(roi);
+    f.status = 'accepted';
+
+    if (select) {
+      vp.selectedROIId = roi.id;
+      this.state.selectedROI = roi;
+      if (!this.state.rightOpen) this.state.rightOpen = true;
+    }
+    this.draw(vpIdx);
+  }
+
+  /** Accepts and immediately selects, so the radiologist lands on the edit. */
+  editFinding(f: AiFinding) { this.acceptFinding(f, true); }
+
+  /**
+   * Discards a suggestion.
+   *
+   * Kept in the list as `rejected` rather than deleted: a false positive is as
+   * useful for retraining as a correction. Spec 003 persists it.
+   */
+  rejectFinding(f: AiFinding) {
+    if (f.status !== 'pending') return;
+    f.status = 'rejected';
+    // A rejection is data, not just a UI dismissal — announce the change so
+    // autosave writes it down before the viewport can be cleared.
+    this.state.annotationsChanged$.next(this.state.activeVp);
+    this.draw(this.state.activeVp);
+  }
+
   // ── Backend integration ─────────────────────────────────────────────────────
-  runInference() { this.study.runInference(); }
+  runInference() {
+    const vpIdx = this.state.activeVp;
+    this.study.runInference(this.state.vp[vpIdx], ok => {
+      if (!ok) { this.toast.error('Falha ao executar a inferência'); return; }
+      const n = this.locatedFindings.length;
+      this.toast.success(n ? `IA sugeriu ${n} achado(s)` : 'IA sem achados localizados');
+      this.draw(vpIdx);
+    });
+  }
   persist() {
-    this.study.saveAnnotations(this.state.rois, ok => {
+    this.study.saveAnnotations(this.state.activeVPData, ok => {
       if (ok) this.toast.success('Anotações salvas');
       else    this.toast.error('Falha ao salvar anotações');
     });

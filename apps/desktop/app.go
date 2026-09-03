@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -203,6 +204,62 @@ func (a *App) OpenDirectoryDialog() string {
 		return ""
 	}
 	return path
+}
+
+// SaveReportPDF asks the user where to save the study's PDF report, downloads it
+// from the Go core, and writes it there.
+//
+// Antes disto o laudo era baixado por um <a download> na WebView: sem diálogo de
+// destino, e abrindo o PDF dentro da própria janela do aplicativo, sem barra de
+// navegação — o usuário ficava sem voltar nem fechar.
+//
+// Devolve o caminho gravado, "" se o usuário cancelar, ou "erro: …" em falha.
+func (a *App) SaveReportPDF(studyID, sugestao string) string {
+	if sugestao == "" {
+		sugestao = "laudo.pdf"
+	}
+	destino, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Salvar laudo em PDF",
+		DefaultFilename: sugestao,
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Documento PDF (*.pdf)", Pattern: "*.pdf"},
+		},
+	})
+	if err != nil || destino == "" {
+		return "" // cancelado
+	}
+	if filepath.Ext(destino) == "" {
+		destino += ".pdf"
+	}
+
+	url := fmt.Sprintf("http://%s/api/studies/%s/pdf", goCoreAddr, studyID)
+	resp, err := http.Get(url)
+	if err != nil {
+		return "erro: não foi possível gerar o laudo (" + err.Error() + ")"
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Sprintf("erro: o servidor respondeu %d ao gerar o laudo", resp.StatusCode)
+	}
+
+	f, err := os.Create(destino)
+	if err != nil {
+		return "erro: não foi possível gravar em " + destino
+	}
+	defer f.Close()
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		return "erro: falha ao gravar o arquivo (" + err.Error() + ")"
+	}
+	return destino
+}
+
+// RevealInFinder abre o arquivo no visualizador padrão do sistema — fora da
+// WebView, de modo que tenha a própria janela e o próprio botão de fechar.
+func (a *App) RevealInFinder(path string) {
+	if path == "" {
+		return
+	}
+	_ = exec.Command("open", "-R", path).Start()
 }
 
 // OpenFileDialog opens a native OS file picker and returns the chosen path.

@@ -1,6 +1,6 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { VP, ROI } from '../../shared/models/types';
-import { ApiService, ClinicalFields, FindingDTO, OpenStudyResponse, PatientDTO, StudyListItem } from './api.service';
+import { ApiService, AiModelState, ClinicalFields, FindingDTO, OpenStudyResponse, PatientDTO, StudyListItem } from './api.service';
 
 export interface StudyMetadata {
   // Image display
@@ -70,10 +70,27 @@ export class StudyService {
   currentFilePath = signal<string | null>(null);
   /** Latest inference response — shown in the findings panel. */
   latestFindings = signal<FindingDTO[]>([]);
+  /** True while an inference request is in flight (2-3s on CPU). */
+  inferenceRunning = signal<boolean>(false);
+  /** model_id of the last inference — distinguishes real cascade from mock. */
+  lastModelId = signal<string>('');
   /** Go Core connectivity state — surfaced in status bar. */
   backendOnline = signal<boolean>(false);
   /** AI sidecar state: 'ready' | 'down' | 'disabled' | 'unknown'. */
   aiEngineState = signal<'ready' | 'down' | 'disabled' | 'unknown'>('unknown');
+  /**
+   * Estado do MODELO, que é diferente do estado do serviço.
+   *
+   * O serviço pode estar perfeitamente no ar servindo achados sintéticos do
+   * backend mock. Tratar isso como "IA disponível" faz a ferramenta apresentar
+   * resultados fabricados como se fossem do modelo — o pior modo de falha
+   * possível numa demonstração clínica.
+   */
+  aiModelState = signal<AiModelState>('none');
+  /** Atalho: há achados na tela que NÃO vieram de um modelo treinado. */
+  aiSimulated = computed(() => this.aiModelState() === 'simulated');
+  /** Motivo concreto da ausência de modelo — é o que torna o alerta acionável. */
+  aiModelReason = signal<string>('');
   /** Reason text when AI is disabled (auto-disabled or via env var). */
   aiEngineReason = signal<string>('');
   /** Studies persisted on the backend (shown in History tab). */
@@ -144,6 +161,9 @@ export class StudyService {
     this.api.ready().subscribe(s => {
       const ai = s.ai_engine ?? 'unknown';
       this.aiEngineState.set(ai === 'ready' || ai === 'down' || ai === 'disabled' ? ai : 'unknown');
+      const m = s.ai_model;
+      this.aiModelState.set(m === 'real' || m === 'simulated' ? m : 'none');
+      this.aiModelReason.set(s.ai_model_reason ?? '');
       this.aiEngineReason.set(s.ai_engine_reason ?? '');
     });
   }
@@ -364,7 +384,12 @@ export class StudyService {
       // Step 4 — restore annotations from backend.
       if (entry.studyId && onAnnotations) {
         this.api.getAnnotations(entry.studyId).subscribe(res => {
-          const rois: Partial<ROI>[] = (res.annotations ?? []).map((a, i) => {
+          const rois: Partial<ROI>[] = (res.annotations ?? [])
+            // A rejected suggestion is stored as an annotation so it survives
+            // for retraining, but it is not a marking: it has no human geometry
+            // and must never come back onto the image as a ROI.
+            .filter(a => a.source !== 'ai_rejected')
+            .map((a, i) => {
             // Backend returns entity.Annotation with bbox nested as {x,y,w,h}.
             const bx = a.bbox?.x ?? a.x ?? 0;
             const by = a.bbox?.y ?? a.y ?? 0;
@@ -383,6 +408,14 @@ export class StudyService {
               notes: a.notes ?? '',
               isSelected: false,
               audioDurationMs: a.audio_duration_ms ?? 0,
+              // Provenance survives the round-trip, so a re-save does not
+              // downgrade an AI-derived annotation back to "manual".
+              source: a.source,
+              modelId: a.model_id,
+              aiConfidence: a.ai_confidence,
+              aiKind: a.ai_kind,
+              aiBirads: a.ai_birads,
+              aiBbox: a.ai_bbox,
             };
           });
           onAnnotations(rois);
@@ -392,20 +425,53 @@ export class StudyService {
     img.src = entry.dataUrl;
   }
 
-  /** Triggers POST /api/tasks/predict and stores the results. */
-  runInference() {
+  /**
+   * Triggers POST /api/tasks/predict and hands the suggestions to `vp`.
+   *
+   * Suggestions belong to the viewport, not to the service, so that opening
+   * another image clears them with the rest of that viewport's state.
+   */
+  runInference(vp?: VP, onDone?: (ok: boolean) => void) {
     const path = this.currentFilePath();
-    if (!path) return;
+    if (!path || this.inferenceRunning()) { onDone?.(false); return; }
     const studyId = this.currentStudyId() ?? undefined;
+    this.inferenceRunning.set(true);
     this.api.runInference(path, studyId).subscribe(resp => {
-      this.latestFindings.set(resp?.findings ?? []);
+      this.inferenceRunning.set(false);
+      // The API layer swallows HTTP errors into null; the caller owns the
+      // user-facing message (the panel raises a toast).
+      if (!resp) { onDone?.(false); return; }
+      this.latestFindings.set(resp.findings ?? []);
+      this.lastModelId.set(resp.model_id ?? '');
+      if (vp) {
+        vp.aiFindings = (resp.findings ?? []).map((f, i) => ({
+          id:         f.id || `ai-${Date.now()}-${i}`,
+          kind:       f.kind || 'finding',
+          birads:     f.birads ?? '',
+          confidence: f.confidence ?? 0,
+          // Zero-area boxes mean an image-level assessment: no region to draw.
+          bbox:       f.bbox && f.bbox.w > 0 && f.bbox.h > 0 ? f.bbox : undefined,
+          notes:      f.notes ?? '',
+          modelId:    resp.model_id ?? '',
+          status:     'pending' as const,
+        }));
+      }
+      onDone?.(true);
     });
   }
 
-  /** Persists current ROIs as annotations on the active study. */
-  saveAnnotations(rois: VP['rois'], onDone?: (ok: boolean) => void) {
+  /**
+   * Persists the viewport's annotations: the radiologist's marks plus the
+   * suggestions they rejected.
+   *
+   * Takes the whole viewport rather than just the ROIs because a rejection is
+   * an annotation too — it lives in `aiFindings`, and it is lost the moment the
+   * viewport is cleared if nobody writes it down.
+   */
+  saveAnnotations(vp: VP, onDone?: (ok: boolean) => void) {
     const studyId = this.currentStudyId();
     if (!studyId) { onDone?.(false); return; }
-    this.api.saveAnnotations(studyId, rois).subscribe(ok => onDone?.(ok));
+    const rejected = (vp.aiFindings ?? []).filter(f => f.status === 'rejected');
+    this.api.saveAnnotations(studyId, vp.rois, rejected).subscribe(ok => onDone?.(ok));
   }
 }

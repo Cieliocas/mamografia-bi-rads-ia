@@ -1,0 +1,8 @@
+# Offline model-conversion deps (NOT installed in the runtime sidecar).
+# Use a throwaway venv:  python -m venv .venv-convert && . .venv-convert/bin/activate
+#                        pip install -r tools/requirements-convert.txt
+tensorflow-cpu==2.15.0
+tf2onnx==1.16.1
+onnx>=1.16.0
+onnxruntime>=1.19.0
+ultralytics>=8.3.0

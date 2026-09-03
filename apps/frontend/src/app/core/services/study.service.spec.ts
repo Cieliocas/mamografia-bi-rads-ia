@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { StudyService } from './study.service';
+import { mkVP } from '../../shared/models/types';
 import { ToastService } from './toast.service';
 
 describe('StudyService', () => {
@@ -86,7 +87,7 @@ describe('StudyService', () => {
         isSelected: false, audioDurationMs: 0 } as any,
     ];
 
-    service.saveAnnotations(rois, () => {});
+    service.saveAnnotations({ ...mkVP(), rois } as any, () => {});
 
     const req = http.expectOne(r => r.url.includes('/api/studies/study-abc/annotations'));
     expect(req.request.method).toBe('POST');
@@ -94,5 +95,44 @@ describe('StudyService', () => {
     expect(body.annotations[0].label).toBe('nódulo');
     expect(body.annotations[0].notes).toBe('obs');
     req.flush({ status: 'saved' });
+  });
+});
+
+/**
+ * O serviço de IA pode estar no ar servindo achados sintéticos do backend mock.
+ * Tratar isso como "IA disponível" faz a ferramenta apresentar resultados
+ * fabricados como se fossem do modelo — o pior modo de falha possível numa
+ * demonstração clínica (spec 006, RF-01).
+ */
+describe('StudyService — estado do modelo', () => {
+  let service: StudyService;
+  beforeEach(() => {
+    TestBed.resetTestingModule();
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [StudyService, ToastService],
+    });
+    service = TestBed.inject(StudyService);
+  });
+
+  it('aiModelState começa em none', () => {
+    expect(service.aiModelState()).toBe('none');
+  });
+
+  it('ai_model "simulated" liga aiSimulated', () => {
+    service.aiModelState.set('simulated');
+    expect(service.aiSimulated()).toBe(true);
+  });
+
+  it('ai_model "real" NÃO liga aiSimulated', () => {
+    service.aiModelState.set('real');
+    expect(service.aiSimulated()).toBe(false);
+  });
+
+  it('serviço no ar com modelo simulado ainda é simulado', () => {
+    service.aiEngineState.set('ready');
+    service.aiModelState.set('simulated');
+    expect(service.aiEngineState()).toBe('ready');
+    expect(service.aiSimulated()).toBe(true);
   });
 });

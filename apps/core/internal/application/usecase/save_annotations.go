@@ -25,6 +25,27 @@ type AnnotationDTO struct {
 	// Read-only fields returned by GET /annotations — never written by the client.
 	AudioDurationMs int    `json:"audio_duration_ms,omitempty"`
 	AudioTranscript string `json:"audio_transcript,omitempty"`
+
+	// ── Provenance ───────────────────────────────────────────────────────────
+	// Source is "manual" when absent. The AI* fields are only meaningful when
+	// the annotation came from a model suggestion.
+	Source       string  `json:"source,omitempty"`
+	ModelID      string  `json:"model_id,omitempty"`
+	AIConfidence float64 `json:"ai_confidence,omitempty"`
+	AIKind       string  `json:"ai_kind,omitempty"`
+	AIBirads     string  `json:"ai_birads,omitempty"`
+	// AIBBox is the model's original box, in source-image pixels, before any
+	// human correction. On a rejected suggestion it is the only geometry there
+	// is — the radiologist asserted nothing.
+	AIBBox *BBoxDTO `json:"ai_bbox,omitempty"`
+}
+
+// BBoxDTO is an axis-aligned box: top-left corner plus size.
+type BBoxDTO struct {
+	X float64 `json:"x"`
+	Y float64 `json:"y"`
+	W float64 `json:"w"`
+	H float64 `json:"h"`
 }
 
 // SaveAnnotations persists a slice of annotations for a given study.
@@ -100,9 +121,19 @@ func dtoToEntity(dto AnnotationDTO) *entity.Annotation {
 		id = uuid.NewString()
 	}
 	ann := &entity.Annotation{
-		ID:    entity.AnnotationID(id),
-		Label: dto.Label,
-		Notes: dto.Notes,
+		ID:           entity.AnnotationID(id),
+		Label:        dto.Label,
+		Notes:        dto.Notes,
+		Source:       entity.AnnotationSource(dto.Source).Normalize(),
+		ModelID:      dto.ModelID,
+		AIConfidence: dto.AIConfidence,
+		AIKind:       dto.AIKind,
+		AIBirads:     dto.AIBirads,
+	}
+	if dto.AIBBox != nil {
+		ann.AIBBox = &entity.BoundingBox{
+			X: dto.AIBBox.X, Y: dto.AIBBox.Y, Width: dto.AIBBox.W, Height: dto.AIBBox.H,
+		}
 	}
 	switch dto.Kind {
 	case "polygon":
@@ -127,6 +158,14 @@ func EntityToDTO(a *entity.Annotation) AnnotationDTO {
 		Notes:           a.Notes,
 		AudioDurationMs: a.AudioDurationMs,
 		AudioTranscript: a.AudioTranscript,
+		Source:          string(a.Source.Normalize()),
+		ModelID:         a.ModelID,
+		AIConfidence:    a.AIConfidence,
+		AIKind:          a.AIKind,
+		AIBirads:        a.AIBirads,
+	}
+	if a.AIBBox != nil {
+		dto.AIBBox = &BBoxDTO{X: a.AIBBox.X, Y: a.AIBBox.Y, W: a.AIBBox.Width, H: a.AIBBox.Height}
 	}
 	switch a.Kind {
 	case entity.AnnotationBoundingBox:

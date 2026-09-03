@@ -28,6 +28,9 @@ type fsEntry struct {
 	Size  int64     `json:"size"`
 	Mtime time.Time `json:"mtime"`
 	Ext   string    `json:"ext,omitempty"`
+	// IsImage is true when the entry is openable by the viewer — either by
+	// extension or, for extensionless files, by the DICM magic.
+	IsImage bool `json:"is_image,omitempty"`
 }
 
 type fsListResponse struct {
@@ -36,7 +39,28 @@ type fsListResponse struct {
 }
 
 var imageExts = map[string]bool{
-	".dcm": true, ".png": true, ".jpg": true, ".jpeg": true,
+	".dcm": true, ".dicom": true, ".png": true, ".jpg": true, ".jpeg": true,
+}
+
+// maxSniffs caps how many extensionless files a single listing will probe, so a
+// directory full of unrelated blobs cannot turn a listing into a scan.
+const maxSniffs = 512
+
+// looksLikeDICOM reports whether the file carries the DICM magic that PS3.10
+// puts at offset 128, after the 128-byte preamble. Real-world DICOM often has
+// no extension at all — CD exports and PACS dumps name images like "<incidência>"
+// — so extension alone is not a usable test.
+func looksLikeDICOM(path string) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	var buf [4]byte
+	if _, err := f.ReadAt(buf[:], 128); err != nil {
+		return false
+	}
+	return string(buf[:]) == "DICM"
 }
 
 func (h *FsHandler) list(c *gin.Context) {
@@ -67,6 +91,7 @@ func (h *FsHandler) list(c *gin.Context) {
 	}
 
 	result := make([]fsEntry, 0, len(entries))
+	sniffs := 0
 	for _, e := range entries {
 		// Skip hidden files/dirs (dotfiles).
 		if strings.HasPrefix(e.Name(), ".") {
@@ -89,6 +114,16 @@ func (h *FsHandler) list(c *gin.Context) {
 		}
 		if kind == "file" {
 			entry.Ext = ext
+			switch {
+			case imageExts[ext]:
+				entry.IsImage = true
+			// PS3.10 fixes the name "DICOMDIR" for the media index. It carries
+			// the DICM magic but holds no pixel data, so the viewer must not
+			// offer it as an image.
+			case ext == "" && e.Name() != "DICOMDIR" && info.Size() > 132 && sniffs < maxSniffs:
+				sniffs++
+				entry.IsImage = looksLikeDICOM(filepath.Join(abs, e.Name()))
+			}
 		}
 		result = append(result, entry)
 	}

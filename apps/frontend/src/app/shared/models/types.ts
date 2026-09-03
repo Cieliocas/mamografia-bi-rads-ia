@@ -12,7 +12,100 @@ export interface ROI {
   annotationId?: string;
   /** Duration of attached voice note in milliseconds. */
   audioDurationMs?: number;
+
+  // ── Provenance ────────────────────────────────────────────────────────────
+  // Where this ROI came from. Set when a radiologist accepts an AI suggestion,
+  // so the pair (suggested, corrected) survives the edit. Persistence of these
+  // fields lands in spec 003; spec 002 only has to stop throwing them away.
+  /** Absent means the radiologist drew it from scratch. */
+  source?: AnnotationSource;
+  /** Model that produced the suggestion (FindingResponse.model_id). */
+  modelId?: string;
+  aiConfidence?: number;
+  aiKind?: string;
+  aiBirads?: string;
+  /** Geometry as the model suggested it, before any human correction. */
+  aiBbox?: BBox;
 }
+
+/** Where an annotation came from — the basis of the retraining signal. */
+export type AnnotationSource = 'manual'|'ai_accepted'|'ai_edited'|'ai_rejected';
+
+/** Axis-aligned box in source-image pixels: top-left corner plus size. */
+export interface BBox { x: number; y: number; w: number; h: number; }
+
+/** Lifecycle of an AI suggestion inside one viewport. */
+export type AiFindingStatus = 'pending'|'accepted'|'rejected';
+
+/**
+ * One suggestion from the inference sidecar, held per viewport.
+ *
+ * `kind: "assessment"` is an image-level verdict with no location — the gate
+ * closed, so the detector never ran. It has no `bbox` and must never be drawn
+ * as a rectangle. Absence of a box is NOT absence of a lesion: the gate misses
+ * roughly 31% of malignant cases, so the UI has to say so out loud.
+ */
+export interface AiFinding {
+  id: string;
+  kind: string;
+  birads: string;
+  confidence: number;
+  /** Source-image pixels. Absent on image-level assessments. */
+  bbox?: BBox;
+  notes: string;
+  modelId: string;
+  status: AiFindingStatus;
+}
+
+/**
+ * Converts a sidecar bounding box into ROI geometry.
+ *
+ * The sidecar sends top-left corner plus size, in pixels of the source image;
+ * a ROI is centre plus radii. The DICOM preview is rendered at native
+ * resolution, so the mapping is 1:1 — there is no display scaling to undo.
+ */
+export function bboxToRoiGeometry(b: BBox): { x: number; y: number; rx: number; ry: number } {
+  return { x: b.x + b.w / 2, y: b.y + b.h / 2, rx: b.w / 2, ry: b.h / 2 };
+}
+
+/** Inverse of bboxToRoiGeometry — used to compare a corrected ROI against the
+ *  geometry the model originally suggested. */
+export function roiGeometryToBBox(r: { x: number; y: number; rx: number; ry: number }): BBox {
+  return { x: r.x - r.rx, y: r.y - r.ry, w: r.rx * 2, h: r.ry * 2 };
+}
+
+/**
+ * True when a ROI accepted from the model no longer matches what it suggested.
+ *
+ * This is what separates `ai_accepted` from `ai_edited`, and it is the whole
+ * reason the original box is kept: a correction says where the model was wrong,
+ * which a fresh annotation never does.
+ *
+ * The tolerance absorbs float noise from the centre/radius round-trip — a
+ * sub-pixel difference is not a radiologist's correction.
+ */
+export function geometryDiffers(r: ROI, tolerancePx = 0.5): boolean {
+  if (!r.aiBbox) return false;
+  const cur = roiGeometryToBBox(r);
+  return Math.abs(cur.x - r.aiBbox.x) > tolerancePx
+      || Math.abs(cur.y - r.aiBbox.y) > tolerancePx
+      || Math.abs(cur.w - r.aiBbox.w) > tolerancePx
+      || Math.abs(cur.h - r.aiBbox.h) > tolerancePx;
+}
+
+/** True when the finding carries a drawable region. */
+export function hasRegion(f: AiFinding): boolean {
+  return !!f.bbox && f.bbox.w > 0 && f.bbox.h > 0;
+}
+
+/** Outline colour for AI suggestions — deliberately outside the BI-RADS palette
+ *  so a suggestion never reads as a validated marking. */
+export const AI_SUGGESTION_COLOR = '#22d3ee';
+
+/** Cor das caixas em modo simulado — âmbar de advertência, para que a marcação
+ *  se denuncie na própria imagem e não possa ser confundida, mesmo numa captura
+ *  de tela isolada, com saída de um modelo treinado. */
+export const SIMULATED_COLOR = '#f59e0b';
 
 export interface RulerLine {
   id: number; x1: number; y1: number; x2: number; y2: number;
@@ -40,6 +133,8 @@ export interface VP {
   contrast: number; brightness: number;
   invertColors: boolean;
   rois: ROI[]; rulers: RulerLine[]; brushStrokes: BrushStroke[];
+  /** Pending/decided AI suggestions for the image in this viewport. */
+  aiFindings: AiFinding[];
   selectedROIId: number|null;
   roiCounter: number; rulerCounter: number; brushCounter: number;
   undoStack: Snapshot[]; redoStack: Snapshot[];
@@ -93,7 +188,7 @@ export function mkVP(): VP {
   return {
     loadedImage: null, imageDataUrl: null, imageName: '',
     zoom: 1, panX: 0, panY: 0, contrast: 80, brightness: 100, invertColors: false,
-    rois: [], rulers: [], brushStrokes: [], selectedROIId: null,
+    rois: [], rulers: [], brushStrokes: [], aiFindings: [], selectedROIId: null,
     roiCounter: 1, rulerCounter: 1, brushCounter: 1, undoStack: [], redoStack: [],
     activePreset: 'Padrão',
     pixelSpacing: null,

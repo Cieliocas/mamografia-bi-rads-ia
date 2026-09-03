@@ -222,3 +222,39 @@ class TestPredictUpload:
         assert resp.status_code == 200
         data = resp.json()
         assert "findings" in data
+
+
+class TestUndecodableImageWithRealModel:
+    """AIdentify (spec 001) — regression guard against silent wrong answers.
+
+    Before this guard, an image the sidecar could not decode (notably a
+    compressed DICOM without the pydicom decompression plugins) was silently
+    replaced by a blank 512x512 frame. The cascade then ran on black pixels and
+    returned a confident "benign" verdict for an image nobody had read.
+
+    Contract: with a real model loaded, an undecodable path is a 422. The blank
+    frame stays only for mock, which dev/CI depend on.
+    """
+
+    def test_real_model_rejects_undecodable_path(self, client):
+        client.app.state.backend.is_loaded = True
+        try:
+            resp = client.post(
+                "/predict",
+                json={"image_path": "/nonexistent/path.dcm"},
+                headers=HEADERS,
+            )
+        finally:
+            client.app.state.backend.is_loaded = False
+        assert resp.status_code == 422
+        assert "could not decode" in resp.json()["detail"]
+
+    def test_mock_still_tolerates_undecodable_path(self, client):
+        """Mock keeps the blank-frame fallback so CI needs no image on disk."""
+        assert client.app.state.backend.is_loaded is False
+        resp = client.post(
+            "/predict",
+            json={"image_path": "/nonexistent/path.dcm"},
+            headers=HEADERS,
+        )
+        assert resp.status_code == 200

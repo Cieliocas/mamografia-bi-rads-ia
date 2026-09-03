@@ -1,0 +1,15 @@
+# Artefatos ONNX da cascata de inferencia — AIdentify
+#
+# Os pesos NAO sao versionados (ver .gitignore). Este arquivo registra a
+# identidade exata dos artefatos usados na integracao e na avaliacao tecnica,
+# para rastreabilidade no relatorio final do PIBITI.
+#
+# Autoria dos modelos: Micaias Carvalho Vieira
+# Origem: https://github.com/micaiasdev/mammo-ai-sidecar (tools/convert_*.py)
+# Instalado em: 2026-08-30
+#
+# Verificacao:
+#   shasum -a 256 -c CHECKSUMS.txt
+#
+a45c300c67d07484d3326ea035a27186157023466116b7505230920176d57012  classifier_hybrid.onnx
+c9d0e1576ea11843e4c64806f62727c05867b30effaaf4b26f031ae294068980  detector_yolo.onnx

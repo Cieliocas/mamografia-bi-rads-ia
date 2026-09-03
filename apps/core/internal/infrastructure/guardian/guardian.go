@@ -2,9 +2,12 @@ package guardian
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"strconv"
 	"sync"
@@ -26,6 +29,16 @@ type Supervisor struct {
 	maxFails       int
 	disabled       bool
 	disabledReason string
+	extraEnv       []string
+	// modelLoaded mirrors the sidecar's own `model_loaded` flag, refreshed on
+	// every health check. "Service is up" and "a real model answered" are
+	// different facts: the sidecar stays up and healthy while serving synthetic
+	// findings from its mock backend, and conflating the two lets a
+	// demonstration show fabricated results as if they came from the model.
+	modelLoaded bool
+	// modelReason explains why no real model is loaded, as reported by the
+	// sidecar. Empty when a model is loaded.
+	modelReason string
 }
 
 // New creates a Supervisor. maxFails is the number of consecutive
@@ -85,6 +98,9 @@ func (s *Supervisor) Start(ctx context.Context) error {
 
 	cmd := exec.CommandContext(ctx, s.bin, s.args...)
 	cmd.Dir = s.workDir
+	if len(s.extraEnv) > 0 {
+		cmd.Env = append(os.Environ(), s.extraEnv...)
+	}
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	if err := cmd.Start(); err != nil {
@@ -98,6 +114,15 @@ func (s *Supervisor) Start(ctx context.Context) error {
 	}(cmd)
 
 	return nil
+}
+
+// SetEnv adds variables to the sidecar process environment, on top of the
+// inherited one. Takes effect on the next (re)start, so the guardian's restart
+// loop keeps the same configuration. Format: "KEY=value".
+func (s *Supervisor) SetEnv(vars ...string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.extraEnv = append(s.extraEnv, vars...)
 }
 
 func (s *Supervisor) EnsureHealthy(ctx context.Context) error {
@@ -149,13 +174,55 @@ func (s *Supervisor) recordFailure(cause error) {
 func (s *Supervisor) HealthCheck() error {
 	resp, err := s.httpClient.Get(s.healthURL)
 	if err != nil {
+		s.setModelLoaded(false, "Serviço de IA não respondeu.")
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		s.setModelLoaded(false, fmt.Sprintf("Serviço de IA respondeu com status %d.", resp.StatusCode))
+		return fmt.Errorf("health check status: %d", resp.StatusCode)
+	}
+
+	// The body carries {"status","uptime_sec","model_loaded"}. A body that does
+	// not parse means the service answered but we cannot vouch for the model,
+	// so treat the model as absent rather than assume it is there.
+	var body struct {
+		ModelLoaded bool   `json:"model_loaded"`
+		Reason      string `json:"reason"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 4096)).Decode(&body); err != nil {
+		s.setModelLoaded(false, "Resposta de saúde do serviço de IA ilegível.")
 		return nil
 	}
-	return fmt.Errorf("health check status: %d", resp.StatusCode)
+	s.setModelLoaded(body.ModelLoaded, body.Reason)
+	return nil
+}
+
+func (s *Supervisor) setModelLoaded(v bool, reason string) {
+	s.mu.Lock()
+	s.modelLoaded = v
+	if v {
+		s.modelReason = ""
+	} else {
+		s.modelReason = reason
+	}
+	s.mu.Unlock()
+}
+
+// ModelReason explains why no real model is loaded. Empty when one is.
+func (s *Supervisor) ModelReason() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.modelReason
+}
+
+// ModelLoaded reports whether the last health check saw real model weights
+// loaded. False means the sidecar is answering from its mock backend — the
+// findings are synthetic.
+func (s *Supervisor) ModelLoaded() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.modelLoaded
 }
 
 func (s *Supervisor) Restart(ctx context.Context) error {

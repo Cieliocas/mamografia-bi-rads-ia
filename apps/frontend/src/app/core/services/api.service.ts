@@ -2,7 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, of } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { ROI } from '../../shared/models/types';
+import { ROI, geometryDiffers } from '../../shared/models/types';
+import type { AiFinding, AnnotationSource, BBox } from '../../shared/models/types';
 import { ToastService } from './toast.service';
 
 // ─── DTOs (mirror Go DTOs in apps/core/internal/application/usecase) ──────────
@@ -110,6 +111,15 @@ export interface AnnotationDTO {
   notes?: string;
   audio_duration_ms?: number;
   audio_transcript?: string;
+
+  // ── Provenance ─────────────────────────────────────────────────────────────
+  source?: AnnotationSource;
+  model_id?: string;
+  ai_confidence?: number;
+  ai_kind?: string;
+  ai_birads?: string;
+  /** Box the model proposed, before any human correction. */
+  ai_bbox?: BBox;
 }
 
 export interface SaveAnnotationsRequest {
@@ -147,6 +157,12 @@ export interface WindowingResponse {
   pixels: number[];
 }
 
+/** Estado do modelo por trás do serviço de IA.
+ *  'real'      pesos carregados — os achados vêm dos modelos
+ *  'simulated' o serviço responde, mas do backend mock — achados sintéticos
+ *  'none'      serviço fora do ar ou desabilitado */
+export type AiModelState = 'real' | 'simulated' | 'none';
+
 export interface HealthStatus {
   status: string;
   error?: string;
@@ -154,8 +170,13 @@ export interface HealthStatus {
   state?: string;
   /** Set by /readyz: "up" if Go core is reachable. */
   go_core?: string;
-  /** Set by /readyz: "ready" | "down" | "disabled". */
+  /** Set by /readyz: "ready" | "down" | "disabled" — estado do SERVIÇO. */
   ai_engine?: 'ready' | 'down' | 'disabled';
+  /** Set by /readyz: estado do MODELO. Um serviço "ready" pode estar
+   *  respondendo do backend mock, com achados sintéticos. */
+  ai_model?: AiModelState;
+  /** Por que não há modelo real, quando ai_model !== 'real'. */
+  ai_model_reason?: string;
   /** Human-readable reason when ai_engine === "disabled". */
   ai_engine_reason?: string;
   /** Set by /healthz: "ok" | "corrupted". */
@@ -230,7 +251,14 @@ export class ApiService {
   }
 
   // ── annotations ───────────────────────────────────────────────────────────
-  saveAnnotations(studyId: string, rois: ROI[]): Observable<boolean> {
+  /**
+   * Persists the radiologist's marks plus the suggestions they discarded.
+   *
+   * Rejections are sent as annotations of their own: a false positive is worth
+   * as much for retraining as a correction, and it exists nowhere else once the
+   * viewport is cleared. They carry the model's box and no human geometry.
+   */
+  saveAnnotations(studyId: string, rois: ROI[], rejected: AiFinding[] = []): Observable<boolean> {
     const annotations: AnnotationDTO[] = rois.map(r => ({
       ...(r.annotationId ? { id: r.annotationId } : {}),
       kind: r.shape === 'rect' ? 'rect' : 'ellipse',
@@ -240,7 +268,31 @@ export class ApiService {
       h: r.ry * 2,
       ...(r.label ? { label: r.label } : {}),
       ...(r.notes ? { notes: r.notes } : {}),
+      // A ROI accepted from the model and then moved is an edit, not a plain
+      // acceptance — the difference is the whole point of keeping ai_bbox.
+      ...(r.source ? { source: geometryDiffers(r) ? 'ai_edited' as const : r.source } : {}),
+      ...(r.modelId ? { model_id: r.modelId } : {}),
+      ...(r.aiConfidence != null ? { ai_confidence: r.aiConfidence } : {}),
+      ...(r.aiKind ? { ai_kind: r.aiKind } : {}),
+      ...(r.aiBirads ? { ai_birads: r.aiBirads } : {}),
+      ...(r.aiBbox ? { ai_bbox: r.aiBbox } : {}),
     }));
+
+    for (const f of rejected) {
+      if (!f.bbox) continue;
+      annotations.push({
+        id: f.id,
+        kind: 'rect',
+        // No human geometry: the radiologist asserted nothing here.
+        x: 0, y: 0, w: 0, h: 0,
+        source: 'ai_rejected',
+        model_id: f.modelId,
+        ai_confidence: f.confidence,
+        ai_kind: f.kind,
+        ai_birads: f.birads,
+        ai_bbox: f.bbox,
+      });
+    }
     return this.http.post(`${this.base}/api/studies/${studyId}/annotations`, {
       annotations
     } as SaveAnnotationsRequest).pipe(
@@ -271,12 +323,33 @@ export class ApiService {
     a.href = url; a.download = ''; a.click();
   }
 
-  /** Downloads the laudo as a PDF (with embedded annotated image). */
-  openReport(studyId: string) {
+  /**
+   * Exporta o laudo em PDF.
+   *
+   * No aplicativo (Wails), abre o diálogo nativo de destino e grava onde o
+   * usuário escolher. Um `<a download>` na WebView não pergunta o destino e
+   * ainda abre o PDF dentro da janela do aplicativo, sem barra de navegação —
+   * o usuário fica sem voltar nem fechar.
+   *
+   * No navegador não há diálogo nativo; mantém-se o download convencional.
+   *
+   * Devolve o caminho gravado, '' se cancelado, ou 'erro: …'.
+   */
+  async saveReportPDF(studyId: string, sugestao: string): Promise<string> {
+    const wails = (window as any).go?.main?.App;
+    if (wails?.SaveReportPDF) {
+      return await wails.SaveReportPDF(studyId, sugestao);
+    }
     const a = document.createElement('a');
     a.href = `${this.base}/api/studies/${studyId}/pdf`;
-    a.download = `laudo-${studyId.slice(0, 8)}.pdf`;
+    a.download = sugestao;
     a.click();
+    return 'download';
+  }
+
+  /** Revela o arquivo no Finder (apenas no aplicativo). */
+  revealInFinder(path: string) {
+    (window as any).go?.main?.App?.RevealInFinder?.(path);
   }
 
   /**

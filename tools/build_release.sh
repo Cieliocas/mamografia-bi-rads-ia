@@ -15,6 +15,18 @@
 #   6. Prints the install instructions
 #
 # Dependencies: wails ≥ 2.8, Go ≥ 1.22, Node ≥ 22 / npm
+#
+# O QUE ESTE SCRIPT *NÃO* EMPACOTA  (spec 006, T4.3)
+#   - o serviço de inferência em Python e a sua venv
+#   - os artefatos ONNX (classifier_hybrid.onnx ~113 MB, detector_yolo.onnx ~11 MB)
+#
+# Consequência: o .app resultante abre DICOM, anota, gera laudo e exporta, mas
+# NÃO tem IA própria. Numa máquina sem o repositório ele sobe em MODO SIMULADO,
+# e a interface declara isso de forma inequívoca (barra de estado, faixas no
+# painel e marcação nas caixas), informando o motivo concreto.
+#
+# Antes de demonstrar, rode:  bash tools/check_demo.sh
+# Distribuição autocontida é trabalho futuro declarado na spec 006.
 # ────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 

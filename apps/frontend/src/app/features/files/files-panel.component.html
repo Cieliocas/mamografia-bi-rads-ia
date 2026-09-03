@@ -16,9 +16,39 @@
         <lucide-icon [img]="icons.ChevronRight" class="h-3.5 w-3.5 rotate-180"></lucide-icon>
       </button>
 
-      <!-- Current path (truncated) -->
-      <span class="flex-1 truncate text-[11px] text-on-surface-variant font-mono"
-        [title]="currentPath()">{{ shortPath }}</span>
+      <!-- Subir um nível -->
+      <button (click)="goUp()" [disabled]="!parentPath()"
+        class="flex h-7 w-7 shrink-0 items-center justify-center rounded transition"
+        [class.text-on-surface-variant]="parentPath()"
+        [class.hover:bg-white\/8]="parentPath()"
+        [class.text-white\/15]="!parentPath()"
+        [class.cursor-not-allowed]="!parentPath()"
+        title="Subir um nível">
+        <lucide-icon [img]="icons.ChevronDown" class="h-3.5 w-3.5 rotate-180"></lucide-icon>
+      </button>
+
+      <!-- Trilha clicável; recua para o caminho simples se o $HOME ainda não é conhecido -->
+      @if (breadcrumb().length) {
+        <!-- dir=rtl ancora o scroll na extremidade direita, deixando a pasta
+             atual visível num caminho profundo; os itens voltam a ltr. -->
+        <nav dir="rtl" class="flex flex-1 items-center gap-0.5 overflow-x-auto text-[11px] font-mono"
+             [title]="currentPath()">
+          <span dir="ltr" class="flex items-center gap-0.5">
+          @for (seg of breadcrumb(); track seg.caminho; let last = $last) {
+            <button (click)="navigate(seg.caminho)" [disabled]="last"
+              class="shrink-0 rounded px-1 py-0.5 transition"
+              [class.text-on-surface]="last"
+              [class.text-on-surface-variant]="!last"
+              [class.hover:bg-white\/8]="!last"
+              [class.hover:text-primary]="!last">{{ seg.nome }}</button>
+            @if (!last) { <span class="shrink-0 text-white/20">/</span> }
+          }
+          </span>
+        </nav>
+      } @else {
+        <span class="flex-1 truncate text-[11px] text-on-surface-variant font-mono"
+          [title]="currentPath()">{{ shortPath }}</span>
+      }
 
       <!-- Refresh -->
       <button (click)="refresh()" title="Recarregar"

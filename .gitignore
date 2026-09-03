@@ -36,13 +36,17 @@ build/*
 !apps/frontend/src/favicon.ico
 !apps/frontend/src/assets/icon-192.png
 !apps/frontend/src/assets/icon-512.png
+# Figuras derivadas de exame de paciente NAO entram no repositorio (sigilo).
+# O relatorio final descreve em texto o que elas ilustrariam.
 *.dcm
 *.dicom
 # Test fixtures (small, committed for codec validation in CI).
 !apps/core/internal/adapters/filesystem/testdata/*.dcm
 
 # --- Modelos de IA ---
-# Regra: apenas o modelo final de inferencia do app e versionado.
+# Regra: nenhum peso de modelo e versionado. Os artefatos .onnx da cascata
+# (classifier_hybrid.onnx ~113 MB, detector_yolo.onnx ~11 MB) sao instalados
+# localmente; a rastreabilidade fica em models/CHECKSUMS.txt, que e versionado.
 *.keras
 *.h5
 *.pt
@@ -51,7 +55,7 @@ build/*
 *.tflite
 apps/ai-engine/models/*
 !apps/ai-engine/models/.gitkeep
-!apps/ai-engine/models/unet_mammo_best.keras
+!apps/ai-engine/models/CHECKSUMS.txt
 
 # --- Logs e Cache ---
 *.log

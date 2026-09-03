@@ -13,7 +13,7 @@ import { ViewerStateService } from '../../core/services/viewer-state.service';
 import { StudyService } from '../../core/services/study.service';
 import {
   VP, ROI, RulerLine, BrushStroke, Ix,
-  biradsColor, rgba, d2, clone
+  biradsColor, rgba, d2, clone, hasRegion, AI_SUGGESTION_COLOR, SIMULATED_COLOR
 } from '../../shared/models/types';
 
 @Component({
@@ -236,6 +236,9 @@ export class ViewerComponent implements AfterViewInit {
     const ix    = this.state.ix;
     const tROI  = ix?.vpIdx === vpIdx && ix.mode === 'draw-roi'   ? ix.tempROI   : null;
     const tRulr = ix?.vpIdx === vpIdx && (ix.mode === 'draw-ruler' || ix.mode === 'draw-arrow') ? ix.tempRuler : null;
+    // AI suggestions go under the radiologist's own marks: a pending
+    // suggestion must never obscure validated work.
+    this.drawAiFindings(ctx, canvas.width, canvas.height, vp);
     this.drawROIs(ctx, canvas.width, canvas.height, vp, tROI);
     this.drawRulers(ctx, canvas.width, canvas.height, vp, tRulr);
     this.drawBrushStrokes(ctx, canvas.width, canvas.height, vp);
@@ -322,6 +325,69 @@ export class ViewerComponent implements AfterViewInit {
     ctx.moveTo(sx - R, sy); ctx.lineTo(sx + R, sy);
     ctx.moveTo(sx, sy - R); ctx.lineTo(sx, sy + R);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  /**
+   * Draws still-pending AI suggestions as dashed boxes.
+   *
+   * Dashed and in a colour outside the BI-RADS palette on purpose: a machine
+   * suggestion must never be mistaken for a marking the radiologist validated
+   * (spec 002 RF-02). Accepted suggestions leave this layer and become ROIs;
+   * rejected ones stop being drawn.
+   *
+   * Findings without a region — `kind: "assessment"`, produced when the gate
+   * closes — are not drawn at all. They are reported in the panel, where the
+   * UI can also say that no box does not mean no lesion.
+   */
+  private drawAiFindings(ctx: CanvasRenderingContext2D, cw: number, ch: number, vp: VP) {
+    if (!vp.loadedImage || !vp.aiFindings?.length) return;
+    ctx.save();
+    vp.aiFindings.forEach(f => {
+      if (f.status !== 'pending' || !hasRegion(f)) return;
+      const b = f.bbox!;
+      // bbox is source-image pixels (top-left + size); i2s is the same
+      // image→screen transform the ROIs use, so zoom and pan come for free.
+      const tl = this.i2s(vp, b.x, b.y, cw, ch);
+      const w  = b.w * vp.zoom;
+      const h  = b.h * vp.zoom;
+
+      const cor = this.study.aiSimulated() ? SIMULATED_COLOR : AI_SUGGESTION_COLOR;
+      ctx.strokeStyle = cor;
+      ctx.fillStyle   = rgba(cor, 0.08);
+      ctx.lineWidth   = 1.8;
+      ctx.setLineDash([6, 4]);
+      ctx.beginPath();
+      ctx.rect(tl.x, tl.y, w, h);
+      ctx.fill(); ctx.stroke();
+      ctx.setLineDash([]);
+
+      // Em modo simulado a caixa precisa se denunciar na própria imagem: uma
+      // captura de tela dessa tela, fora de contexto, não pode passar por
+      // resultado de modelo (spec 006, RF-01).
+      const simulado = this.study.aiSimulated();
+      if (simulado) {
+        ctx.save();
+        ctx.strokeStyle = SIMULATED_COLOR;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([2, 3]);
+        for (let d = -h; d < w; d += 12) {
+          ctx.beginPath();
+          ctx.moveTo(Math.max(tl.x, tl.x + d), tl.y + Math.max(0, -d));
+          ctx.lineTo(Math.min(tl.x + w, tl.x + d + h), tl.y + Math.min(h, w - d));
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      const label = simulado
+        ? `SIMULADO · ${f.kind}`
+        : `IA · ${f.kind}${f.confidence ? ` ${Math.round(f.confidence * 100)}%` : ''}`;
+      ctx.font = `bold ${Math.max(9, Math.min(12, 11 * vp.zoom))}px Inter,sans-serif`;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = cor;
+      ctx.fillText(label, tl.x, tl.y - 4);
+    });
     ctx.restore();
   }
 

@@ -46,3 +46,41 @@ func TestCocoCategories(t *testing.T) {
 		t.Errorf("last category = {%d, %q}, want {%d, %q}", last.ID, last.Name, catIDUnspecified, "unspecified")
 	}
 }
+
+// Um export que sai desta máquina — para o parceiro, para retreino — não pode
+// carregar o identificador do paciente só porque ninguém lembrou de pedir o
+// contrário. O padrão precisa ser o seguro.
+func TestPseudonym(t *testing.T) {
+	const id = "PID-EXEMPLO-001"
+
+	got := pseudonym(id)
+	if got == id {
+		t.Fatalf("pseudônimo igual ao identificador original: %q", got)
+	}
+	if got == "" {
+		t.Fatal("pseudônimo vazio para identificador não vazio")
+	}
+
+	// Estável: o mesmo paciente precisa manter o mesmo rótulo entre exportações,
+	// senão não há como montar um conjunto longitudinal.
+	if pseudonym(id) != got {
+		t.Error("pseudônimo instável entre chamadas")
+	}
+
+	// Distinto por paciente.
+	if pseudonym("999") == got {
+		t.Error("pacientes diferentes colidiram no mesmo pseudônimo")
+	}
+
+	// Não deve conter o identificador original em lugar nenhum.
+	for i := 0; i+len(id) <= len(got); i++ {
+		if got[i:i+len(id)] == id {
+			t.Errorf("identificador original vazou no pseudônimo: %q", got)
+		}
+	}
+
+	// Identificador vazio permanece vazio, em vez de virar um pseudônimo falso.
+	if pseudonym("") != "" {
+		t.Error("identificador vazio deveria continuar vazio")
+	}
+}

@@ -154,10 +154,23 @@ export class ReportPanelComponent implements OnInit, OnDestroy {
   }
 
   // ── Export actions ─────────────────────────────────────────────────────────
-  openReport() {
+  /** Nome sugerido do arquivo: identificável pelo radiologista sem abrir. */
+  private nomeSugerido(): string {
+    const pac = this.study.currentPatient()?.name?.trim();
+    const data = new Date().toISOString().slice(0, 10);
+    const base = pac ? pac.replace(/[^\p{L}\p{N}]+/gu, '-') : 'laudo';
+    return `${base}-${data}.pdf`;
+  }
+
+  async openReport() {
     const id = this.study.currentStudyId();
     if (!id) { this.toast.show('Nenhum estudo aberto.', 'error'); return; }
-    this.api.openReport(id);
+    const destino = await this.api.saveReportPDF(id, this.nomeSugerido());
+    if (destino === '')          { return; }                       // cancelado
+    if (destino === 'download')  { this.toast.info('Download do laudo iniciado'); return; }
+    if (destino.startsWith('erro:')) { this.toast.error(destino.slice(5).trim()); return; }
+    this.toast.success('Laudo salvo');
+    this.api.revealInFinder(destino);
   }
 
   openReportHTML() {

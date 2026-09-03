@@ -4,3 +4,7 @@
 export function OpenDirectoryDialog():Promise<string>;
 
 export function OpenFileDialog():Promise<string>;
+
+export function RevealInFinder(arg1:string):Promise<void>;
+
+export function SaveReportPDF(arg1:string,arg2:string):Promise<string>;

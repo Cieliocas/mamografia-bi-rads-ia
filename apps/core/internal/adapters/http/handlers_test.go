@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -521,3 +523,69 @@ func createTestStudy(t *testing.T, r *gin.Engine) string {
 
 // Ensure entity package is referenced to satisfy import (used indirectly via repos).
 var _ = entity.StudyID("")
+
+// ── fs listing: DICOM detection by magic ─────────────────────────────────────
+//
+// Real-world DICOM routinely has no extension: CD exports and PACS dumps name
+// mammograms "<incidência>". Listing must recognise those by the DICM magic that
+// PS3.10 places at offset 128, without mistaking the DICOMDIR index — which
+// carries the same magic but no pixel data — for an image.
+
+func writeDICOMish(t *testing.T, dir, name string) {
+	t.Helper()
+	buf := make([]byte, 200)
+	copy(buf[128:], []byte("DICM"))
+	if err := os.WriteFile(filepath.Join(dir, name), buf, 0o600); err != nil {
+		t.Fatalf("write %s: %v", name, err)
+	}
+}
+
+func TestFsListDetectsExtensionlessDICOM(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	writeDICOMish(t, home, "<incidência>") // extensionless image
+	writeDICOMish(t, home, "DICOMDIR") // index, not an image
+	if err := os.WriteFile(filepath.Join(home, "VERSION"), []byte("0400"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(home, "scan.dcm"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	router := gin.New()
+	adapthttp.NewFsHandler().RegisterRoutes(router.Group("/api"))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/fs/list?path="+home, nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rec.Code)
+	}
+	var resp struct {
+		Entries []struct {
+			Name    string `json:"name"`
+			IsImage bool   `json:"is_image"`
+		} `json:"entries"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	got := map[string]bool{}
+	for _, e := range resp.Entries {
+		got[e.Name] = e.IsImage
+	}
+
+	want := map[string]bool{
+		"<incidência>": true,  // DICM magic, no extension
+		"scan.dcm": true,  // by extension
+		"DICOMDIR": false, // index carries the magic but is not an image
+		"VERSION":  false, // too small to sniff, no extension
+	}
+	for name, expect := range want {
+		if got[name] != expect {
+			t.Errorf("%s: is_image = %v, want %v", name, got[name], expect)
+		}
+	}
+}

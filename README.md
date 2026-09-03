@@ -59,6 +59,26 @@ O script sobe Go Core + AI sidecar + UI Wails+Angular em um fluxo único, com ho
 
 ---
 
+## Créditos
+
+| Frente | Responsável |
+|---|---|
+| Aplicação desktop, anotação, integração | **Franciélio Evangelista dos Santos Castro** — PIBITI/CNPq, UFPI |
+| Modelos de IA e sidecar de inferência | **Micaías Carvalho Vieira** — [`micaiasdev/mammo-ai-sidecar`](https://github.com/micaiasdev/mammo-ai-sidecar) |
+| Orientação | **André Castelo Branco Soares** — UFPI |
+
+A inferência é uma cascata de dois estágios (classificador de malignidade →
+detector YOLOv11n) servida por ONNX Runtime. Detalhes, proveniência dos pesos e
+limitações em [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) e
+[`apps/ai-engine/README.md`](apps/ai-engine/README.md).
+
+> ⚠️ **Apoio, não diagnóstico.** Os modelos são de pesquisa e **não foram
+> validados clinicamente**. O BI-RADS sugerido pela IA é uma estimativa
+> heurística. Ausência de marcação automática **não** indica ausência de lesão.
+> Toda decisão clínica exige avaliação de radiologista.
+
+---
+
 ## Roadmap
 
 - Binding Wails `OpenDICOMFile()` para seletor nativo

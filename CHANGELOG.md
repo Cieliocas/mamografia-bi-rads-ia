@@ -6,13 +6,90 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 
 ---
 
+## [Não publicado]
+
+### Adicionado
+
+- **Inferência real por cascata ONNX** (spec 001). O sidecar deixa de responder
+  achados sintéticos e passa a executar dois modelos de verdade, offline:
+  classificador de malignidade (INbreast-Hybrid, Shen et al. 2019) como *gate*,
+  seguido do detector YOLOv11n (TOMPEI-CMMD) quando `P(maligno) ≥ 0,11`.
+  Servido por ONNX Runtime — **TensorFlow deixa de ser dependência de runtime**.
+  Modelos e sidecar são autoria de Micaías Carvalho Vieira.
+- **Sidecar reestruturado** em `app/{config,schemas,security}`, `app/routers/` e
+  `app/inference/` (registry + backends `cascade`/`mock`), com 24 testes.
+- **`MODEL_BACKEND` propagado pelo Go Core**: o guardian sobe o sidecar em
+  `cascade` por padrão (`guardian.SetEnv`), com fallback automático para `mock`
+  quando os `.onnx` não estão instalados.
+- **Terceiro tipo de achado — `assessment`**: avaliação nível-imagem, sem caixa,
+  devolvida quando o gate fecha. `confidence` carrega `P(maligno)`.
+- **`models/CHECKSUMS.txt`** versionado, para rastrear a identidade dos pesos que
+  o repositório não versiona.
+
+### Corrigido
+
+- **Resposta silenciosamente errada em DICOM comprimido.** O sidecar não
+  descomprimia JPEG-LS / JPEG Lossless (faltavam os plugins do pydicom) e
+  substituía a imagem por um frame preto 512×512 — a cascata então devolvia um
+  veredito "benigno" confiante sobre uma imagem que ninguém leu. Agora os codecs
+  (`pylibjpeg`, `pylibjpeg-libjpeg`, `pyjpegls`) fazem parte do runtime, e
+  `/predict` responde **422** quando não consegue decodificar com um modelo real
+  carregado. O frame de fallback só permanece em modo mock, do qual dev e CI
+  dependem.
+- Erro de inferência do Go Core passa a incluir a mensagem do sidecar, em vez de
+  apenas o código HTTP; a falha deixa de ser engolida em silêncio na interface.
+- Export CSV emitia a string literal `<nil>` em células vazias, e o COCO
+  serializava `"annotations": null` num export sem anotações.
+- `docs/ARCHITECTURE.md` corrigido: descrevia TensorFlow/Keras com U-Net e
+  Angular 18, nada disso correspondendo ao código.
+
+- **Ciclo de anotação semiautomática** (spec 002). As sugestões da IA deixam de
+  ser lista de texto: são desenhadas sobre a imagem como caixas tracejadas — em
+  cor fora da paleta BI-RADS, para nunca serem confundidas com marcação validada
+  — e podem ser **aceitas, editadas ou rejeitadas**. Aceitar converte a sugestão
+  em ROI editável e persistível.
+- **Avisos clínicos obrigatórios**, não dispensáveis: "apoio, não diagnóstico";
+  aviso explícito de que a ausência de marcação não indica ausência de lesão
+  quando o gate fecha; BI-RADS da IA rotulado "(estimado)"; nota de que a
+  inferência analisou o primeiro frame em exames multi-frame.
+- **Proveniência da anotação** (spec 003, migração `007`). Toda anotação registra
+  sua origem — `manual`, `ai_accepted`, `ai_edited`, `ai_rejected` — com o modelo,
+  a confiança e **a geometria original sugerida antes da correção humana**. É o
+  par (sugerido, corrigido) que torna o dado utilizável para retreino.
+- **Export com proveniência** em JSON, CSV e COCO. Rejeições saem em chave
+  própria `ai_rejected`, e não em `annotations`: um falso positivo não pode virar
+  rótulo de treino.
+- **Detecção de DICOM sem extensão** pelo magic `DICM` (PS3.10). Export de CD e
+  dump de PACS nomeiam imagens como `<incidência>`, sem extensão — antes ficavam
+  invisíveis no navegador de arquivos.
+- **Avaliação técnica** (spec 004): bateria reexecutável e resultados medidos
+  sobre mamografias reais em `specs/004-avaliacao-tecnica/`.
+
+- **Exportação pseudonimizada por padrão**: o `patient_id` sai como pseudônimo
+  estável e não reversível derivado do PatientID do DICOM. Para exportar
+  identificado é preciso pedir explicitamente (`?identified=true`).
+- **Modo simulado inequívoco**: quando nenhum modelo real está carregado, a
+  aplicação o declara na barra de estado, no painel e nas próprias caixas do
+  visualizador, e informa o motivo concreto (`ai_model_reason`).
+- **Navegação de pastas**: trilha clicável e botão de subir um nível, limitados
+  ao `$HOME`.
+- **`tools/check_demo.sh`**: verificação prévia de demonstração.
+
+### Notas
+
+> ⚠️ Modelos de pesquisa, **não validados clinicamente**. `birads` é heurístico.
+> O gate tem sensibilidade ≈ 0,69 no CMMD: **ausência de caixa não significa
+> ausência de lesão**. Detector fraco fora do domínio CMMD.
+
+---
+
 ## [0.1.0] — 2026-05-27
 
 ### Added
 
 #### Core backend (Go)
 - **DICOM viewer**: servidor Go (Gin) renderiza arquivos DICOM para PNG com aplicação de janelamento WW/WC, suporte a múltiplos frames e pré-visualização em cache.
-- **Inferência AI**: integração com sidecar Python (YOLOv8) para detecção automática de achados mamográficos; resultado retornado como lista de `FindingDTO` com caixa delimitadora e classificação BI-RADS.
+- **Inferência AI**: contrato completo com o sidecar Python (`POST /predict`, proxy autenticado, fila, guardian) e exibição dos achados na UI. Nesta versão o sidecar respondia com **achados sintéticos (mock)** — a inferência real chegou depois (ver *Não publicado*).
 - **Gestão de estudos**: API REST (`POST /api/studies`, `GET /api/studies`) para criação, listagem e associação de estudos a pacientes.
 - **Anotações**: endpoints para salvar (`POST`) e recuperar (`GET`) anotações ROI (elipse/retângulo) com rótulo, BI-RADS, notas e duração de nota de voz.
 - **Pacientes**: CRUD completo de pacientes com `PATCH /api/patients/:id`.
@@ -20,7 +97,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and 
 - **Relatório HTML**: `GET /api/export/report/:id` retorna laudo HTML auto-imprimível com imagem anotada embutida em Base64.
 - **Shared imaging package** (`internal/imaging`): renderização DICOM desacoplada do handler HTTP para reutilização no gerador de PDF.
 - **Health / Readiness**: `GET /healthz` e `GET /readyz` com estado do banco e do sidecar AI.
-- **Backup SQLite**: `POST /api/export/backup` gera snapshot do banco; `POST /api/import/restore` restaura a partir de backup.
+- **Backup SQLite**: `GET /api/backup` transfere um ZIP com o banco e os áudios; `POST /api/restore` restaura a partir dele.
 
 #### Frontend Angular
 - **Visualizador canvas dual**: `imgCanvas` aplica filtros CSS (brilho/contraste/inversão); `overlayCanvas` renderiza ROIs, réguas e traços de pincel.

@@ -1,0 +1,147 @@
+{
+  "info": {
+    "description": "AIdentify — exemplo de export com proveniência (pseudonimizado)",
+    "version": "1.0"
+  },
+  "images": [
+    {
+      "id": 1,
+      "file_name": "estudo_001.dcm",
+      "width": 2800,
+      "height": 3518
+    }
+  ],
+  "annotations": [
+    {
+      "id": 1,
+      "image_id": 1,
+      "category_id": 3,
+      "bbox": [
+        980,
+        1420,
+        260,
+        240
+      ],
+      "area": 62400,
+      "iscrowd": 0,
+      "source": "manual"
+    },
+    {
+      "id": 2,
+      "image_id": 1,
+      "category_id": 4,
+      "bbox": [
+        734,
+        867,
+        175,
+        165
+      ],
+      "area": 28875,
+      "iscrowd": 0,
+      "source": "ai_accepted",
+      "model_id": "cascade-hybrid-yolo11n-onnx",
+      "ai_confidence": 0.64,
+      "ai_kind": "mass",
+      "ai_bbox": [
+        734,
+        867,
+        175,
+        165
+      ]
+    },
+    {
+      "id": 3,
+      "image_id": 1,
+      "category_id": 6,
+      "bbox": [
+        812,
+        905,
+        210,
+        158
+      ],
+      "area": 33180,
+      "iscrowd": 0,
+      "source": "ai_edited",
+      "model_id": "cascade-hybrid-yolo11n-onnx",
+      "ai_confidence": 0.51,
+      "ai_kind": "mass",
+      "ai_bbox": [
+        734,
+        867,
+        175,
+        165
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "id": 1,
+      "name": "BI-RADS 0",
+      "supercategory": "birads"
+    },
+    {
+      "id": 2,
+      "name": "BI-RADS 1",
+      "supercategory": "birads"
+    },
+    {
+      "id": 3,
+      "name": "BI-RADS 2",
+      "supercategory": "birads"
+    },
+    {
+      "id": 4,
+      "name": "BI-RADS 3",
+      "supercategory": "birads"
+    },
+    {
+      "id": 5,
+      "name": "BI-RADS 4",
+      "supercategory": "birads"
+    },
+    {
+      "id": 6,
+      "name": "BI-RADS 4A",
+      "supercategory": "birads"
+    },
+    {
+      "id": 7,
+      "name": "BI-RADS 4B",
+      "supercategory": "birads"
+    },
+    {
+      "id": 8,
+      "name": "BI-RADS 4C",
+      "supercategory": "birads"
+    },
+    {
+      "id": 9,
+      "name": "BI-RADS 5",
+      "supercategory": "birads"
+    },
+    {
+      "id": 10,
+      "name": "BI-RADS 6",
+      "supercategory": "birads"
+    },
+    {
+      "id": 11,
+      "name": "unspecified",
+      "supercategory": "birads"
+    }
+  ],
+  "ai_rejected": [
+    {
+      "image_id": 1,
+      "bbox": [
+        1200,
+        400,
+        60,
+        55
+      ],
+      "model_id": "cascade-hybrid-yolo11n-onnx",
+      "ai_confidence": 0.28,
+      "ai_kind": "calc"
+    }
+  ]
+}

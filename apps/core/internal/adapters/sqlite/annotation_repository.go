@@ -23,11 +23,22 @@ func (r *AnnotationRepository) Save(ctx context.Context, studyID string, a *enti
 	if err != nil {
 		return err
 	}
+	aiBBox, err := marshalAIBBox(a.AIBBox)
+	if err != nil {
+		return err
+	}
 	// When audio fields are empty (geometry-only save), preserve whatever is
-	// already stored in the row so voice notes survive re-saves.
+	// already stored in the row so voice notes survive re-saves. The same
+	// applies to the AI provenance fields — see the ON CONFLICT clause.
+	//
+	// study_id is deliberately NOT in the ON CONFLICT update: an annotation does
+	// not migrate between studies. Ids are UUIDs minted per study, so a
+	// collision across studies would signal a bug upstream, and silently
+	// re-parenting the row would hide it.
 	_, err = r.db.ExecContext(ctx, `
-		INSERT INTO annotations (id, study_id, finding_id, kind, data, label, notes, audio_path, audio_duration_ms, audio_transcript)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO annotations (id, study_id, finding_id, kind, data, label, notes, audio_path, audio_duration_ms, audio_transcript,
+		                         source, model_id, ai_confidence, ai_kind, ai_birads, ai_bbox)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
 			kind              = excluded.kind,
 			data              = excluded.data,
@@ -35,10 +46,20 @@ func (r *AnnotationRepository) Save(ctx context.Context, studyID string, a *enti
 			notes             = excluded.notes,
 			audio_path        = CASE WHEN excluded.audio_path != '' THEN excluded.audio_path ELSE audio_path END,
 			audio_duration_ms = CASE WHEN excluded.audio_path != '' THEN excluded.audio_duration_ms ELSE audio_duration_ms END,
-			audio_transcript  = CASE WHEN excluded.audio_path != '' THEN excluded.audio_transcript ELSE audio_transcript END`,
+			audio_transcript  = CASE WHEN excluded.audio_path != '' THEN excluded.audio_transcript ELSE audio_transcript END,
+			source            = excluded.source,
+			-- The AI fields describe the suggestion this annotation came from,
+			-- which never changes once recorded. A later geometry-only re-save
+			-- must not blank them, so keep whatever is already stored.
+			model_id          = CASE WHEN excluded.model_id != '' THEN excluded.model_id ELSE model_id END,
+			ai_confidence     = CASE WHEN excluded.model_id != '' THEN excluded.ai_confidence ELSE ai_confidence END,
+			ai_kind           = CASE WHEN excluded.model_id != '' THEN excluded.ai_kind ELSE ai_kind END,
+			ai_birads         = CASE WHEN excluded.model_id != '' THEN excluded.ai_birads ELSE ai_birads END,
+			ai_bbox           = CASE WHEN excluded.ai_bbox  != '' THEN excluded.ai_bbox  ELSE ai_bbox  END`,
 		string(a.ID), studyID, "", string(a.Kind), data,
 		a.Label, a.Notes,
 		a.AudioPath, a.AudioDurationMs, a.AudioTranscript,
+		string(a.Source.Normalize()), a.ModelID, a.AIConfidence, a.AIKind, a.AIBirads, aiBBox,
 	)
 	return err
 }
@@ -77,7 +98,8 @@ func (r *AnnotationRepository) DeleteByStudyIDExcept(ctx context.Context, studyI
 
 func (r *AnnotationRepository) LoadByStudyID(ctx context.Context, studyID string) ([]*entity.Annotation, error) {
 	rows, err := r.db.QueryContext(ctx,
-		`SELECT id, kind, data, label, notes, audio_path, audio_duration_ms, audio_transcript
+		`SELECT id, kind, data, label, notes, audio_path, audio_duration_ms, audio_transcript,
+		        source, model_id, ai_confidence, ai_kind, ai_birads, ai_bbox
 		 FROM annotations WHERE study_id = ? ORDER BY created_at`, studyID)
 	if err != nil {
 		return nil, err
@@ -87,8 +109,11 @@ func (r *AnnotationRepository) LoadByStudyID(ctx context.Context, studyID string
 	var result []*entity.Annotation
 	for rows.Next() {
 		var id, kind, data, label, notes, audioPath, audioTranscript string
+		var source, modelID, aiKind, aiBirads, aiBBox string
+		var aiConfidence float64
 		var audioDurationMs int
-		if err := rows.Scan(&id, &kind, &data, &label, &notes, &audioPath, &audioDurationMs, &audioTranscript); err != nil {
+		if err := rows.Scan(&id, &kind, &data, &label, &notes, &audioPath, &audioDurationMs, &audioTranscript,
+			&source, &modelID, &aiConfidence, &aiKind, &aiBirads, &aiBBox); err != nil {
 			return nil, err
 		}
 		ann, err := unmarshalAnnotation(id, entity.AnnotationKind(kind), data)
@@ -100,6 +125,7 @@ func (r *AnnotationRepository) LoadByStudyID(ctx context.Context, studyID string
 		ann.AudioPath = audioPath
 		ann.AudioDurationMs = audioDurationMs
 		ann.AudioTranscript = audioTranscript
+		applyProvenance(ann, source, modelID, aiConfidence, aiKind, aiBirads, aiBBox)
 		result = append(result, ann)
 	}
 	return result, rows.Err()
@@ -109,11 +135,15 @@ func (r *AnnotationRepository) LoadByStudyID(ctx context.Context, studyID string
 // existence before attaching a recording.
 func (r *AnnotationRepository) FindByID(ctx context.Context, id string) (*entity.Annotation, string, error) {
 	var studyID, kind, data, label, notes, audioPath, audioTranscript string
+	var source, modelID, aiKind, aiBirads, aiBBox string
+	var aiConfidence float64
 	var audioDurationMs int
 	err := r.db.QueryRowContext(ctx,
-		`SELECT study_id, kind, data, label, notes, audio_path, audio_duration_ms, audio_transcript
+		`SELECT study_id, kind, data, label, notes, audio_path, audio_duration_ms, audio_transcript,
+		        source, model_id, ai_confidence, ai_kind, ai_birads, ai_bbox
 		 FROM annotations WHERE id = ?`, id,
-	).Scan(&studyID, &kind, &data, &label, &notes, &audioPath, &audioDurationMs, &audioTranscript)
+	).Scan(&studyID, &kind, &data, &label, &notes, &audioPath, &audioDurationMs, &audioTranscript,
+		&source, &modelID, &aiConfidence, &aiKind, &aiBirads, &aiBBox)
 	if err != nil {
 		return nil, "", err
 	}
@@ -126,6 +156,7 @@ func (r *AnnotationRepository) FindByID(ctx context.Context, id string) (*entity
 	ann.AudioPath = audioPath
 	ann.AudioDurationMs = audioDurationMs
 	ann.AudioTranscript = audioTranscript
+	applyProvenance(ann, source, modelID, aiConfidence, aiKind, aiBirads, aiBBox)
 	return ann, studyID, nil
 }
 
@@ -194,4 +225,37 @@ func unmarshalAnnotation(id string, kind entity.AnnotationKind, data string) (*e
 		ann.Polygon = &entity.Polygon{Points: pts}
 	}
 	return ann, nil
+}
+
+// marshalAIBBox serialises the model's original box. Empty string when the
+// annotation did not come from a suggestion — the column is NOT NULL.
+func marshalAIBBox(b *entity.BoundingBox) (string, error) {
+	if b == nil {
+		return "", nil
+	}
+	raw, err := json.Marshal(bboxJSON{X: b.X, Y: b.Y, W: b.Width, H: b.Height})
+	if err != nil {
+		return "", fmt.Errorf("marshal ai_bbox: %w", err)
+	}
+	return string(raw), nil
+}
+
+// applyProvenance fills the provenance fields read from a row. A malformed or
+// empty ai_bbox is treated as absent rather than fatal: provenance must never
+// be the reason a study fails to open.
+func applyProvenance(ann *entity.Annotation, source, modelID string, aiConfidence float64,
+	aiKind, aiBirads, aiBBox string) {
+	ann.Source = entity.AnnotationSource(source).Normalize()
+	ann.ModelID = modelID
+	ann.AIConfidence = aiConfidence
+	ann.AIKind = aiKind
+	ann.AIBirads = aiBirads
+	if aiBBox == "" {
+		return
+	}
+	var b bboxJSON
+	if err := json.Unmarshal([]byte(aiBBox), &b); err != nil {
+		return
+	}
+	ann.AIBBox = &entity.BoundingBox{X: b.X, Y: b.Y, Width: b.W, Height: b.H}
 }

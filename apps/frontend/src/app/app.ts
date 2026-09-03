@@ -99,7 +99,7 @@ export class App implements OnInit, OnDestroy {
       .pipe(debounceTime(1500))
       .subscribe(vpIdx => {
         if (this.study.currentStudyId()) {
-          this.study.saveAnnotations(this.state.vp[vpIdx].rois, ok => {
+          this.study.saveAnnotations(this.state.vp[vpIdx], ok => {
             if (!ok) this.toast.error('Falha ao salvar anotações');
           });
         }
@@ -222,7 +222,7 @@ export class App implements OnInit, OnDestroy {
     // Save current annotations explicitly
     else if (ctrl && e.key === 's') {
       e.preventDefault();
-      this.study.saveAnnotations(this.state.activeVPData.rois, ok => {
+      this.study.saveAnnotations(this.state.activeVPData, ok => {
         if (ok) this.toast.success('Anotações salvas');
         else    this.toast.error('Falha ao salvar anotações');
       });

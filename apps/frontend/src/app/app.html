@@ -289,6 +289,14 @@
         <span [class.text-emerald-400]="study.backendOnline()" [class.text-red-400]="!study.backendOnline()">
           {{ study.backendOnline() ? '● Go Core online' : '○ Go Core offline' }}
         </span>
+        <!-- Modo simulado precisa ser legível de relance, em qualquer painel
+             (spec 006, RF-01) — não só no bloco de IA. -->
+        @if (study.aiSimulated()) {
+          <span class="rounded bg-amber-500/20 px-1.5 py-0.5 font-bold text-amber-300"
+                title="Nenhum modelo carregado: os achados da IA são sintéticos e não servem para avaliação clínica.">
+            ▲ IA SIMULADA
+          </span>
+        }
         @if (study.currentStudyId()) {
           <span class="text-neutral-600">ID: {{ study.currentStudyId() }}</span>
         }

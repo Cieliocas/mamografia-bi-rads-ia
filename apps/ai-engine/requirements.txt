@@ -3,6 +3,14 @@ uvicorn[standard]==0.34.0
 numpy>=2.0.0
 opencv-python-headless>=4.10.0.84
 pydicom==3.0.1
-# TensorFlow fica opcional no desktop dev quando apenas Python 3.14 esta disponivel.
-# O sidecar segue funcional em modo mock (sem modelo carregado).
+# Plugins de descompressao do pydicom. Sem eles, DICOM comprimido (JPEG-LS,
+# JPEG Lossless) nao decodifica e a inferencia rodaria sobre frame vazio.
+# O Go Core tem decoders proprios em Go puro (planos W/AE); o sidecar precisa
+# dos seus, porque le o .dcm original direto do disco.
+pylibjpeg>=2.0
+pylibjpeg-libjpeg>=2.1
+pyjpegls>=1.2
 python-multipart==0.0.20
+# ONNX Runtime serve a cascata real (classificador + detector) sem TensorFlow
+# nem PyTorch em runtime. Os artefatos .onnx sao gerados offline por tools/.
+onnxruntime>=1.19.0

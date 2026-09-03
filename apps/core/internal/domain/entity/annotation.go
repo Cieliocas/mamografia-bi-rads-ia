@@ -46,4 +46,52 @@ type Annotation struct {
 	AudioPath       string `json:"audio_path,omitempty"`
 	AudioDurationMs int    `json:"audio_duration_ms,omitempty"`
 	AudioTranscript string `json:"audio_transcript,omitempty"`
+
+	// ── Provenance ───────────────────────────────────────────────────────────
+	// Where this annotation came from, and what the model had proposed before
+	// the radiologist touched it. The pair (AIBBox, geometry above) is what a
+	// retraining set is actually made of: a correction carries more information
+	// than a fresh annotation, and a rejection is a labelled false positive.
+	Source       AnnotationSource `json:"source,omitempty"`
+	ModelID      string           `json:"model_id,omitempty"`
+	AIConfidence float64          `json:"ai_confidence,omitempty"`
+	AIKind       string           `json:"ai_kind,omitempty"`
+	AIBirads     string           `json:"ai_birads,omitempty"`
+	// Geometry exactly as the model suggested it, before any human correction.
+	AIBBox *BoundingBox `json:"ai_bbox,omitempty"`
+}
+
+// AnnotationSource records how an annotation came to exist.
+//
+// It is the persisted counterpart of FindingSource, which until now only ever
+// existed in memory: the sidecar marked findings as AI-produced, and that fact
+// was dropped on the way to the database.
+type AnnotationSource string
+
+const (
+	// SourceManual — drawn by the radiologist from scratch.
+	SourceManual AnnotationSource = "manual"
+	// SourceAIAccepted — an AI suggestion taken as-is.
+	SourceAIAccepted AnnotationSource = "ai_accepted"
+	// SourceAIEdited — an AI suggestion whose geometry the radiologist changed.
+	SourceAIEdited AnnotationSource = "ai_edited"
+	// SourceAIRejected — an AI suggestion the radiologist discarded. Carries no
+	// human geometry: only AIBBox, the box the model got wrong.
+	SourceAIRejected AnnotationSource = "ai_rejected"
+)
+
+// IsAIDerived reports whether the annotation originated from a model suggestion.
+func (s AnnotationSource) IsAIDerived() bool {
+	return s == SourceAIAccepted || s == SourceAIEdited || s == SourceAIRejected
+}
+
+// Normalize maps an empty or unknown source onto manual, so rows written before
+// provenance existed read back as what they are.
+func (s AnnotationSource) Normalize() AnnotationSource {
+	switch s {
+	case SourceAIAccepted, SourceAIEdited, SourceAIRejected:
+		return s
+	default:
+		return SourceManual
+	}
 }
