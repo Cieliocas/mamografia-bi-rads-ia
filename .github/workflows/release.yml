@@ -62,7 +62,7 @@ jobs:
           zip -r "AIdentify-${{ github.ref_name }}-macOS.zip" AIdentify.app
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: AIdentify-macOS-${{ github.ref_name }}
           path: apps/desktop/build/bin/AIdentify-${{ github.ref_name }}-macOS.zip
@@ -115,7 +115,7 @@ jobs:
           wails build -platform windows/amd64 -clean -s -nsis -o AIdentify
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: AIdentify-Windows-${{ github.ref_name }}
           path: apps/desktop/build/bin/AIdentify-amd64-installer.exe
